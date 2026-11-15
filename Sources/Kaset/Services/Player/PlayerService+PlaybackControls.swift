@@ -233,9 +233,9 @@ extension PlayerService {
         )
     }
 
-    // MARK: - Native Offline Playback
+    // MARK: - Native Offline & Direct Stream Playback
 
-    /// Plays a downloaded song locally using `NativeAudioPlayer` (AVPlayer).
+    /// Plays a downloaded song locally or direct stream using `NativeAudioPlayer` (AVPlayer).
     func playOfflineTrack(
         song: Song,
         fileURL: URL,
@@ -243,7 +243,7 @@ extension PlayerService {
         startsPaused: Bool = false,
         restoreClock: MusicPlaybackRestoreClock? = nil
     ) {
-        self.logger.info("Routing playback through NativeAudioPlayer for downloaded song: \(song.title)")
+        self.logger.info("Routing playback through NativeAudioPlayer for song: \(song.title)")
         SingletonPlayerWebView.shared.pause()
         self.isPlayingOfflineTrack = true
         self.currentTrack = song
@@ -257,7 +257,7 @@ extension PlayerService {
         self.currentTimeMs = Int(self.progress * 1000)
         self.duration = song.duration ?? 0
 
-        NativeAudioPlayer.shared.play(fileURL: fileURL)
+        NativeAudioPlayer.shared.play(url: fileURL, videoId: song.videoId)
         NativeAudioPlayer.shared.setVolume(self.volume)
 
         if let initialDuration = song.duration, initialDuration > 0 {
@@ -280,7 +280,33 @@ extension PlayerService {
             self.state = .playing
         }
 
+        self.applyInitialTrackStatus(from: song)
         self.saveQueueForPersistence(syncWebQueue: false)
+    }
+
+    /// Preloads the next queue track for gapless transitions.
+    func preloadNextQueueTrack() async {
+        guard let currentTrack = self.currentTrack,
+              let currentIndex = self.queue.firstIndex(where: { $0.videoId == currentTrack.videoId }),
+              currentIndex + 1 < self.queue.count
+        else { return }
+
+        let nextSong = self.queue[currentIndex + 1]
+
+        // 1. If downloaded, preload local file immediately
+        if let fileURL = DownloadManager.shared.fileURL(for: nextSong.videoId) {
+            NativeAudioPlayer.shared.preloadNext(url: fileURL, videoId: nextSong.videoId)
+            self.logger.info("Preloaded next local track for gapless playback: \(nextSong.title)")
+            return
+        }
+
+        // 2. If fast native streaming is enabled, resolve stream URL ahead of time
+        if SettingsManager.shared.isFastNativeStreamingEnabled {
+            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: nextSong.videoId, timeoutSeconds: 3.0) {
+                NativeAudioPlayer.shared.preloadNext(url: streamURL, videoId: nextSong.videoId)
+                self.logger.info("Preloaded next stream URL for gapless playback: \(nextSong.title)")
+            }
+        }
     }
 
     // swiftlint:disable function_body_length
@@ -304,6 +330,17 @@ extension PlayerService {
         self.clearWebQueueInjectionState()
         self.clearPendingNativeQueueAdvance()
         self.logger.info("Playing song: \(song.title)")
+
+        // Cancel any pending direct stream resolution
+        self.directStreamTask?.cancel()
+        self.directStreamTask = nil
+
+        // Optimistic UI updates: immediately reflect selected song and loading state
+        self.currentTrack = song
+        self.duration = song.duration ?? 0
+        self.progress = restoreClock?.progress ?? 0
+        self.currentTimeMs = Int(self.progress * 1000)
+        self.state = startsPaused ? .paused : .loading
 
         let isOffline = SettingsManager.shared.isOfflineModeEnabled || !NetworkMonitor.shared.isConnected
         if isOffline {
@@ -332,6 +369,7 @@ extension PlayerService {
             }
         }
 
+        // Instant Local-First: if already downloaded, play immediately via NativeAudioPlayer with zero WebView delay
         if let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId) {
             self.playOfflineTrack(
                 song: song,
@@ -341,6 +379,20 @@ extension PlayerService {
                 restoreClock: restoreClock
             )
             return
+        }
+
+        // Fast Native Streaming: attempt lightweight direct stream URL resolution
+        if SettingsManager.shared.isFastNativeStreamingEnabled {
+            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: song.videoId) {
+                self.playOfflineTrack(
+                    song: song,
+                    fileURL: streamURL,
+                    queueEntryID: queueEntryID,
+                    startsPaused: startsPaused,
+                    restoreClock: restoreClock
+                )
+                return
+            }
         }
 
         if self.isPlayingOfflineTrack {

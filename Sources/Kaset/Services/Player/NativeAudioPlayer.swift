@@ -3,7 +3,8 @@ import Foundation
 
 // MARK: - NativeAudioPlayer
 
-/// Native audio player for local offline music files using AVPlayer.
+/// High-performance native audio player supporting local audio files, direct audio streams,
+/// and gapless queue pre-buffering using AVPlayer.
 @MainActor
 final class NativeAudioPlayer: NSObject {
     static let shared = NativeAudioPlayer()
@@ -12,8 +13,14 @@ final class NativeAudioPlayer: NSObject {
     private var timeObserverToken: Any?
     private var playerItemEndObserver: (any NSObjectProtocol)?
     private var durationObserver: NSKeyValueObservation?
+    private var statusObserver: NSKeyValueObservation?
+
+    /// Preloaded next item to provide gapless transitions.
+    private(set) var preloadedItem: AVPlayerItem?
+    private(set) var preloadedVideoId: String?
 
     private(set) var currentURL: URL?
+    private(set) var currentVideoId: String?
     private(set) var isPlaying: Bool = false {
         didSet {
             self.onStateChange?(self.isPlaying)
@@ -42,6 +49,9 @@ final class NativeAudioPlayer: NSObject {
     var onDurationResolved: (@MainActor (TimeInterval) -> Void)?
     var onPlaybackEnded: (@MainActor () -> Void)?
     var onStateChange: (@MainActor (Bool) -> Void)?
+    var onNearEnd: (@MainActor (TimeInterval) -> Void)?
+
+    private var hasFiredNearEnd = false
 
     private override init() {
         super.init()
@@ -49,15 +59,64 @@ final class NativeAudioPlayer: NSObject {
 
     // MARK: - Controls
 
-    /// Starts playback of a local audio file URL or DownloadItem.
-    func play(fileURL: URL) {
+    /// Starts playback of an audio URL (local file URL or direct remote stream URL).
+    func play(url: URL, videoId: String? = nil) {
         self.stop()
-        self.currentURL = fileURL
+        self.currentURL = url
+        self.currentVideoId = videoId
+        self.hasFiredNearEnd = false
 
-        let playerItem = AVPlayerItem(url: fileURL)
+        let playerItem: AVPlayerItem
+        if let preloaded = self.preloadedItem, self.preloadedVideoId == videoId {
+            playerItem = preloaded
+            self.preloadedItem = nil
+            self.preloadedVideoId = nil
+        } else {
+            playerItem = AVPlayerItem(url: url)
+        }
+
+        // Configure player item for low latency
+        playerItem.preferredForwardBufferDuration = 10.0
+
         let player = AVPlayer(playerItem: playerItem)
+        // Snappy start: start immediately without waiting to minimize stalling
+        player.automaticallyWaitsToMinimizeStalling = false
         self.player = player
 
+        self.setupItemObservers(for: playerItem, in: player)
+
+        player.play()
+        self.isPlaying = true
+    }
+
+    /// Convenience for local offline files.
+    func play(fileURL: URL) {
+        self.play(url: fileURL, videoId: nil)
+    }
+
+    /// Convenience for playing a DownloadItem.
+    func play(item: DownloadManager.DownloadItem) {
+        if let fileURL = DownloadManager.shared.fileURL(for: item.videoId) {
+            self.play(url: fileURL, videoId: item.videoId)
+        }
+    }
+
+    /// Preloads the next track into memory for gapless track transitions.
+    func preloadNext(url: URL, videoId: String) {
+        guard self.preloadedVideoId != videoId else { return }
+        self.preloadedVideoId = videoId
+        let item = AVPlayerItem(url: url)
+        item.preferredForwardBufferDuration = 15.0
+        self.preloadedItem = item
+    }
+
+    /// Clears any preloaded item.
+    func clearPreload() {
+        self.preloadedItem = nil
+        self.preloadedVideoId = nil
+    }
+
+    private func setupItemObservers(for playerItem: AVPlayerItem, in player: AVPlayer) {
         // Observe duration when ready
         self.durationObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             guard item.status == .readyToPlay else { return }
@@ -68,13 +127,21 @@ final class NativeAudioPlayer: NSObject {
             }
         }
 
-        // Observe periodic time updates (every 250ms)
-        let interval = CMTime(seconds: 0.25, preferredTimescale: 600)
+        // Observe periodic time updates (every 200ms)
+        let interval = CMTime(seconds: 0.2, preferredTimescale: 600)
         self.timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             let seconds = time.seconds
             guard seconds.isFinite else { return }
             Task { @MainActor [weak self] in
-                self?.onProgressUpdate?(seconds)
+                guard let self else { return }
+                self.onProgressUpdate?(seconds)
+
+                // Check for 80% mark to trigger queue preloading
+                let dur = self.duration
+                if dur > 10, seconds / dur >= 0.8, !self.hasFiredNearEnd {
+                    self.hasFiredNearEnd = true
+                    self.onNearEnd?(seconds)
+                }
             }
         }
 
@@ -89,16 +156,6 @@ final class NativeAudioPlayer: NSObject {
                 self.isPlaying = false
                 self.onPlaybackEnded?()
             }
-        }
-
-        player.play()
-        self.isPlaying = true
-    }
-
-    /// Convenience for playing a DownloadItem.
-    func play(item: DownloadManager.DownloadItem) {
-        if let fileURL = DownloadManager.shared.fileURL(for: item.videoId) {
-            self.play(fileURL: fileURL)
         }
     }
 
@@ -151,10 +208,14 @@ final class NativeAudioPlayer: NSObject {
 
         self.durationObserver?.invalidate()
         self.durationObserver = nil
+        self.statusObserver?.invalidate()
+        self.statusObserver = nil
 
         self.player?.pause()
         self.player = nil
         self.currentURL = nil
+        self.currentVideoId = nil
         self.isPlaying = false
+        self.hasFiredNearEnd = false
     }
 }

@@ -57,6 +57,7 @@ final class SettingsManager {
         static let customFfmpegPath = "settings.customFfmpegPath"
         static let maxConcurrentDownloads = "settings.maxConcurrentDownloads"
         static let isOfflineModeEnabled = "isOfflineModeEnabled"
+        static let isFastNativeStreamingEnabled = "settings.isFastNativeStreamingEnabled"
         #if DEBUG
             static let useLegacyMacOS15UI = "settings.debug.useLegacyMacOS15UI"
         #endif
@@ -857,6 +858,10 @@ final class SettingsManager {
     /// Whether Offline Mode is enabled. When enabled, only downloaded tracks will play natively via AVPlayer.
     @ObservationIgnored
     @AppStorage("isOfflineModeEnabled") var isOfflineModeEnabled: Bool = false
+
+    /// Whether fast native audio streaming (bypassing WebView via yt-dlp) is enabled.
+    @ObservationIgnored
+    @AppStorage(Keys.isFastNativeStreamingEnabled) var isFastNativeStreamingEnabled: Bool = false
 
     // MARK: - Initialization
 

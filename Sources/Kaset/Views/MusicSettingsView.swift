@@ -71,6 +71,9 @@ struct MusicSettingsView: View {
                     }
                 }
                 .help(String(localized: "Choose the preferred audio quality for YouTube Music playback"))
+
+                Toggle(String(localized: "Fast Native Streaming"), isOn: self.$settings.isFastNativeStreamingEnabled)
+                    .help(String(localized: "Streams audio directly in AVPlayer via yt-dlp to reduce track loading latency, seamlessly falling back to WebView for DRM content"))
             } header: {
                 Text(String(localized: "Audio"))
             }

@@ -130,6 +130,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Whether the currently playing track is being played via native offline audio player (AVPlayer).
     var isPlayingOfflineTrack: Bool = false
 
+    /// In-flight task resolving direct audio stream via yt-dlp.
+    @ObservationIgnored var directStreamTask: Task<Void, Never>?
+
     /// Currently playing track.
     var currentTrack: Song? {
         didSet {
@@ -719,6 +722,12 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
                     }
                 }
                 await self.next()
+            }
+        }
+        NativeAudioPlayer.shared.onNearEnd = { [weak self] _ in
+            guard let self, self.isPlayingOfflineTrack else { return }
+            Task {
+                await self.preloadNextQueueTrack()
             }
         }
     }

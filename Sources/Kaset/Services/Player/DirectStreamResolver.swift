@@ -1,0 +1,114 @@
+import Foundation
+
+// MARK: - DirectStreamResolver
+
+/// Resolves direct audio stream URLs using `yt-dlp` for low-latency native streaming.
+@MainActor
+final class DirectStreamResolver {
+    static let shared = DirectStreamResolver()
+
+    private struct CachedURL {
+        let url: URL
+        let expirationDate: Date
+    }
+
+    /// In-memory cache of resolved stream URLs with expiration (default 3 hours TTL).
+    private var cache: [String: CachedURL] = [:]
+    private var inFlightTasks: [String: Task<URL?, Never>] = [:]
+
+    private init() {}
+
+    /// Attempts to resolve a direct HTTPS audio streaming URL for a YouTube/YouTube Music videoId.
+    ///
+    /// - Parameters:
+    ///   - videoId: Target video ID.
+    ///   - timeoutSeconds: Maximum wait time before timing out (default 3.5s).
+    /// - Returns: Direct streaming URL if resolved within the timeout, or `nil` on failure/timeout/DRM.
+    func resolveStreamURL(videoId: String, timeoutSeconds: TimeInterval = 3.5) async -> URL? {
+        // 1. Check in-memory cache
+        if let cached = self.cache[videoId], cached.expirationDate > Date() {
+            return cached.url
+        }
+
+        // 2. Check if a task is already in-flight for this videoId
+        if let existingTask = self.inFlightTasks[videoId] {
+            return await existingTask.value
+        }
+
+        guard let ytdlpPath = DownloadManager.shared.ytdlpPath else {
+            return nil
+        }
+
+        let task = Task<URL?, Never> {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: ytdlpPath)
+            // Extract the direct audio URL quickly without playlist, embed, or full metadata download
+            process.arguments = [
+                "-g",
+                "-f", "bestaudio/best",
+                "--no-playlist",
+                "--no-warnings",
+                "--no-call-home",
+                "--socket-timeout", "3",
+                "https://www.youtube.com/watch?v=\(videoId)",
+            ]
+
+            let stdout = Pipe()
+            let stderr = Pipe()
+            process.standardOutput = stdout
+            process.standardError = stderr
+
+            do {
+                try process.run()
+            } catch {
+                return nil
+            }
+
+            // Race process completion with timeout
+            let timeoutTask = Task {
+                try? await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+
+            return await withTaskCancellationHandler {
+                process.waitUntilExit()
+                timeoutTask.cancel()
+
+                guard process.terminationStatus == 0 else { return nil }
+
+                let data = stdout.fileHandleForReading.readDataToEndOfFile()
+                guard let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !output.isEmpty,
+                      let url = URL(string: output.components(separatedBy: .newlines).first ?? output),
+                      url.scheme == "https" || url.scheme == "http"
+                else {
+                    return nil
+                }
+
+                return url
+            } onCancel: {
+                if process.isRunning {
+                    process.terminate()
+                }
+            }
+        }
+
+        self.inFlightTasks[videoId] = task
+        let resolvedURL = await task.value
+        self.inFlightTasks.removeValue(forKey: videoId)
+
+        if let resolvedURL {
+            // Cache for 3 hours (YouTube direct playback URLs are usually valid for 6+ hours)
+            self.cache[videoId] = CachedURL(url: resolvedURL, expirationDate: Date().addingTimeInterval(3 * 3600))
+        }
+
+        return resolvedURL
+    }
+
+    /// Clears any cached stream URLs.
+    func clearCache() {
+        self.cache.removeAll()
+    }
+}
