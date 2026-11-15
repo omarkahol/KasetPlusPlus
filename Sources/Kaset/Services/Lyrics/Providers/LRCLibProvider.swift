@@ -19,11 +19,23 @@ final class LRCLibProvider: LyricsProvider {
     let name = "LRCLib"
 
     func search(info: LyricsSearchInfo) async -> LyricResult {
+        let sanitizedTitle = LyricsTitleSanitizer.sanitizeTitle(info.title)
+        let sanitizedArtist = LyricsTitleSanitizer.sanitizeArtist(info.artist)
+
+        let primaryResult = await self.executeSearch(title: sanitizedTitle, artist: sanitizedArtist, info: info)
+        if case .unavailable = primaryResult, (sanitizedTitle != info.title || sanitizedArtist != info.artist) {
+            // Retry with raw parameters if sanitized yielded no matches
+            return await self.executeSearch(title: info.title, artist: info.artist, info: info)
+        }
+        return primaryResult
+    }
+
+    private func executeSearch(title: String, artist: String, info: LyricsSearchInfo) async -> LyricResult {
         var components = URLComponents(string: "https://lrclib.net/api/search")!
 
         let items = [
-            URLQueryItem(name: "track_name", value: info.title),
-            URLQueryItem(name: "artist_name", value: info.artist),
+            URLQueryItem(name: "track_name", value: title),
+            URLQueryItem(name: "artist_name", value: artist),
         ]
 
         components.queryItems = items

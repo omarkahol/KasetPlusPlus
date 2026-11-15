@@ -39,14 +39,35 @@ final class SyncedLyricsService {
     /// Monotonic identifier used to ignore stale in-flight searches.
     private var fetchGeneration = 0
 
-    init(providers: [LyricsProvider] = [LRCLibProvider()]) {
+    /// Plain-text providers queried only after YouTube Music returns no lyrics (e.g. Lyrics.ovh).
+    private let plainFallbackProviders: [LyricsProvider]
+
+    /// Whether to read/write `.lrc` sidecar files for downloaded tracks.
+    private let usesOfflineSidecarCache: Bool
+
+    init(
+        providers: [LyricsProvider] = [LRCLibProvider()],
+        plainFallbackProviders: [LyricsProvider] = [],
+        usesOfflineSidecarCache: Bool = false
+    ) {
         self.providers = providers
+        self.plainFallbackProviders = plainFallbackProviders
+        self.usesOfflineSidecarCache = usesOfflineSidecarCache
         self.observeRomanizationSetting()
     }
 
     func fetchLyrics(for info: LyricsSearchInfo) async {
         self.fetchGeneration += 1
         let requestID = self.fetchGeneration
+
+        // Offline sidecar first: zero-latency, works without network.
+        if self.usesOfflineSidecarCache,
+           self.cache[info.videoId] == nil,
+           let sidecar = DownloadManager.shared.cachedLyrics(for: info.videoId)
+        {
+            self.cache[info.videoId] = sidecar
+        }
+
         let cached = self.cache[info.videoId]
 
         if let cached, case .synced = cached {
@@ -105,6 +126,51 @@ final class SyncedLyricsService {
 
         let resolved = self.resolveLyrics(best: best, cached: cached, videoId: info.videoId)
         self.applyResolvedLyrics(resolved, requestID: requestID)
+        self.persistSidecarIfNeeded(resolved.result, videoId: info.videoId)
+    }
+
+    /// Resolves plain lyrics after synced providers came back empty.
+    ///
+    /// Uses the YouTube Music result when available; otherwise queries the free
+    /// plain-text fallback providers (Lyrics.ovh) with sanitized metadata.
+    func resolvePlainFallback(youTubeMusicLyrics: Lyrics?, info: LyricsSearchInfo) async {
+        if case .synced = self.currentLyrics { return }
+
+        if let youTubeMusicLyrics, youTubeMusicLyrics.isAvailable {
+            self.fallbackToPlainLyrics(youTubeMusicLyrics, videoId: info.videoId)
+            self.persistSidecarIfNeeded(.plain(youTubeMusicLyrics), videoId: info.videoId)
+            return
+        }
+
+        let requestID = self.fetchGeneration
+        for provider in self.plainFallbackProviders {
+            let result = await provider.search(info: info)
+            guard requestID == self.fetchGeneration else { return }
+            if case let .plain(lyrics) = result, lyrics.isAvailable {
+                self.fallbackToPlainLyrics(lyrics, videoId: info.videoId)
+                self.persistSidecarIfNeeded(result, videoId: info.videoId)
+                return
+            }
+        }
+
+        self.fallbackToPlainLyrics(youTubeMusicLyrics ?? .unavailable, videoId: info.videoId)
+    }
+
+    /// Writes a `.lrc` sidecar next to downloaded tracks so lyrics work offline.
+    private func persistSidecarIfNeeded(_ result: LyricResult, videoId: String) {
+        guard self.usesOfflineSidecarCache,
+              DownloadManager.shared.isDownloaded(videoId: videoId)
+        else { return }
+        switch result {
+        case let .synced(lyrics) where lyrics.source == "Offline Cache":
+            return
+        case let .plain(lyrics) where lyrics.source == "Offline Cache":
+            return
+        case .unavailable:
+            return
+        default:
+            DownloadManager.shared.saveLyrics(result, for: videoId)
+        }
     }
 
     /// Fallback logic

@@ -110,6 +110,17 @@ enum LRCParser {
         return SyncedLyrics(lines: processedLines, source: "Parsed")
     }
 
+    /// Encodes SyncedLyrics back into standard LRC formatted string.
+    static func encode(_ synced: SyncedLyrics) -> String {
+        synced.lines.map { line in
+            let totalMs = line.timeInMs
+            let minutes = totalMs / 60000
+            let seconds = (totalMs % 60000) / 1000
+            let hundredths = (totalMs % 1000) / 10
+            return String(format: "[%02d:%02d.%02d]%@", minutes, seconds, hundredths, line.text)
+        }.joined(separator: "\n")
+    }
+
     /// ".1" -> 100, ".12" -> 120, ".123" -> 123
     private static func parseCentsToMs(_ cc: String) -> Int {
         var str = cc

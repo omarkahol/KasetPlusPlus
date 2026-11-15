@@ -329,22 +329,27 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
 
     /// Song row for top songs section - fetches all songs and plays as queue.
     private func topSongRow(_ song: Song, index: Int) -> some View {
-        HoverObservingRow { isHovered in
+        let isCurrentSong = self.playerService.currentTrack?.videoId == song.videoId
+        let isPlaying = isCurrentSong && self.playerService.isPlaying
+
+        return HoverObservingRow { isHovered in
             HStack(spacing: 12) {
                 // Thumbnail
                 SongThumbnailView(song: song, size: 40, cornerRadius: 4)
+                    .allowsHitTesting(false)
 
                 // Title (with optional explicit badge)
                 HStack(spacing: 6) {
                     Text(song.title)
                         .font(.system(size: 14))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(isCurrentSong ? Color.accentColor : Color.primary)
                         .lineLimit(1)
                     if song.isExplicit == true {
                         ExplicitBadge()
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .allowsHitTesting(false)
 
                 // Artist column
                 Text(song.artistsDisplay)
@@ -352,6 +357,7 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .frame(width: 150, alignment: .leading)
+                    .allowsHitTesting(false)
 
                 // Album column (if available)
                 if let album = song.album {
@@ -360,9 +366,11 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .frame(width: 150, alignment: .leading)
+                        .allowsHitTesting(false)
                 } else {
                     Text(String(localized: ""))
                         .frame(width: 150, alignment: .leading)
+                        .allowsHitTesting(false)
                 }
 
                 // Favorite toggle
@@ -371,15 +379,39 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                 // Download button
                 DownloadButton(song: song, isRowHovered: isHovered)
 
+                // Play / Pause button
+                Button {
+                    Task {
+                        if isPlaying {
+                            await self.playerService.pause()
+                        } else if isCurrentSong {
+                            await self.playerService.resume()
+                        } else {
+                            self.playTopSong(song, displayedIndex: index)
+                        }
+                    }
+                } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(isCurrentSong ? Color.accentColor : Color.primary)
+                }
+                .buttonStyle(.borderless)
+                .frame(width: 22, height: 22)
+                .contentShape(Rectangle())
+                .opacity(isCurrentSong || isHovered ? 1 : 0)
+                .animation(.easeInOut(duration: 0.12), value: isHovered)
+                .animation(.easeInOut(duration: 0.12), value: isPlaying)
+                .help(isPlaying ? String(localized: "Pause") : String(localized: "Play"))
+
                 // Duration
                 Text(song.durationDisplay)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(width: 50, alignment: .trailing)
+                    .allowsHitTesting(false)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 4)
-            .contentShape(Rectangle())
             .background {
                 Button {
                     self.playTopSong(song, displayedIndex: index)

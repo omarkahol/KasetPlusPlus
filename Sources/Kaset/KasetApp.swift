@@ -181,10 +181,14 @@ struct KasetApp: App {
         _playbackArbiter = State(initialValue: arbiter)
         _sharedClient = State(initialValue: client)
         _sharedYouTubeClient = State(initialValue: youtubeClient)
-        _syncedLyricsService = State(initialValue: SyncedLyricsService(providers: [
-            YTMusicSyncedProvider(client: client),
-            LRCLibProvider(),
-        ]))
+        _syncedLyricsService = State(initialValue: SyncedLyricsService(
+            providers: [
+                YTMusicSyncedProvider(client: client),
+                LRCLibProvider(),
+            ],
+            plainFallbackProviders: [LyricsOvhProvider()],
+            usesOfflineSidecarCache: true
+        ))
         _notificationService = State(initialValue: NotificationService(playerService: player))
         _accountService = State(initialValue: account)
 

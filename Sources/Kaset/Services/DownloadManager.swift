@@ -133,6 +133,52 @@ final class DownloadManager {
         return dir
     }
 
+    /// Subdirectory for cached track lyrics (.lrc sidecar files).
+    var lyricsDirectory: URL {
+        let dir = self.downloadsDirectory.appendingPathComponent("Lyrics", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// URL for a track's .lrc sidecar file.
+    func lyricsFileURL(for videoId: String) -> URL {
+        self.lyricsDirectory.appendingPathComponent("\(videoId).lrc")
+    }
+
+    /// Reads cached lyrics for a videoId if an .lrc sidecar file exists on disk.
+    func cachedLyrics(for videoId: String) -> LyricResult? {
+        let file = self.lyricsFileURL(for: videoId)
+        guard FileManager.default.fileExists(atPath: file.path),
+              let content = try? String(contentsOf: file, encoding: .utf8),
+              !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return nil
+        }
+
+        if let synced = LRCParser.parse(content), !synced.lines.isEmpty {
+            let withSource = SyncedLyrics(lines: synced.lines, source: "Offline Cache")
+            return .synced(withSource)
+        } else {
+            return .plain(Lyrics(text: content, source: "Offline Cache"))
+        }
+    }
+
+    /// Saves lyrics to a local .lrc sidecar file.
+    func saveLyrics(_ lyrics: LyricResult, for videoId: String) {
+        let file = self.lyricsFileURL(for: videoId)
+        let text: String
+        switch lyrics {
+        case let .synced(synced):
+            text = LRCParser.encode(synced)
+        case let .plain(plain):
+            text = plain.text
+        case .unavailable:
+            return
+        }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        try? text.write(to: file, atomically: true, encoding: .utf8)
+    }
+
     /// JSON metadata index file path.
     private var indexFileURL: URL {
         self.downloadsDirectory.appendingPathComponent("downloads_index.json")
@@ -357,6 +403,8 @@ final class DownloadManager {
                 try? FileManager.default.removeItem(at: artworkURL)
             }
 
+            try? FileManager.default.removeItem(at: self.lyricsFileURL(for: videoId))
+
             self.downloadedSongs.remove(at: index)
             self.saveIndex()
         }
@@ -380,6 +428,7 @@ final class DownloadManager {
         try? FileManager.default.removeItem(at: self.musicDirectory)
         try? FileManager.default.removeItem(at: self.videosDirectory)
         try? FileManager.default.removeItem(at: self.artworksDirectory)
+        try? FileManager.default.removeItem(at: self.lyricsDirectory)
         try? FileManager.default.removeItem(at: self.indexFileURL)
 
         self.downloadedSongs.removeAll()
@@ -571,6 +620,37 @@ final class DownloadManager {
             self.saveIndex()
 
             self.activeDownloads[item.videoId] = .completed(fileURL: mediaFileURL)
+
+            if item.mediaType == .audio {
+                await self.prefetchLyricsSidecar(
+                    videoId: item.videoId,
+                    title: item.title,
+                    artist: item.artistsDisplay,
+                    album: item.albumTitle,
+                    duration: item.duration
+                )
+            }
+        }
+    }
+
+    /// Fetches lyrics for a freshly downloaded track and stores them as a `.lrc` sidecar
+    /// so they are available offline. Synced (LRCLIB) is preferred over plain (Lyrics.ovh).
+    private func prefetchLyricsSidecar(
+        videoId: String,
+        title: String,
+        artist: String,
+        album: String?,
+        duration: TimeInterval?
+    ) async {
+        guard self.cachedLyrics(for: videoId) == nil else { return }
+        let info = LyricsSearchInfo(title: title, artist: artist, album: album, duration: duration, videoId: videoId)
+        let providers: [LyricsProvider] = [LRCLibProvider(), LyricsOvhProvider()]
+        for provider in providers {
+            let result = await provider.search(info: info)
+            if case .unavailable = result { continue }
+            self.saveLyrics(result, for: videoId)
+            self.logger.info("Cached lyrics sidecar for \(videoId) from \(provider.name)")
+            return
         }
     }
 

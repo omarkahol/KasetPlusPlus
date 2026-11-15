@@ -429,16 +429,22 @@ struct LyricsView: View {
                 }
             }
 
+            var youTubeMusicLyrics: Lyrics?
             do {
-                let fetchedLyrics = try await client.getLyrics(videoId: videoId)
-                if self.lastLoadedVideoId == videoId,
-                   self.playerService.currentTrack?.videoId == videoId
-                {
-                    self.syncedLyricsService.fallbackToPlainLyrics(fetchedLyrics, videoId: videoId)
-                }
+                youTubeMusicLyrics = try await self.client.getLyrics(videoId: videoId)
             } catch {
                 DiagnosticsLogger.api.error("Failed to load plain lyrics fallback: \(error.localizedDescription)")
             }
+
+            guard self.lastLoadedVideoId == videoId,
+                  self.playerService.currentTrack?.videoId == videoId
+            else { return }
+
+            // YouTube Music first, then free third-party plain-text providers (Lyrics.ovh).
+            await self.syncedLyricsService.resolvePlainFallback(
+                youTubeMusicLyrics: youTubeMusicLyrics,
+                info: info
+            )
         }
     }
 
