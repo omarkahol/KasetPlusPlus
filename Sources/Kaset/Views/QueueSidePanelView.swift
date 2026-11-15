@@ -60,7 +60,7 @@ struct QueueSidePanelView: View {
 
             QueueFooterActions()
         }
-        .frame(width: 400)
+        .frame(width: 500)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .accessibilityIdentifier(AccessibilityID.Queue.container)

@@ -88,10 +88,12 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
 
     @Environment(AuthService.self) private var authService
     @Environment(PlayerService.self) private var playerService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let client: any YTMusicClientProtocol
 
     @State private var settings = SettingsManager.shared
+    @State private var downloadManager = DownloadManager.shared
     @State private var seekValue: Double = 0
     @State private var isSeeking = false
     @State private var seekHold = PlayerBarSeekHold()
@@ -412,6 +414,8 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
             self.hoverIconButton(systemName: self.volumeIcon, accessibilityID: AccessibilityID.MiniPlayer.volumeButton, label: String(localized: "Volume"), isActive: self.playerService.isMuted) {
                 Task { await self.playerService.toggleMute() }
             }
+
+            self.downloadButton
         }
         .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(.white.opacity(0.94))
@@ -492,6 +496,77 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
             AirPlayPickerAnchorView(anchor: self.airPlayAnchor)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+    }
+
+    @ViewBuilder
+    private var downloadButton: some View {
+        if let currentTrack = self.playerService.currentTrack {
+            let isDownloaded = self.downloadManager.isDownloaded(videoId: currentTrack.videoId)
+            let status = self.downloadManager.status(for: currentTrack.videoId)
+
+            if isDownloaded {
+                Menu {
+                    Button(String(localized: "Show in Finder")) {
+                        if let fileURL = self.downloadManager.fileURL(for: currentTrack.videoId) {
+                            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                        }
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        self.downloadManager.removeDownload(videoId: currentTrack.videoId)
+                    } label: {
+                        Label(String(localized: "Remove Download"), systemImage: "trash")
+                    }
+                } label: {
+                    MiniPlayerGlassIconLabel(
+                        systemName: "checkmark.circle.fill",
+                        isActive: true,
+                        size: 22,
+                        fontSize: 13
+                    )
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 22, height: 22)
+                .compatGlass(interactive: true, in: .circle)
+                .shadow(color: .black.opacity(0.46), radius: 7, y: 2)
+                .accessibilityIdentifier(AccessibilityID.MiniPlayer.downloadButton)
+                .accessibilityLabel(String(localized: "Downloaded"))
+                .help(String(localized: "Downloaded"))
+            } else if let status, status.isDownloading {
+                Button {
+                    self.downloadManager.cancel(videoId: currentTrack.videoId)
+                } label: {
+                    ZStack {
+                        ProgressView(value: max(0.05, status.progress))
+                            .progressViewStyle(.circular)
+                            .controlSize(.mini)
+                    }
+                    .frame(width: 22, height: 22)
+                    .background(.white.opacity(0.05), in: .circle)
+                    .overlay {
+                        Circle()
+                            .stroke(.white.opacity(0.26), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .compatGlass(interactive: true, in: .circle)
+                .shadow(color: .black.opacity(0.46), radius: 7, y: 2)
+                .accessibilityIdentifier(AccessibilityID.MiniPlayer.downloadButton)
+                .accessibilityLabel(DownloadButton(song: currentTrack).downloadingHelpText(for: status))
+                .help(DownloadButton(song: currentTrack).downloadingHelpText(for: status))
+            } else {
+                self.hoverIconButton(
+                    systemName: "arrow.down.circle",
+                    accessibilityID: AccessibilityID.MiniPlayer.downloadButton,
+                    label: String(localized: "Download for Offline Playback")
+                ) {
+                    self.downloadManager.download(song: currentTrack)
+                }
+            }
         }
     }
 
@@ -786,9 +861,15 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                             SongThumbnailView(song: song, size: 21, cornerRadius: 4)
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(spacing: 4) {
-                                    Text(song.title)
-                                        .font(.system(size: 9, weight: index == self.playerService.activePlaybackQueueIndex ? .semibold : .regular))
-                                        .lineLimit(1)
+                                    PlayerBarMarqueeText(
+                                        text: song.title,
+                                        font: .system(size: 9, weight: index == self.playerService.activePlaybackQueueIndex ? .semibold : .regular),
+                                        color: .white.opacity(0.88),
+                                        height: 12,
+                                        reduceMotion: self.reduceMotion
+                                    )
+                                    .id("\(song.videoId)-\(index == self.playerService.activePlaybackQueueIndex)")
+
                                     if entry.source == .suggested {
                                         Image(systemName: "sparkles")
                                             .font(.system(size: 8, weight: .semibold))

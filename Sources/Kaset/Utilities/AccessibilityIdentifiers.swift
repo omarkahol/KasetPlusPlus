@@ -66,6 +66,7 @@ enum AccessibilityID {
         static let lyricsView = "miniPlayer.lyricsView"
         static let queueButton = "miniPlayer.queue"
         static let airplayButton = "miniPlayer.airplay"
+        static let downloadButton = "miniPlayer.download"
         static let volumeButton = "miniPlayer.volumeButton"
         static let seekSlider = "miniPlayer.seekSlider"
         static let trackTitle = "miniPlayer.trackTitle"
