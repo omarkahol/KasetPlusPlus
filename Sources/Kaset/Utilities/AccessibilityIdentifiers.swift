@@ -42,6 +42,7 @@ enum AccessibilityID {
         static let mixTracksButton = "playerBar.mixTracks"
         static let adIndicator = "playerBar.adIndicator"
         static let volumeSlider = "playerBar.volumeSlider"
+        static let downloadButton = "playerBar.downloadButton"
         static let trackTitle = "playerBar.trackTitle"
         static let trackArtist = "playerBar.trackArtist"
         static let thumbnail = "playerBar.thumbnail"

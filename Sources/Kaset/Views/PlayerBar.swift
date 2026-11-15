@@ -569,9 +569,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                 self.volumeOverlay
             }
 
-            if let track = self.playerService.currentTrack {
-                DownloadButton(song: track, isRowHovered: true)
-            }
+            self.downloadButton
         }
     }
 
@@ -1297,6 +1295,76 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             String(localized: "All")
         case .one:
             String(localized: "One")
+        }
+    }
+
+    // MARK: - Download Button
+
+    @ViewBuilder
+    private var downloadButton: some View {
+        if let currentTrack = self.playerService.currentTrack {
+            let isDownloaded = DownloadManager.shared.isDownloaded(videoId: currentTrack.videoId)
+            let status = DownloadManager.shared.status(for: currentTrack.videoId)
+
+            if isDownloaded {
+                PlayerBarIconMenu(
+                    isSelected: true,
+                    accessibilityID: AccessibilityID.PlayerBar.downloadButton,
+                    accessibilityLabel: String(localized: "Downloaded")
+                ) {
+                    Button(String(localized: "Show in Finder")) {
+                        if let fileURL = DownloadManager.shared.fileURL(for: currentTrack.videoId) {
+                            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                        }
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        DownloadManager.shared.removeDownload(videoId: currentTrack.videoId)
+                    } label: {
+                        Label(String(localized: "Remove Download"), systemImage: "trash")
+                    }
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 15, weight: .regular))
+                        .frame(width: 12, height: 15)
+                        .foregroundStyle(Self.brandAccent)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .help(String(localized: "Downloaded"))
+            } else if let status, status.isDownloading {
+                PlayerBarIconButton(
+                    action: {
+                        DownloadManager.shared.cancel(videoId: currentTrack.videoId)
+                    },
+                    isSelected: false,
+                    accessibilityID: AccessibilityID.PlayerBar.downloadButton,
+                    accessibilityLabel: DownloadButton(song: currentTrack).downloadingHelpText(for: status)
+                ) {
+                    ProgressView(value: max(0.05, status.progress))
+                        .progressViewStyle(.circular)
+                        .controlSize(.mini)
+                        .frame(width: 14, height: 14)
+                }
+                .help(DownloadButton(song: currentTrack).downloadingHelpText(for: status))
+            } else {
+                PlayerBarIconButton(
+                    action: {
+                        DownloadManager.shared.download(song: currentTrack)
+                    },
+                    isSelected: false,
+                    accessibilityID: AccessibilityID.PlayerBar.downloadButton,
+                    accessibilityLabel: String(localized: "Download for Offline Playback")
+                ) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.system(size: 15, weight: .regular))
+                        .frame(width: 12, height: 15)
+                        .foregroundStyle(.primary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .help(String(localized: "Download for Offline Playback"))
+            }
         }
     }
 }
