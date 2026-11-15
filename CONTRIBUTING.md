@@ -1,20 +1,21 @@
-# Contributing to KasetPlus
+# Contributing to Kaset++
 
-Thank you for your interest in contributing! We welcome all contributions.
+Thank you for your interest in contributing to **kaset++**! We welcome all contributions.
 
 ## Getting Started
 
 ### Requirements
 
-- macOS 26.0 or later
+- macOS 15.4 / macOS 26.0 or later
 - Xcode 16.0 or later
 - Swift 6.0
+- Optional: `yt-dlp` and `ffmpeg` (`brew install yt-dlp ffmpeg`) for local media archival
 
 ### Setup
 
 ```bash
-git clone https://github.com/Yoddikko/kasetPlus.git
-cd kasetPlus
+git clone https://github.com/omarkahol/KasetPlusPlus.git
+cd KasetPlusPlus
 
 # Build
 swift build

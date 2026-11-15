@@ -70,3 +70,14 @@ Build
 # Wrangler local state (miniflare cache, kv, account cache)
 .wrangler/
 .claude/worktrees/
+
+# App & Media artifacts
+*.app/
+*.dmg
+*.part
+*.mp3
+*.m4a
+*.mp4
+*.mkv
+downloads_index.json
+

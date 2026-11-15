@@ -378,10 +378,6 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                 .symbolEffect(.bounce, value: self.playerService.currentTrackLikeStatus == .dislike)
                 .disabled(self.playerService.currentTrack == nil)
             }
-
-            if let track = self.playerService.currentTrack {
-                DownloadButton(song: track, isRowHovered: true)
-            }
         }
     }
 
@@ -571,6 +567,10 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             }
             .playerBarVolumeOverlay(isPresented: self.$showsVolumeOverlay) {
                 self.volumeOverlay
+            }
+
+            if let track = self.playerService.currentTrack {
+                DownloadButton(song: track, isRowHovered: true)
             }
         }
     }

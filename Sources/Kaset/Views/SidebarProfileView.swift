@@ -30,8 +30,6 @@ struct SidebarProfileView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            self.supportButton
-
             self.communityButton
 
             self.localizeButton

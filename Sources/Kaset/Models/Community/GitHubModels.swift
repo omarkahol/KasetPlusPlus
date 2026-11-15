@@ -11,8 +11,8 @@ import Foundation
 /// read-only data (issues) is available.
 enum GitHubConfig {
     /// The repository the community features target.
-    static let owner = "Yoddikko"
-    static let repo = "kasetPlus"
+    static let owner = "omarkahol"
+    static let repo = "KasetPlusPlus"
 
     /// OAuth App client ID (Device Flow enabled). This is **not** a secret —
     /// Device Flow uses no client secret and the ID ships inside the binary
