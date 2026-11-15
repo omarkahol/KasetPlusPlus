@@ -135,7 +135,7 @@ struct WhatsNewView: View {
             Text("Addons", comment: "Onboarding addons section title")
                 .font(.headline)
 
-            Text("KasetPlus comes with built-in addons. Enable the ones you'd like — you can change them anytime in Settings → Addons.", comment: "Onboarding addons description")
+            Text("Kaset++ comes with built-in addons. Enable the ones you'd like — you can change them anytime in Settings → Addons.", comment: "Onboarding addons description")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)

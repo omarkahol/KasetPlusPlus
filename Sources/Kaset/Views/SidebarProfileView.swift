@@ -82,7 +82,7 @@ struct SidebarProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Support KasetPlus on Ko-fi"))
+        .help(String(localized: "Support Kaset++ on Ko-fi"))
     }
 
     @ViewBuilder
@@ -120,7 +120,7 @@ struct SidebarProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Report an issue or join the KasetPlus community"))
+        .help(String(localized: "Report an issue or join the Kaset++ community"))
     }
 
     /// "Help translate the app" — opens the Crowdin project in the browser so
@@ -148,7 +148,7 @@ struct SidebarProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Help translate KasetPlus on Crowdin"))
+        .help(String(localized: "Help translate Kaset++ on Crowdin"))
     }
 
     // MARK: - Logged In Content

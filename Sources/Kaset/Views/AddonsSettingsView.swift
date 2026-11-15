@@ -14,7 +14,7 @@ struct AddonsSettingsView: View {
             } header: {
                 Text("Ad Blocker")
             } footer: {
-                Text("Content-blocking rules block known ad-serving and tracking domains. YouTube video ads are intercepted at the API level before they load. Changes take effect after restarting KasetPlus.")
+                Text("Content-blocking rules block known ad-serving and tracking domains. YouTube video ads are intercepted at the API level before they load. Changes take effect after restarting Kaset++.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -107,7 +107,7 @@ struct AddonsSettingsView: View {
             } header: {
                 Text("Discord Rich Presence")
             } footer: {
-                Text("Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to KasetPlus\". Nothing is sent anywhere else, and the presence clears when playback stops.")
+                Text("Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

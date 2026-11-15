@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - SupportView
 
-/// Sheet for supporting KasetPlus via Ko-fi. Mirrors the Community hub's sheet
+/// Sheet for supporting Kaset++ via Ko-fi. Mirrors the Community hub's sheet
 /// chrome (fixed size, ultra-thick material, close button).
 ///
 /// The supporter *status* shown here is driven by `SupportManager`, whose real
@@ -161,10 +161,10 @@ struct SupportView: View {
                 )
                 .shadow(color: Self.accent.opacity(0.4), radius: 12, y: 4)
 
-            Text("Support KasetPlus", comment: "Support sheet title")
+            Text("Support Kaset++", comment: "Support sheet title")
                 .font(.title2.weight(.bold))
 
-            Text("KasetPlus is built and maintained by one person, in the open. If it makes your day a little better, you can help keep it going. 💗", comment: "Support sheet subtitle")
+            Text("Kaset++ is built and maintained by one person, in the open. If it makes your day a little better, you can help keep it going. 💗", comment: "Support sheet subtitle")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -284,7 +284,7 @@ struct SupportView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
 
-            Text("KasetPlus is an independent fork of the open-source **Kaset** by sozercan. Supporting here helps this fork. If you’d like, you can also support the original project — that won’t change your supporter status here.", comment: "Fork support note")
+            Text("Kaset++ is an independent fork of the open-source **Kaset** by sozercan. Supporting here helps this fork. If you’d like, you can also support the original project — that won’t change your supporter status here.", comment: "Fork support note")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

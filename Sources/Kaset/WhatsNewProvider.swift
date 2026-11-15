@@ -12,7 +12,7 @@ enum WhatsNewProvider {
     static let fallbackCollection: [WhatsNew] = [
         WhatsNew(
             version: "0.12.0",
-            title: "What's New in KasetPlus",
+            title: "What's New in Kaset++",
             features: [
                 .init(
                     icon: "shield.lefthalf.filled",
@@ -185,7 +185,7 @@ enum WhatsNewProvider {
         let versionString = tagName.hasPrefix("v") ? String(tagName.dropFirst()) : tagName
         let version = WhatsNew.Version(stringLiteral: versionString)
         let name = json["name"] as? String
-        let title = name ?? "What's New in KasetPlus \(versionString)"
+        let title = name ?? "What's New in Kaset++ \(versionString)"
 
         return WhatsNew(
             version: version,
