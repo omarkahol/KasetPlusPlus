@@ -24,7 +24,7 @@ struct QueueView: View {
                 // Content
                 self.contentView
             }
-            .frame(width: 280)
+            .frame(width: 480)
             .compatGlass(interactive: true, in: .rect(cornerRadius: 20))
             .compatGlassID("queuePanel", in: self.queueNamespace)
         }
@@ -139,6 +139,7 @@ struct QueueView: View {
 // MARK: - QueueRowView
 
 private struct QueueRowView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let song: Song
     let isCurrentTrack: Bool
     let index: Int
@@ -164,10 +165,15 @@ private struct QueueRowView: View {
                 // Track info
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(self.song.title)
-                            .font(.system(size: 13, weight: self.isCurrentTrack ? .semibold : .regular))
-                            .lineLimit(1)
-                            .foregroundStyle(self.isCurrentTrack ? .red : .primary)
+                        PlayerBarMarqueeText(
+                            text: self.song.title,
+                            font: .system(size: 13, weight: self.isCurrentTrack ? .semibold : .regular),
+                            color: self.isCurrentTrack ? .red : .primary,
+                            height: 16,
+                            reduceMotion: self.reduceMotion
+                        )
+                        .id("\(self.song.videoId)-\(self.isCurrentTrack)")
+
                         if self.song.isExplicit == true {
                             ExplicitBadge()
                         }

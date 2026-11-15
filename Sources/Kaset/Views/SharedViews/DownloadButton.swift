@@ -89,7 +89,7 @@ struct DownloadButton: View {
         }
     }
 
-    private func downloadingHelpText(for status: DownloadManager.DownloadStatus) -> String {
+    func downloadingHelpText(for status: DownloadManager.DownloadStatus) -> String {
         switch status {
         case .queued:
             String(localized: "Download Queued — Click to cancel")
