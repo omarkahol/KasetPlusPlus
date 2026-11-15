@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp not found.";
 "•" = "•";
 "⌘K" = "⌘K";
+
+/* Sleep Timer */
+"Sleep Timer" = "취침 타이머";
+"15 Minutes" = "15분";
+"30 Minutes" = "30분";
+"45 Minutes" = "45분";
+"1 Hour" = "1시간";
+"When Current Song Ends" = "현재 노래가 끝나면";
+"Turn Off Sleep Timer" = "취침 타이머 끄기";
