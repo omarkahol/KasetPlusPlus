@@ -598,6 +598,14 @@ struct KasetApp: App {
                 }
                 .keyboardShortcut("y", modifiers: [.command, .shift])
 
+                // Toggle Offline Mode - ⌘⌥O
+                Button(self.settings.isOfflineModeEnabled ? String(localized: "Disable Offline Mode") : String(localized: "Enable Offline Mode")) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        self.settings.isOfflineModeEnabled.toggle()
+                    }
+                }
+                .keyboardShortcut("o", modifiers: [.command, .option])
+
                 Divider()
 
                 // Search - ⌘F

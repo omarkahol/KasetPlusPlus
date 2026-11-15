@@ -56,6 +56,7 @@ final class SettingsManager {
         static let customYtdlpPath = "settings.customYtdlpPath"
         static let customFfmpegPath = "settings.customFfmpegPath"
         static let maxConcurrentDownloads = "settings.maxConcurrentDownloads"
+        static let isOfflineModeEnabled = "isOfflineModeEnabled"
         #if DEBUG
             static let useLegacyMacOS15UI = "settings.debug.useLegacyMacOS15UI"
         #endif
@@ -852,6 +853,10 @@ final class SettingsManager {
             UserDefaults.standard.set(clamped, forKey: Keys.maxConcurrentDownloads)
         }
     }
+
+    /// Whether Offline Mode is enabled. When enabled, only downloaded tracks will play natively via AVPlayer.
+    @ObservationIgnored
+    @AppStorage("isOfflineModeEnabled") var isOfflineModeEnabled: Bool = false
 
     // MARK: - Initialization
 
