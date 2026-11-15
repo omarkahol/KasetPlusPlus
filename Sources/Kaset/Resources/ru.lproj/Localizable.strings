@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp не найден.";
 "•" = "•";
 "⌘K" = "<unk> К";
+
+/* Sleep Timer */
+"Sleep Timer" = "Таймер сна";
+"15 Minutes" = "15 минут";
+"30 Minutes" = "30 минут";
+"45 Minutes" = "45 минут";
+"1 Hour" = "1 час";
+"When Current Song Ends" = "В конце текущего трека";
+"Turn Off Sleep Timer" = "Выключить таймер сна";

@@ -40,3 +40,12 @@
 "Start a new chat to continue." = "Start a new chat to continue.";
 "Ask Gemini response ready" = "Ask Gemini response ready";
 "New Ask Gemini chat ready" = "New Ask Gemini chat ready";
+
+/* Sleep Timer */
+"Sleep Timer" = "Sleep Timer";
+"15 Minutes" = "15 Minutes";
+"30 Minutes" = "30 Minutes";
+"45 Minutes" = "45 Minutes";
+"1 Hour" = "1 Hour";
+"When Current Song Ends" = "When Current Song Ends";
+"Turn Off Sleep Timer" = "Turn Off Sleep Timer";

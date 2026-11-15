@@ -711,6 +711,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             self.lyricsButton
             self.queueButton
             self.pictureButton
+            self.sleepTimerButton
             self.miniPlayerButton
         }
         .padding(.trailing, 12)
@@ -786,6 +787,48 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
         .compatGlassID("picture", in: self.playerNamespace)
         .keyboardShortcut("v", modifiers: [.command, .shift])
         .disabled(!self.canShowCurrentTrackVideo)
+    }
+
+    private var sleepTimerButton: some View {
+        let sleepTimer = SleepTimerService.shared
+        let isActive = sleepTimer.isActive
+
+        return PlayerBarIconMenu(
+            isSelected: isActive,
+            accessibilityID: AccessibilityID.PlayerBar.sleepTimerButton,
+            accessibilityLabel: String(localized: "Sleep Timer")
+        ) {
+            Button(String(localized: "15 Minutes")) {
+                sleepTimer.start(mode: .minutes(15))
+            }
+            Button(String(localized: "30 Minutes")) {
+                sleepTimer.start(mode: .minutes(30))
+            }
+            Button(String(localized: "45 Minutes")) {
+                sleepTimer.start(mode: .minutes(45))
+            }
+            Button(String(localized: "1 Hour")) {
+                sleepTimer.start(mode: .minutes(60))
+            }
+            Divider()
+            Button(String(localized: "When Current Song Ends")) {
+                sleepTimer.start(mode: .endOfTrack)
+            }
+            .disabled(self.playerService.currentTrack == nil)
+            if isActive {
+                Divider()
+                Button(String(localized: "Turn Off Sleep Timer")) {
+                    sleepTimer.stop()
+                }
+            }
+        } icon: {
+            Image(systemName: isActive ? "moon.zzz.fill" : "moon.zzz")
+                .font(.system(size: 15, weight: .regular))
+                .frame(width: 15, height: 15)
+                .foregroundStyle(isActive ? Self.brandAccent : .primary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+        .compatGlassID("sleepTimer", in: self.playerNamespace)
     }
 
     private var miniPlayerButton: some View {

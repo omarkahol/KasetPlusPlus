@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp niet gevonden.";
 "•" = "•";
 "⌘K" = "Vet K";
+
+/* Sleep Timer */
+"Sleep Timer" = "Slaaptimer";
+"15 Minutes" = "15 minuten";
+"30 Minutes" = "30 minuten";
+"45 Minutes" = "45 minuten";
+"1 Hour" = "1 uur";
+"When Current Song Ends" = "Wanneer huidig nummer eindigt";
+"Turn Off Sleep Timer" = "Slaaptimer uitschakelen";

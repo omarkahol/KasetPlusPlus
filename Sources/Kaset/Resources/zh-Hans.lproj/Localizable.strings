@@ -658,3 +658,12 @@
 "yt-dlp not found." = "找不到 yt-dlp 。";
 "•" = "•";
 "⌘K" = "秒";
+
+/* Sleep Timer */
+"Sleep Timer" = "睡眠定时器";
+"15 Minutes" = "15 分钟";
+"30 Minutes" = "30 分钟";
+"45 Minutes" = "45 分钟";
+"1 Hour" = "1 小时";
+"When Current Song Ends" = "当前歌曲播放完毕后";
+"Turn Off Sleep Timer" = "关闭睡眠定时器";

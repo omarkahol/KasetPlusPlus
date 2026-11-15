@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp tidak ditemukan.";
 "•" = "•";
 "⌘K" = "⌘K";
+
+/* Sleep Timer */
+"Sleep Timer" = "Pengatur Waktu Tidur";
+"15 Minutes" = "15 Menit";
+"30 Minutes" = "30 Menit";
+"45 Minutes" = "45 Menit";
+"1 Hour" = "1 Jam";
+"When Current Song Ends" = "Saat Lagu Saat Ini Berakhir";
+"Turn Off Sleep Timer" = "Matikan Pengatur Waktu Tidur";

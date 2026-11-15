@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp hittades inte.";
 "•" = "•";
 "⌘K" = "<unk> K";
+
+/* Sleep Timer */
+"Sleep Timer" = "Sovtimer";
+"15 Minutes" = "15 minuter";
+"30 Minutes" = "30 minuter";
+"45 Minutes" = "45 minuter";
+"1 Hour" = "1 timme";
+"When Current Song Ends" = "När aktuell låt tar slut";
+"Turn Off Sleep Timer" = "Stäng av sovtimer";

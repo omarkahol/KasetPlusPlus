@@ -680,3 +680,12 @@
 "yt-dlp not found." = "yt-dlp não encontrado.";
 "•" = "•";
 "⌘K" = "⌘K";
+
+/* Sleep Timer */
+"Sleep Timer" = "Timer de repouso";
+"15 Minutes" = "15 minutos";
+"30 Minutes" = "30 minutos";
+"45 Minutes" = "45 minutos";
+"1 Hour" = "1 hora";
+"When Current Song Ends" = "Ao terminar a música atual";
+"Turn Off Sleep Timer" = "Desativar timer de repouso";
