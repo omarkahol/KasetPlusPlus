@@ -22,6 +22,7 @@ enum AccessibilityID {
         static let libraryItem = "sidebar.library"
         static let historyItem = "sidebar.history"
         static let downloadsItem = "sidebar.downloads"
+        static let offlineModeToggle = "sidebar.offlineModeToggle"
     }
 
     // MARK: - PlayerBar

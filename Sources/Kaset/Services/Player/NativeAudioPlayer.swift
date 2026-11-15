@@ -11,6 +11,7 @@ final class NativeAudioPlayer: NSObject {
     private var player: AVPlayer?
     private var timeObserverToken: Any?
     private var playerItemEndObserver: (any NSObjectProtocol)?
+    private var durationObserver: NSKeyValueObservation?
 
     private(set) var currentURL: URL?
     private(set) var isPlaying: Bool = false {
@@ -38,6 +39,7 @@ final class NativeAudioPlayer: NSObject {
 
     // Callbacks for PlayerService integration
     var onProgressUpdate: (@MainActor (TimeInterval) -> Void)?
+    var onDurationResolved: (@MainActor (TimeInterval) -> Void)?
     var onPlaybackEnded: (@MainActor () -> Void)?
     var onStateChange: (@MainActor (Bool) -> Void)?
 
@@ -47,7 +49,7 @@ final class NativeAudioPlayer: NSObject {
 
     // MARK: - Controls
 
-    /// Starts playback of a local audio file URL.
+    /// Starts playback of a local audio file URL or DownloadItem.
     func play(fileURL: URL) {
         self.stop()
         self.currentURL = fileURL
@@ -55,6 +57,16 @@ final class NativeAudioPlayer: NSObject {
         let playerItem = AVPlayerItem(url: fileURL)
         let player = AVPlayer(playerItem: playerItem)
         self.player = player
+
+        // Observe duration when ready
+        self.durationObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            guard item.status == .readyToPlay else { return }
+            let duration = item.duration.seconds
+            guard duration.isFinite, duration > 0 else { return }
+            Task { @MainActor [weak self] in
+                self?.onDurationResolved?(duration)
+            }
+        }
 
         // Observe periodic time updates (every 250ms)
         let interval = CMTime(seconds: 0.25, preferredTimescale: 600)
@@ -81,6 +93,13 @@ final class NativeAudioPlayer: NSObject {
 
         player.play()
         self.isPlaying = true
+    }
+
+    /// Convenience for playing a DownloadItem.
+    func play(item: DownloadManager.DownloadItem) {
+        if let fileURL = DownloadManager.shared.fileURL(for: item.videoId) {
+            self.play(fileURL: fileURL)
+        }
     }
 
     /// Resumes playback.
@@ -129,6 +148,9 @@ final class NativeAudioPlayer: NSObject {
             NotificationCenter.default.removeObserver(observer)
             self.playerItemEndObserver = nil
         }
+
+        self.durationObserver?.invalidate()
+        self.durationObserver = nil
 
         self.player?.pause()
         self.player = nil

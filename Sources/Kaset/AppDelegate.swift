@@ -4,6 +4,9 @@ import UserNotifications
 extension Notification.Name {
     /// Posted by `AppDelegate` when the app receives deep-link URLs.
     static let kasetOpenURLs = Notification.Name("kasetOpenURLs")
+
+    /// Posted when playback fails because the device is offline or in Offline Mode and the song is not downloaded.
+    static let offlinePlaybackUnavailable = Notification.Name("offlinePlaybackUnavailable")
 }
 
 // MARK: - AppDelegate

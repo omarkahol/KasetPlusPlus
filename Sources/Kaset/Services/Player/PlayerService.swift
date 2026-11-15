@@ -694,6 +694,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
             self.progress = seconds
             self.currentTimeMs = Int(seconds * 1000)
         }
+        NativeAudioPlayer.shared.onDurationResolved = { [weak self] duration in
+            guard let self, self.isPlayingOfflineTrack else { return }
+            self.duration = duration
+        }
         NativeAudioPlayer.shared.onStateChange = { [weak self] isPlaying in
             guard let self, self.isPlayingOfflineTrack else { return }
             self.state = isPlaying ? .playing : .paused
@@ -701,6 +705,19 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         NativeAudioPlayer.shared.onPlaybackEnded = { [weak self] in
             guard let self, self.isPlayingOfflineTrack else { return }
             Task {
+                if self.repeatMode == .one {
+                    self.logger.info("Repeating offline track for repeatMode .one")
+                    if let currentTrack = self.currentTrack,
+                       let fileURL = DownloadManager.shared.fileURL(for: currentTrack.videoId)
+                    {
+                        self.playOfflineTrack(
+                            song: currentTrack,
+                            fileURL: fileURL,
+                            queueEntryID: self.activePlaybackQueueEntryID
+                        )
+                        return
+                    }
+                }
                 await self.next()
             }
         }

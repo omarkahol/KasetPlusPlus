@@ -16,6 +16,7 @@ struct Sidebar: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(SidebarPinnedItemsManager.self) private var sidebarPinnedItemsManager
     @Environment(PodcastsAvailabilityService.self) private var podcastsAvailability
+    @State private var settings = SettingsManager.shared
     @State private var isCreatingPlaylist = false
     @State private var isHoveringPlaylistsHeader = false
 
@@ -65,6 +66,8 @@ struct Sidebar: View {
 
                 self.navigationRow(.downloads)
                     .accessibilityIdentifier(AccessibilityID.Sidebar.downloadsItem)
+
+                self.offlineModeRow
             }
 
             if self.hasPersonalAccount {
@@ -246,6 +249,53 @@ struct Sidebar: View {
             } label: {
                 Label(String(localized: "Remove from Sidebar"), systemImage: "sidebar.left")
             }
+        }
+    }
+
+    private var offlineModeRow: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                self.settings.isOfflineModeEnabled.toggle()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: self.settings.isOfflineModeEnabled ? "antenna.radiowaves.left.and.right.slash" : "bolt.slash")
+                    .foregroundStyle(self.settings.isOfflineModeEnabled ? self.settings.accentColor : .secondary)
+                    .frame(width: 16)
+
+                Text(String(localized: "Offline Mode"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Toggle("", isOn: Binding(
+                    get: { self.settings.isOfflineModeEnabled },
+                    set: { self.settings.isOfflineModeEnabled = $0 }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
+        .listRowBackground(self.offlineModeRowBackground)
+        .accessibilityIdentifier(AccessibilityID.Sidebar.offlineModeToggle)
+        .keyboardShortcut("o", modifiers: [.command, .option])
+        .help(String(localized: "Toggle Offline Mode (⌘⌥O)"))
+    }
+
+    @ViewBuilder
+    private var offlineModeRowBackground: some View {
+        if self.settings.isOfflineModeEnabled {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(self.settings.accentColor.opacity(0.12))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
         }
     }
 }

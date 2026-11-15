@@ -97,6 +97,37 @@ extension PlayerService {
         self.clearWebQueueInjectionState()
         self.clearPendingNativeQueueAdvance()
         self.logger.debug("play() called with videoId: \(videoId)")
+
+        let isOffline = SettingsManager.shared.isOfflineModeEnabled || !NetworkMonitor.shared.isConnected
+        if isOffline {
+            if DownloadManager.shared.isDownloaded(videoId: videoId),
+               let localAudioURL = DownloadManager.shared.fileURL(for: videoId)
+            {
+                let offlineSong = DownloadManager.shared.downloadedSongs.first(where: { $0.videoId == videoId })?.toSong(baseDirectory: DownloadManager.shared.downloadsDirectory) ?? Song(
+                    id: videoId,
+                    title: "Downloaded Track",
+                    artists: [],
+                    videoId: videoId
+                )
+                self.playOfflineTrack(
+                    song: offlineSong,
+                    fileURL: localAudioURL,
+                    queueEntryID: nil
+                )
+                return
+            } else {
+                let errorMsg = String(localized: "Song is not downloaded and cannot be played while offline.")
+                self.logger.error("Cannot play video \(videoId): device is offline or in Offline Mode and song is not downloaded")
+                self.state = .error(errorMsg)
+                NotificationCenter.default.post(
+                    name: .offlinePlaybackUnavailable,
+                    object: videoId,
+                    userInfo: ["message": errorMsg]
+                )
+                return
+            }
+        }
+
         let acceptsPlaybackRequest = SingletonPlayerWebView.shared.acceptsPlaybackRequest(
             videoId: videoId,
             strategy: .standard
@@ -273,6 +304,33 @@ extension PlayerService {
         self.clearWebQueueInjectionState()
         self.clearPendingNativeQueueAdvance()
         self.logger.info("Playing song: \(song.title)")
+
+        let isOffline = SettingsManager.shared.isOfflineModeEnabled || !NetworkMonitor.shared.isConnected
+        if isOffline {
+            if DownloadManager.shared.isDownloaded(videoId: song.videoId),
+               let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId)
+            {
+                self.playOfflineTrack(
+                    song: song,
+                    fileURL: localAudioURL,
+                    queueEntryID: queueEntryID,
+                    startsPaused: startsPaused,
+                    restoreClock: restoreClock
+                )
+                return
+            } else {
+                // Not downloaded while offline
+                let errorMsg = String(localized: "Song is not downloaded and cannot be played while offline.")
+                self.logger.error("Cannot play song \(song.title) (\(song.videoId)): device is offline or in Offline Mode and song is not downloaded")
+                self.state = .error(errorMsg)
+                NotificationCenter.default.post(
+                    name: .offlinePlaybackUnavailable,
+                    object: song,
+                    userInfo: ["message": errorMsg]
+                )
+                return
+            }
+        }
 
         if let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId) {
             self.playOfflineTrack(
