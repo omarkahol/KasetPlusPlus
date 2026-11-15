@@ -30,6 +30,7 @@ final class SettingsManager {
         static let contentLanguage = "settings.contentLanguage"
         static let keepMiniPlayerOnTop = "settings.keepMiniPlayerOnTop"
         static let keepYouTubeVideoOnTop = "settings.keepYouTubeVideoOnTop"
+        static let showMenuBarExtra = "settings.showMenuBarExtra"
         static let smartShuffleEnabled = "settings.smartShuffleEnabled"
         static let smartShuffleSuggestEveryN = "settings.smartShuffleSuggestEveryN"
         static let smartShuffleBurst = "settings.smartShuffleBurst"
@@ -578,6 +579,13 @@ final class SettingsManager {
         }
     }
 
+    /// Whether to show the native menu bar extra player item.
+    var showMenuBarExtra: Bool {
+        didSet {
+            UserDefaults.standard.set(self.showMenuBarExtra, forKey: Keys.showMenuBarExtra)
+        }
+    }
+
     // MARK: - Smart Shuffle defaults & ranges (single source of truth)
 
     /// Default cadence: insert a burst of suggestions every N originals.
@@ -870,6 +878,7 @@ final class SettingsManager {
         self.keepMiniPlayerOnTop = UserDefaults.standard.object(forKey: Keys.keepMiniPlayerOnTop) as? Bool ?? false
         // Default on: the fork's pop-out has always floated on top; the toggle lets users turn it off.
         self.keepYouTubeVideoOnTop = UserDefaults.standard.object(forKey: Keys.keepYouTubeVideoOnTop) as? Bool ?? true
+        self.showMenuBarExtra = UserDefaults.standard.object(forKey: Keys.showMenuBarExtra) as? Bool ?? true
         self.smartShuffleEnabled = UserDefaults.standard.object(forKey: Keys.smartShuffleEnabled) as? Bool ?? true
         // Property observers do not fire for assignments in init, so clamp persisted values here too.
         self.smartShuffleSuggestEveryN = Self.clamp(

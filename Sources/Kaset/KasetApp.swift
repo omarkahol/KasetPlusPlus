@@ -408,6 +408,16 @@ struct KasetApp: App {
                 .environment(self.scrobblingCoordinator)
                 .environment(self.equalizerService)
         }
+
+        MenuBarExtra(isInserted: self.$settings.showMenuBarExtra) {
+            MenuBarPlayerView()
+                .tint(self.settings.accentColor)
+                .environment(\.locale, self.settings.contentLanguage.locale)
+                .environment(self.playerService)
+        } label: {
+            self.menuBarIcon
+        }
+        .menuBarExtraStyle(.window)
         .commands {
             // Check for Updates command in app menu
             CommandGroup(after: .appInfo) {
@@ -648,6 +658,16 @@ struct KasetApp: App {
         }
     }
 
+    @ViewBuilder
+    private var menuBarIcon: some View {
+        if self.playerService.isPlaying {
+            Image(systemName: "waveform")
+                .symbolEffect(.variableColor.iterative, isActive: true)
+        } else {
+            Image(systemName: "music.note")
+        }
+    }
+
     private func handleYouTubeSurfaceLocationChange(_ location: YouTubePlayerService.SurfaceLocation) {
         // The floating window hosts the video surface whenever it is popped out
         // (or the inline watch view went away).
@@ -700,47 +720,12 @@ struct KasetApp: App {
 
     /// Shows the main window.
     private func showMainWindow() {
-        guard !self.focusExistingMainWindow() else { return }
-
-        self.openWindow(id: "main")
-        NSApplication.shared.activate(ignoringOtherApps: true)
-
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(100))
-            _ = self.focusExistingMainWindow()
-        }
+        MainWindowOpener.bringMainWindowToFront(openWindow: self.openWindow)
     }
 
     @discardableResult
     private func focusExistingMainWindow() -> Bool {
-        // Find and show the main window
-        for window in NSApplication.shared.windows where window.frameAutosaveName == MainWindowLayout.autosaveName {
-            MainWindowLayout.configure(window)
-            window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            return true
-        }
-
-        for window in NSApplication.shared.windows where window.title == MainWindowLayout.windowTitle && !Self.isAuxiliaryPlayerWindow(window) {
-            MainWindowLayout.configure(window)
-            window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            return true
-        }
-
-        // Fallback: find any main-capable window that's not an auxiliary player window.
-        // Do not apply the primary-window sizing contract here: a generic fallback
-        // may match Settings or another regular scene window.
-        for window in NSApplication.shared.windows where window.canBecomeMain {
-            if Self.isAuxiliaryPlayerWindow(window) {
-                continue
-            }
-            window.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            return true
-        }
-
-        return false
+        MainWindowOpener.focusExistingMainWindow()
     }
 
     private static func isAuxiliaryPlayerWindow(_ window: NSWindow) -> Bool {

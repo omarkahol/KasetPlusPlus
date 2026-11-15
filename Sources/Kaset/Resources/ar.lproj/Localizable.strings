@@ -162,6 +162,7 @@
 "Dislike comment" = "عدم الإعجاب بالتعليق";
 "Disliked" = "لم يعجبني";
 "Dismiss" = "إغلاق";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "تم";
 "Double-tap to retry" = "انقر مرتين لإعادة المحاولة";
 "Double-tap to retry loading accounts" = "انقر مرتين لإعادة محاولة تحميل الحسابات";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "نصيحة لمرة واحدة أو عضوية شهرية - اختيارك";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "يتم دعم الإضافات المتوافقة مع WebKit فقط (مع **manifest.json** صالح).";
 "Open Command Bar (⌘K)" = "فتح شريط الأوامر (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "فتح الإعدادات";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "افتح إعدادات النظام ← الخصوصية والأمان ← تسجيل الشاشة وصوت النظام وقم بتفعيل Kaset++، ثم أعد تشغيل المعادل.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "إظهار عنوان الاسهم";
 "Show Large Artwork" = "إظهار العمل الفني الكبير";
 "Show Lyrics" = "إظهار الكلمات";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "إظهار إشعارات قيد التشغيل";
 "Show Regular Mini Player" = "إظهار المشغّل المصغّر العادي";
 "Show a notification when a new track starts playing" = "إظهار إشعار عند بدء تشغيل مقطع جديد";

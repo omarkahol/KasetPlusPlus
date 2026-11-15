@@ -162,6 +162,7 @@
 "Dislike comment" = "댓글 싫어요";
 "Disliked" = "싫어요 표시됨";
 "Dismiss" = "닫기";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "완료";
 "Double-tap to retry" = "다시 시도하려면 두 번 탭하세요";
 "Double-tap to retry loading accounts" = "계정 로드를 다시 시도하려면 두 번 탭하세요";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "One-time tip or monthly membership — your choice";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "유효한 **manifest.json**이 있는 WebKit 호환 확장 프로그램만 지원됩니다.";
 "Open Command Bar (⌘K)" = "명령 막대 열기 (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "설정 열기";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "시스템 설정 → 개인정보 보호 및 보안 → 화면 및 시스템 오디오 녹음에서 Kaset++을 활성화한 후 이퀄라이저를 다시 켜주세요.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Show DeArrow title";
 "Show Large Artwork" = "큰 아트워크 표시";
 "Show Lyrics" = "가사 표시";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "지금 재생 중 알림 표시";
 "Show Regular Mini Player" = "일반 미니 플레이어 표시";
 "Show a notification when a new track starts playing" = "새 트랙이 재생되기 시작하면 알림 표시";

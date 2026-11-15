@@ -124491,6 +124491,327 @@
           }
         }
       }
+    },
+    "Show Menu Bar Extra": {
+      "comment": "Settings window -> General tab toggle for menu bar extra item.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Show Menu Bar Extra"
+          }
+        }
+      }
+    },
+    "Display a player icon and popover in the macOS menu bar.": {
+      "comment": "Settings window -> General tab help text for menu bar extra item.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Display a player icon and popover in the macOS menu bar."
+          }
+        }
+      }
+    },
+    "Open Kaset++": {
+      "comment": "Menu bar extra popover button to bring main window to front.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Kaset++"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Open Kaset++"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

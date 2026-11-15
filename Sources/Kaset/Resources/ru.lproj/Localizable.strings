@@ -162,6 +162,7 @@
 "Dislike comment" = "Не нравится комментарий";
 "Disliked" = "Не понравилось";
 "Dismiss" = "Закрыть";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Готово";
 "Double-tap to retry" = "Дважды нажмите, чтобы повторить";
 "Double-tap to retry loading accounts" = "Дважды нажмите, чтобы повторить загрузку аккаунтов";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "Одноразовый совет или месячная подписка — ваш выбор";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Поддерживаются только расширения, совместимые с WebKit (с корректным **manifest.json**).";
 "Open Command Bar (⌘K)" = "Открыть панель команд (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Открыть настройки";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Откройте Системные настройки → Конфиденциальность и безопасность → Запись экрана и системного аудио и включите Kaset++, затем снова включите эквалайзер.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Показать заголовок DeArrow";
 "Show Large Artwork" = "Показывать крупную обложку";
 "Show Lyrics" = "Показать текст";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Показывать уведомления «Сейчас играет»";
 "Show Regular Mini Player" = "Показывать обычный мини-проигрыватель";
 "Show a notification when a new track starts playing" = "Показывать уведомление, когда начинает играть новый трек";

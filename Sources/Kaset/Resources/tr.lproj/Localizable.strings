@@ -162,6 +162,7 @@
 "Dislike comment" = "Yorumu beğenme";
 "Disliked" = "Olumsuz oy verildi";
 "Dismiss" = "Kapat";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Bitti";
 "Double-tap to retry" = "Tekrar denemek için çift tıklayın";
 "Double-tap to retry loading accounts" = "Hesapları yeniden yüklemeyi denemek için çift dokunun";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "One-time tip or monthly membership — your choice";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Yalnızca geçerli bir **manifest.json** dosyasına sahip WebKit uyumlu uzantılar desteklenir.";
 "Open Command Bar (⌘K)" = "Komut Çubuğu'nu Aç (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Ayarları Aç";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Sistem Ayarları → Gizlilik ve Güvenlik → Ekran ve Sistem Sesi Kaydı'nı açıp Kaset++'i etkinleştirin, ardından ekolayzırı tekrar açın.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Show DeArrow title";
 "Show Large Artwork" = "Büyük kapak görselini göster";
 "Show Lyrics" = "Şarkı Sözlerini Göster";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Şimdi Çalıyor Bildirimlerini Göster";
 "Show Regular Mini Player" = "Normal mini oynatıcıyı göster";
 "Show a notification when a new track starts playing" = "Yeni bir parça çalmaya başladığında bildirim göster";

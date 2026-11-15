@@ -162,6 +162,7 @@
 "Dislike comment" = "Tidak suka komentar";
 "Disliked" = "Tidak disukai";
 "Dismiss" = "Tutup";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Selesai";
 "Double-tap to retry" = "Ketuk dua kali untuk mencoba lagi";
 "Double-tap to retry loading accounts" = "Ketuk dua kali untuk mencoba lagi memuat akun";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "Tip sekali atau langganan bulanan — pilihan ada di tangan Anda";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Hanya ekstensi yang kompatibel dengan WebKit (dengan **manifest.json** yang valid) yang didukung.";
 "Open Command Bar (⌘K)" = "Buka Command Bar (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Buka Pengaturan";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Buka Pengaturan Sistem → Privasi & Keamanan → Perekaman Layar & Audio Sistem, lalu aktifkan Kaset++. Setelah itu, coba putar lagi atau nonaktifkan lalu aktifkan kembali ekualiser.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Buka Pengaturan Sistem → Privasi & Keamanan → Perekaman Layar & Audio Sistem dan aktifkan Kaset++, lalu aktifkan kembali equalizer.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Tampilkan panah DeArrow";
 "Show Large Artwork" = "Tampilkan Artwork Besar";
 "Show Lyrics" = "Tampilkan Lirik";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Tampilkan Notifikasi Sedang Diputar";
 "Show Regular Mini Player" = "Tampilkan Mini Player Biasa";
 "Show a notification when a new track starts playing" = "Tampilkan notifikasi saat trek baru mulai diputar";

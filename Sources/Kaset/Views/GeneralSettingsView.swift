@@ -54,6 +54,10 @@ struct GeneralSettingsView: View {
                 Toggle("Haptic Feedback", isOn: self.$settings.hapticFeedbackEnabled)
                     .help(String(localized: "Provide tactile feedback for actions on Force Touch trackpads"))
 
+                // Show Menu Bar Extra
+                Toggle(String(localized: "Show Menu Bar Extra"), isOn: self.$settings.showMenuBarExtra)
+                    .help(String(localized: "Display a player icon and popover in the macOS menu bar."))
+
                 // Default Launch Page — every option is a YouTube Music page, and
                 // YouTube-only mode always opens YouTube, so hide it when Music is
                 // disabled (feature request #8).

@@ -162,6 +162,7 @@
 "Dislike comment" = "No me gusta el comentario";
 "Disliked" = "Marcado como No me gusta";
 "Dismiss" = "Cerrar";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Listo";
 "Double-tap to retry" = "Haz doble clic para volver a intentarlo";
 "Double-tap to retry loading accounts" = "Haz doble clic para reintentar cargar las cuentas";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "Consejo de una sola vez o membresía mensual — tu elección";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Solo se admiten extensiones compatibles con WebKit (con un **manifest.json** válido).";
 "Open Command Bar (⌘K)" = "Abrir barra de comandos (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Abrir Configuración";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Abre Configuración del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema, activa Kaset++ y vuelve a activar el ecualizador.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Mostrar título de flecha muerta";
 "Show Large Artwork" = "Mostrar ilustración grande";
 "Show Lyrics" = "Mostrar letras";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Mostrar notificaciones de En reproducción";
 "Show Regular Mini Player" = "Mostrar mini reproductor normal";
 "Show a notification when a new track starts playing" = "Mostrar una notificación cuando empiece a reproducirse una nueva pista";

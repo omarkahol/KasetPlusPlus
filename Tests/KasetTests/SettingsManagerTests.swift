@@ -79,6 +79,12 @@ struct SettingsManagerTests {
         #expect(manager.showNowPlayingNotifications == true)
     }
 
+    @Test("Default showMenuBarExtra is true")
+    func defaultShowMenuBarExtra() {
+        let manager = SettingsManager.shared
+        #expect(manager.showMenuBarExtra == true)
+    }
+
     @Test("Default hapticFeedbackEnabled is true")
     func defaultHapticFeedbackEnabled() {
         let manager = SettingsManager.shared
