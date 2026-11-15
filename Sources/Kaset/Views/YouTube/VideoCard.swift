@@ -41,6 +41,13 @@ struct VideoCard: View {
             .padding(.horizontal, 2)
         }
         .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                DownloadManager.shared.download(video: self.video)
+            } label: {
+                Label(String(localized: "Download Video"), systemImage: "arrow.down.circle")
+            }
+        }
         .onAppear {
             DearrowCache.shared.fetchOneIfNeeded(videoId: self.video.videoId)
         }

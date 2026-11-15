@@ -30,6 +30,23 @@ struct DownloadsSettingsView: View {
                 Text(String(localized: "Audio Quality"))
             }
 
+            // MARK: - Video Quality Section
+
+            Section {
+                Picker(String(localized: "Video Quality"), selection: self.$settings.videoDownloadQuality) {
+                    ForEach(SettingsManager.VideoDownloadQuality.allCases) { quality in
+                        Text(quality.displayName).tag(quality)
+                    }
+                }
+                .help(String(localized: "Video resolution used when downloading YouTube videos"))
+
+                Text(self.videoQualityDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text(String(localized: "Video Quality"))
+            }
+
             // MARK: - Download Location Section
 
             Section {
@@ -222,6 +239,19 @@ struct DownloadsSettingsView: View {
             String(localized: "Converts audio to high-bitrate 320 kbps MP3 with embedded album art.")
         case .opus:
             String(localized: "Extracts high-fidelity Opus audio stream.")
+        }
+    }
+
+    private var videoQualityDescription: String {
+        switch self.settings.videoDownloadQuality {
+        case .best:
+            String(localized: "Downloads the highest resolution video stream available with best audio.")
+        case .res1080p:
+            String(localized: "Downloads up to 1080p Full HD video merged into MP4 format.")
+        case .res720p:
+            String(localized: "Downloads up to 720p HD video merged into MP4 format.")
+        case .res480p:
+            String(localized: "Downloads up to 480p SD video merged into MP4 format for smaller file size.")
         }
     }
 

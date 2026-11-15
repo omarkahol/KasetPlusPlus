@@ -48,9 +48,53 @@ final class DownloadManager {
     /// Current statuses of active and queued downloads keyed by video ID.
     var activeDownloads: [String: DownloadStatus] = [:]
 
+    // MARK: - DownloadItem
+
+    /// Represents an item in the download queue.
+    struct DownloadItem: Equatable, Sendable {
+        let videoId: String
+        let title: String
+        let artistsDisplay: String
+        let albumTitle: String?
+        let duration: TimeInterval?
+        let thumbnailURL: URL?
+        let mediaType: MediaType
+        let song: Song?
+
+        init(song: Song, mediaType: MediaType = .audio) {
+            self.videoId = song.videoId
+            self.title = song.title
+            self.artistsDisplay = song.artistsDisplay
+            self.albumTitle = song.album?.title
+            self.duration = song.duration
+            self.thumbnailURL = song.thumbnailURL
+            self.mediaType = mediaType
+            self.song = song
+        }
+
+        init(
+            videoId: String,
+            title: String,
+            artistsDisplay: String,
+            albumTitle: String? = nil,
+            duration: TimeInterval? = nil,
+            thumbnailURL: URL? = nil,
+            mediaType: MediaType
+        ) {
+            self.videoId = videoId
+            self.title = title
+            self.artistsDisplay = artistsDisplay
+            self.albumTitle = albumTitle
+            self.duration = duration
+            self.thumbnailURL = thumbnailURL
+            self.mediaType = mediaType
+            self.song = nil
+        }
+    }
+
     // MARK: - Private State
 
-    @ObservationIgnored private var downloadQueue: [Song] = []
+    @ObservationIgnored private var downloadQueue: [DownloadItem] = []
     @ObservationIgnored private var activeProcesses: [String: Process] = [:]
     @ObservationIgnored private var canceledVideoIds: Set<String> = []
     @ObservationIgnored private let logger = DiagnosticsLogger.download
@@ -64,6 +108,20 @@ final class DownloadManager {
     /// Base download directory configured in settings.
     var downloadsDirectory: URL {
         let dir = SettingsManager.shared.resolvedDownloadDirectory
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Subdirectory for downloaded audio tracks.
+    var musicDirectory: URL {
+        let dir = self.downloadsDirectory.appendingPathComponent("Music", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Subdirectory for downloaded video files.
+    var videosDirectory: URL {
+        let dir = self.downloadsDirectory.appendingPathComponent("Videos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -186,34 +244,84 @@ final class DownloadManager {
 
     // MARK: - Queue Actions
 
-    /// Enqueues a song for download.
-    func download(song: Song) {
-        guard !self.isDownloaded(videoId: song.videoId) else { return }
-        if let currentStatus = self.activeDownloads[song.videoId], currentStatus.isDownloading {
+    /// Enqueues a song for download (default audio).
+    func download(song: Song, mediaType: MediaType = .audio) {
+        let item = DownloadItem(song: song, mediaType: mediaType)
+        self.enqueue(item: item)
+    }
+
+    /// Enqueues a video for download.
+    func downloadVideo(
+        id: String,
+        title: String,
+        artistsDisplay: String = "",
+        thumbnailURL: URL? = nil,
+        duration: TimeInterval? = nil
+    ) {
+        let item = DownloadItem(
+            videoId: id,
+            title: title,
+            artistsDisplay: artistsDisplay,
+            albumTitle: nil,
+            duration: duration,
+            thumbnailURL: thumbnailURL,
+            mediaType: .video
+        )
+        self.enqueue(item: item)
+    }
+
+    /// Enqueues a YouTube video model for download.
+    func download(video: YouTubeVideo) {
+        var duration: TimeInterval?
+        if let lengthText = video.lengthText {
+            let parts = lengthText.split(separator: ":").compactMap { Double($0) }
+            if parts.count == 2 {
+                duration = parts[0] * 60 + parts[1]
+            } else if parts.count == 3 {
+                duration = parts[0] * 3600 + parts[1] * 60 + parts[2]
+            }
+        }
+
+        self.downloadVideo(
+            id: video.videoId,
+            title: video.title,
+            artistsDisplay: video.channelName ?? "",
+            thumbnailURL: video.thumbnailURL,
+            duration: duration
+        )
+    }
+
+    private func enqueue(item: DownloadItem) {
+        guard !self.isDownloaded(videoId: item.videoId) else { return }
+        if let currentStatus = self.activeDownloads[item.videoId], currentStatus.isDownloading {
             return
         }
 
-        self.canceledVideoIds.remove(song.videoId)
-        self.logger.info("Enqueuing download for \(song.title) (\(song.videoId))")
-        self.activeDownloads[song.videoId] = .queued
+        self.canceledVideoIds.remove(item.videoId)
+        self.logger.info("Enqueuing download for \(item.title) (\(item.videoId)) [\(item.mediaType.rawValue)]")
+        self.activeDownloads[item.videoId] = .queued
 
-        if !self.downloadQueue.contains(where: { $0.videoId == song.videoId }) {
-            self.downloadQueue.append(song)
+        if !self.downloadQueue.contains(where: { $0.videoId == item.videoId }) {
+            self.downloadQueue.append(item)
         }
 
         self.processQueue()
     }
 
     /// Enqueues multiple songs for download.
-    func downloadAll(songs: [Song]) {
-        for song in songs where !self.isDownloaded(videoId: song.videoId) {
-            if let currentStatus = self.activeDownloads[song.videoId], currentStatus.isDownloading {
+    func downloadAll(songs: [Song], mediaType: MediaType = .audio) {
+        for song in songs {
+            let item = DownloadItem(song: song, mediaType: mediaType)
+            if self.isDownloaded(videoId: item.videoId) {
                 continue
             }
-            self.canceledVideoIds.remove(song.videoId)
-            self.activeDownloads[song.videoId] = .queued
-            if !self.downloadQueue.contains(where: { $0.videoId == song.videoId }) {
-                self.downloadQueue.append(song)
+            if let currentStatus = self.activeDownloads[item.videoId], currentStatus.isDownloading {
+                continue
+            }
+            self.canceledVideoIds.remove(item.videoId)
+            self.activeDownloads[item.videoId] = .queued
+            if !self.downloadQueue.contains(where: { $0.videoId == item.videoId }) {
+                self.downloadQueue.append(item)
             }
         }
         self.processQueue()
@@ -269,6 +377,8 @@ final class DownloadManager {
             let fileURL = song.fileURL(baseDirectory: self.downloadsDirectory)
             try? FileManager.default.removeItem(at: fileURL)
         }
+        try? FileManager.default.removeItem(at: self.musicDirectory)
+        try? FileManager.default.removeItem(at: self.videosDirectory)
         try? FileManager.default.removeItem(at: self.artworksDirectory)
         try? FileManager.default.removeItem(at: self.indexFileURL)
 
@@ -280,23 +390,21 @@ final class DownloadManager {
     private func processQueue() {
         let maxConcurrent = SettingsManager.shared.maxConcurrentDownloads
         while self.activeProcesses.count < maxConcurrent, !self.downloadQueue.isEmpty {
-            let song = self.downloadQueue.removeFirst()
-            self.startDownload(song: song)
+            let item = self.downloadQueue.removeFirst()
+            self.startDownload(item: item)
         }
     }
 
-    private func startDownload(song: Song) {
+    private func startDownload(item: DownloadItem) {
         guard let ytdlp = self.ytdlpPath else {
-            self.activeDownloads[song.videoId] = .failed(error: String(localized: "yt-dlp is not installed."))
+            self.activeDownloads[item.videoId] = .failed(error: String(localized: "yt-dlp is not installed."))
             self.processQueue()
             return
         }
 
-        self.activeDownloads[song.videoId] = .preparing
-        let videoId = song.videoId
-        let format = SettingsManager.shared.downloadAudioFormat
-        let destinationDir = self.downloadsDirectory
-        let destinationPath = destinationDir.path
+        self.activeDownloads[item.videoId] = .preparing
+        let videoId = item.videoId
+        let targetDirectory = (item.mediaType == .video) ? self.videosDirectory : self.musicDirectory
 
         // Build Process
         let proc = Process()
@@ -308,14 +416,22 @@ final class DownloadManager {
             "--no-mtime",
             "--embed-thumbnail",
             "--add-metadata",
-            "-o", "\(destinationPath)/%(title)s [%(id)s].%(ext)s",
+            "-o", "\(targetDirectory.path)/%(title)s [%(id)s].%(ext)s",
         ]
 
         if let ffmpeg = self.ffmpegPath {
             args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
         }
 
-        args.append(contentsOf: format.ytDlpArguments)
+        let audioFormat = SettingsManager.shared.downloadAudioFormat
+        let videoQuality = SettingsManager.shared.videoDownloadQuality
+
+        if item.mediaType == .video {
+            args.append(contentsOf: videoQuality.ytDlpArguments)
+        } else {
+            args.append(contentsOf: audioFormat.ytDlpArguments)
+        }
+
         args.append("https://www.youtube.com/watch?v=\(videoId)")
         proc.arguments = args
 
@@ -336,7 +452,7 @@ final class DownloadManager {
         self.activeProcesses[videoId] = proc
 
         nonisolated(unsafe) var lastDestination = ""
-        let songTitle = song.title
+        let itemTitle = item.title
 
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
@@ -353,6 +469,11 @@ final class DownloadManager {
                     lastDestination = trimmed
                         .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
                         .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.contains("[Merger] Merging formats into") {
+                    lastDestination = trimmed
+                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: "\"", with: "")
                 } else if trimmed.contains("%") {
                     let percent = Self.parsePercent(trimmed)
                     let speed = Self.parseSpeed(trimmed)
@@ -373,14 +494,15 @@ final class DownloadManager {
                 let wasCanceled = self.canceledVideoIds.remove(videoId) != nil
 
                 if wasCanceled {
-                    self.logger.info("Download was canceled for \(songTitle) (\(videoId))")
+                    self.logger.info("Download was canceled for \(itemTitle) (\(videoId))")
                     self.activeDownloads.removeValue(forKey: videoId)
                     self.cleanupPartialFiles(for: videoId)
                 } else if process.terminationStatus == 0 {
-                    self.logger.info("Download completed successfully for \(songTitle) (\(videoId))")
-                    self.finalizeDownload(song: song, format: format, detectedDestination: lastDestination)
+                    self.logger.info("Download completed successfully for \(itemTitle) (\(videoId))")
+                    let fileExt = (item.mediaType == .video) ? videoQuality.fileExtension : audioFormat.fileExtension
+                    self.finalizeDownload(item: item, fileExtension: fileExt, detectedDestination: lastDestination)
                 } else {
-                    self.logger.error("Download failed for \(songTitle) (\(videoId)) with exit code \(process.terminationStatus)")
+                    self.logger.error("Download failed for \(itemTitle) (\(videoId)) with exit code \(process.terminationStatus)")
                     self.activeDownloads[videoId] = .failed(error: String(localized: "Download failed."))
                 }
 
@@ -398,9 +520,10 @@ final class DownloadManager {
         }
     }
 
-    private func finalizeDownload(song: Song, format: SettingsManager.DownloadAudioFormat, detectedDestination: String) {
+    private func finalizeDownload(item: DownloadItem, fileExtension: String, detectedDestination: String) {
         let baseDir = self.downloadsDirectory
-        let fallbackFileName = "\(song.title) [\(song.videoId)].\(format.fileExtension)"
+        let subfolder = (item.mediaType == .video) ? "Videos" : "Music"
+        let fallbackFileName = "\(item.title) [\(item.videoId)].\(fileExtension)"
         let actualFileName: String
 
         if !detectedDestination.isEmpty {
@@ -409,34 +532,45 @@ final class DownloadManager {
             actualFileName = fallbackFileName
         }
 
-        let audioFileURL = baseDir.appendingPathComponent(actualFileName)
-        let fileSize = (try? FileManager.default.attributesOfItem(atPath: audioFileURL.path)[.size] as? Int64)
+        let localRelativePath = "\(subfolder)/\(actualFileName)"
+        let mediaFileURL = baseDir.appendingPathComponent(localRelativePath)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: mediaFileURL.path)[.size] as? Int64)
 
         // Cache Artwork thumbnail asynchronously
-        let currentLikeStatus = SongLikeStatusManager.shared.status(for: song) ?? song.likeStatus
+        let currentLikeStatus = item.song.flatMap { SongLikeStatusManager.shared.status(for: $0) ?? $0.likeStatus }
         Task {
-            let relativeArtworkPath = await self.cacheArtwork(for: song)
+            let relativeArtworkPath = await self.cacheArtwork(videoId: item.videoId, thumbnailURL: item.thumbnailURL)
+
+            let artists: [Artist]
+            if let song = item.song {
+                artists = song.artists
+            } else if !item.artistsDisplay.isEmpty {
+                artists = [Artist(id: "", name: item.artistsDisplay)]
+            } else {
+                artists = []
+            }
 
             let downloaded = DownloadedSong(
-                id: song.videoId,
-                videoId: song.videoId,
-                title: song.title,
-                artists: song.artists,
-                albumTitle: song.album?.title,
-                duration: song.duration,
+                id: item.videoId,
+                videoId: item.videoId,
+                title: item.title,
+                artists: artists,
+                albumTitle: item.albumTitle,
+                duration: item.duration,
                 artworkPath: relativeArtworkPath,
-                localRelativePath: actualFileName,
+                localRelativePath: localRelativePath,
                 fileSize: fileSize,
                 downloadDate: Date(),
-                audioFormat: format.fileExtension,
-                likeStatus: currentLikeStatus
+                audioFormat: fileExtension,
+                likeStatus: currentLikeStatus,
+                mediaType: item.mediaType
             )
 
-            self.downloadedSongs.removeAll { $0.videoId == song.videoId }
+            self.downloadedSongs.removeAll { $0.videoId == item.videoId }
             self.downloadedSongs.insert(downloaded, at: 0)
             self.saveIndex()
 
-            self.activeDownloads[song.videoId] = .completed(fileURL: audioFileURL)
+            self.activeDownloads[item.videoId] = .completed(fileURL: mediaFileURL)
         }
     }
 
@@ -450,8 +584,12 @@ final class DownloadManager {
     }
 
     private func cacheArtwork(for song: Song) async -> String? {
-        guard let thumbnailURL = song.thumbnailURL else { return nil }
-        let artworkFileName = "\(song.videoId).jpg"
+        await self.cacheArtwork(videoId: song.videoId, thumbnailURL: song.thumbnailURL)
+    }
+
+    private func cacheArtwork(videoId: String, thumbnailURL: URL?) async -> String? {
+        guard let thumbnailURL else { return nil }
+        let artworkFileName = "\(videoId).jpg"
         let fileURL = self.artworksDirectory.appendingPathComponent(artworkFileName)
 
         if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -501,11 +639,13 @@ final class DownloadManager {
 
     /// Removes any lingering `.part` or temporary download files left behind by yt-dlp.
     private func cleanupPartialFiles(for videoId: String) {
-        let dir = self.downloadsDirectory
-        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
-        for file in files where file.contains("[\(videoId)]") {
-            let fileURL = dir.appendingPathComponent(file)
-            try? FileManager.default.removeItem(at: fileURL)
+        let directories = [self.downloadsDirectory, self.musicDirectory, self.videosDirectory]
+        for dir in directories {
+            guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { continue }
+            for file in files where file.contains("[\(videoId)]") {
+                let fileURL = dir.appendingPathComponent(file)
+                try? FileManager.default.removeItem(at: fileURL)
+            }
         }
     }
 

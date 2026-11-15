@@ -44,6 +44,13 @@ struct VideoRowView: View {
             DearrowCache.shared.fetchOneIfNeeded(videoId: self.video.videoId)
         }
         .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                DownloadManager.shared.download(video: self.video)
+            } label: {
+                Label(String(localized: "Download Video"), systemImage: "arrow.down.circle")
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }

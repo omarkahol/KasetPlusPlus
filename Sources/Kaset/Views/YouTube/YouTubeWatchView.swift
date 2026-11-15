@@ -893,6 +893,17 @@ struct YouTubeWatchView: View {
             Label("Copy embed code", systemImage: "chevron.left.forwardslash.chevron.right")
         }
 
+        Button {
+            DownloadManager.shared.downloadVideo(
+                id: self.video.videoId,
+                title: self.viewModel.data.videoTitle ?? self.video.title,
+                artistsDisplay: self.viewModel.data.channel?.name ?? self.video.channelName ?? "",
+                thumbnailURL: self.video.thumbnailURL
+            )
+        } label: {
+            Label(String(localized: "Download Video"), systemImage: "arrow.down.circle")
+        }
+
         if self.youtubePlayer.surfaceLocation == .inline {
             Divider()
             Button {

@@ -50,6 +50,7 @@ final class SettingsManager {
         static let youtubeAutoplayEnabled = "settings.youtube.autoplay.enabled"
         static let accentColorHex = "settings.accentColorHex"
         static let downloadAudioFormat = "settings.downloadAudioFormat"
+        static let videoDownloadQuality = "settings.videoDownloadQuality"
         static let downloadDirectoryPath = "settings.downloadDirectoryPath"
         static let customYtdlpPath = "settings.customYtdlpPath"
         static let customFfmpegPath = "settings.customFfmpegPath"
@@ -286,6 +287,52 @@ final class SettingsManager {
     }
 
     // MARK: - Download Audio Format
+
+    /// Video quality options for offline downloads mapped directly to yt-dlp format selectors.
+    enum VideoDownloadQuality: String, CaseIterable, Identifiable, Codable {
+        case best = "best"
+        case res1080p = "1080p"
+        case res720p = "720p"
+        case res480p = "480p"
+
+        var id: String {
+            self.rawValue
+        }
+
+        var displayName: String {
+            switch self {
+            case .best:
+                String(localized: "Best Available")
+            case .res1080p:
+                String(localized: "1080p (Full HD)")
+            case .res720p:
+                String(localized: "720p (HD)")
+            case .res480p:
+                String(localized: "480p (SD)")
+            }
+        }
+
+        var formatSelector: String {
+            switch self {
+            case .best:
+                "bestvideo+bestaudio/best"
+            case .res1080p:
+                "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+            case .res720p:
+                "bestvideo[height<=720]+bestaudio/best[height<=720]"
+            case .res480p:
+                "bestvideo[height<=480]+bestaudio/best[height<=480]"
+            }
+        }
+
+        var ytDlpArguments: [String] {
+            ["-f", self.formatSelector, "--merge-output-format", "mp4"]
+        }
+
+        var fileExtension: String {
+            "mp4"
+        }
+    }
 
     /// Audio quality/format options for offline downloads mapped directly to yt-dlp arguments.
     enum DownloadAudioFormat: String, CaseIterable, Identifiable, Codable {
@@ -754,6 +801,13 @@ final class SettingsManager {
         }
     }
 
+    /// Preferred video quality for offline downloads.
+    var videoDownloadQuality: VideoDownloadQuality {
+        didSet {
+            UserDefaults.standard.set(self.videoDownloadQuality.rawValue, forKey: Keys.videoDownloadQuality)
+        }
+    }
+
     /// Custom download directory path on disk.
     var downloadDirectoryPath: String {
         didSet {
@@ -869,6 +923,14 @@ final class SettingsManager {
             self.downloadAudioFormat = format
         } else {
             self.downloadAudioFormat = .bestAudio
+        }
+
+        if let rawValue = UserDefaults.standard.string(forKey: Keys.videoDownloadQuality),
+           let quality = VideoDownloadQuality(rawValue: rawValue)
+        {
+            self.videoDownloadQuality = quality
+        } else {
+            self.videoDownloadQuality = .best
         }
 
         self.downloadDirectoryPath = UserDefaults.standard.string(forKey: Keys.downloadDirectoryPath) ?? Self.defaultDownloadDirectory.path

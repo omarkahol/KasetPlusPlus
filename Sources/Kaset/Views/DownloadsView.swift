@@ -9,7 +9,25 @@ struct DownloadsView: View {
     @Environment(PlayerService.self) private var playerService
     @State private var searchText = ""
     @State private var sortOption: SortOption = .dateAdded
+    @State private var filterFilter: MediaFilter = .all
     @State private var navigationPath = NavigationPath()
+    @State private var playingVideoItem: DownloadedSong?
+
+    enum MediaFilter: String, CaseIterable, Identifiable {
+        case all
+        case music
+        case videos
+
+        var id: String { self.rawValue }
+
+        var displayName: String {
+            switch self {
+            case .all: String(localized: "All")
+            case .music: String(localized: "Music")
+            case .videos: String(localized: "Videos")
+            }
+        }
+    }
 
     enum SortOption: String, CaseIterable, Identifiable {
         case dateAdded
@@ -68,6 +86,12 @@ struct DownloadsView: View {
             PlayerBar()
                 .playerBarMusicNavigation(path: self.$navigationPath)
         }
+        .sheet(item: self.$playingVideoItem) { item in
+            DownloadedVideoPlayerSheet(
+                title: item.title,
+                fileURL: item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+            )
+        }
     }
 
     // MARK: - Empty State
@@ -100,26 +124,36 @@ struct DownloadsView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
 
-                // Search Bar
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    TextField(String(localized: "Filter downloaded songs…"), text: self.$searchText)
-                        .textFieldStyle(.plain)
-                    if !self.searchText.isEmpty {
-                        Button {
-                            self.searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
+                // Filter & Search Bar
+                HStack(spacing: 12) {
+                    Picker(String(localized: "Filter"), selection: self.$filterFilter) {
+                        ForEach(MediaFilter.allCases) { filter in
+                            Text(filter.displayName).tag(filter)
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                .padding(8)
-                .background {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.secondary.opacity(0.1))
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 240)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField(String(localized: "Filter downloads…"), text: self.$searchText)
+                            .textFieldStyle(.plain)
+                        if !self.searchText.isEmpty {
+                            Button {
+                                self.searchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(8)
+                    .background {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.secondary.opacity(0.1))
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
@@ -223,19 +257,30 @@ struct DownloadsView: View {
                     .frame(width: 28, alignment: .trailing)
 
                     // Artwork
-                    if let artworkURL = song.thumbnailURL {
-                        CachedAsyncImage(url: artworkURL, targetSize: CGSize(width: 44, height: 44)) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            Rectangle().fill(.quaternary)
-                        }
-                        .frame(width: 44, height: 44)
-                        .clipShape(.rect(cornerRadius: 6))
-                    } else {
-                        Rectangle()
-                            .fill(.quaternary)
+                    ZStack(alignment: .bottomTrailing) {
+                        if let artworkURL = song.thumbnailURL {
+                            CachedAsyncImage(url: artworkURL, targetSize: CGSize(width: 44, height: 44)) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                Rectangle().fill(.quaternary)
+                            }
                             .frame(width: 44, height: 44)
                             .clipShape(.rect(cornerRadius: 6))
+                        } else {
+                            Rectangle()
+                                .fill(.quaternary)
+                                .frame(width: 44, height: 44)
+                                .clipShape(.rect(cornerRadius: 6))
+                        }
+
+                        if item.mediaType == .video {
+                            Image(systemName: "video.fill")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.white)
+                                .padding(2)
+                                .background(.black.opacity(0.7), in: .rect(cornerRadius: 3))
+                                .padding(2)
+                        }
                     }
 
                     // Metadata
@@ -274,12 +319,19 @@ struct DownloadsView: View {
                             self.playSong(at: index, in: allItems)
                         }
 
-                        Button(String(localized: "Play Next")) {
-                            SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
-                        }
+                        if item.mediaType == .audio {
+                            Button(String(localized: "Play Next")) {
+                                SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
+                            }
 
-                        Button(String(localized: "Add to Queue")) {
-                            SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
+                            Button(String(localized: "Add to Queue")) {
+                                SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
+                            }
+                        } else {
+                            Button(String(localized: "Open in Default App")) {
+                                let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                                NSWorkspace.shared.open(fileURL)
+                            }
                         }
 
                         Divider()
@@ -319,12 +371,19 @@ struct DownloadsView: View {
                 self.playSong(at: index, in: allItems)
             }
 
-            Button(String(localized: "Play Next")) {
-                SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
-            }
+            if item.mediaType == .audio {
+                Button(String(localized: "Play Next")) {
+                    SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
+                }
 
-            Button(String(localized: "Add to Queue")) {
-                SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
+                Button(String(localized: "Add to Queue")) {
+                    SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
+                }
+            } else {
+                Button(String(localized: "Open in Default App")) {
+                    let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                    NSWorkspace.shared.open(fileURL)
+                }
             }
 
             Divider()
@@ -349,6 +408,15 @@ struct DownloadsView: View {
     private var filteredSongs: [DownloadedSong] {
         var result = self.downloadManager.downloadedSongs
 
+        switch self.filterFilter {
+        case .all:
+            break
+        case .music:
+            result = result.filter { $0.mediaType == .audio }
+        case .videos:
+            result = result.filter { $0.mediaType == .video }
+        }
+
         if !self.searchText.isEmpty {
             let query = self.searchText.lowercased()
             result = result.filter {
@@ -371,14 +439,23 @@ struct DownloadsView: View {
     }
 
     private func playSong(at index: Int, in items: [DownloadedSong]) {
-        let songs = items.map { $0.toSong(baseDirectory: self.downloadManager.downloadsDirectory) }
+        let item = items[index]
+        if item.mediaType == .video {
+            self.playingVideoItem = item
+            return
+        }
+
+        let audioItems = items.filter { $0.mediaType == .audio }
+        let songs = audioItems.map { $0.toSong(baseDirectory: self.downloadManager.downloadsDirectory) }
+        let targetIndex = audioItems.firstIndex(where: { $0.id == item.id }) ?? 0
         Task {
-            await self.playerService.playQueue(songs, startingAt: index)
+            await self.playerService.playQueue(songs, startingAt: targetIndex)
         }
     }
 
     private func playAll(shuffled: Bool) {
-        var songs = self.filteredSongs.map { $0.toSong(baseDirectory: self.downloadManager.downloadsDirectory) }
+        let audioItems = self.filteredSongs.filter { $0.mediaType == .audio }
+        var songs = audioItems.map { $0.toSong(baseDirectory: self.downloadManager.downloadsDirectory) }
         if shuffled {
             songs.shuffle()
         }
