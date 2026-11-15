@@ -162,6 +162,7 @@
 "Dislike comment" = "Ogilla kommentar";
 "Disliked" = "Ogillad";
 "Dismiss" = "Stäng";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Klar";
 "Double-tap to retry" = "Dubbelklicka för att försöka igen";
 "Double-tap to retry loading accounts" = "Dubbelklicka för att försöka läsa in konton igen";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "Engångstips eller månadsmedlemskap – ditt val";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Endast WebKit-kompatibla tillägg (med en giltig **manifest.json**) stöds.";
 "Open Command Bar (⌘K)" = "Öppna kommandofältet (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Öppna inställningar";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Öppna Systeminställningar → Integritet och säkerhet → Skärminspelning och systemljudinspelning, aktivera Kaset++ och slå sedan på equalizern igen.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Visa DeArrow titel";
 "Show Large Artwork" = "Visa stor omslagsbild";
 "Show Lyrics" = "Visa sångtext";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Visa aviseringar för Spelas nu";
 "Show Regular Mini Player" = "Visa vanlig minispelare";
 "Show a notification when a new track starts playing" = "Visa en avisering när ett nytt spår börjar spelas";

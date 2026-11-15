@@ -162,6 +162,7 @@
 "Dislike comment" = "Reactie niet leuk vinden";
 "Disliked" = "Niet leuk gevonden";
 "Dismiss" = "Sluit";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Gereed";
 "Double-tap to retry" = "Dubbelklik om het opnieuw te proberen";
 "Double-tap to retry loading accounts" = "Dubbelklik om het laden van accounts opnieuw te proberen";
@@ -391,6 +392,7 @@
 "One-time tip or monthly membership — your choice" = "Eenmalige tip of maandelijkse lidmaatschap - jouw keuze";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Alleen WebKit-compatibele extensies (met een geldige **manifest.json**) worden ondersteund.";
 "Open Command Bar (⌘K)" = "Opdrachtbalk openen (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Open instellingen";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Open Systeeminstellingen → Privacy en beveiliging → Scherm- en systeemaudio-opname, schakel Kaset++ in en zet daarna de equalizer opnieuw aan.";
@@ -521,6 +523,7 @@
 "Show DeArrow title" = "Toon Depijl titel";
 "Show Large Artwork" = "Grote illustratie tonen";
 "Show Lyrics" = "Toon songteksten";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Toon meldingen voor Speelt nu";
 "Show Regular Mini Player" = "Normale minispeler tonen";
 "Show a notification when a new track starts playing" = "Toon een melding wanneer een nieuw nummer begint met afspelen";

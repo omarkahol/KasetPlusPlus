@@ -155,6 +155,7 @@
 "Dislike comment" = "Dislike comment";
 "Disliked" = "Disliked";
 "Dismiss" = "Dismiss";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "Done";
 "Double-tap to retry" = "Double-tap to retry";
 "Double-tap to retry loading accounts" = "Double-tap to retry loading accounts";
@@ -380,6 +381,7 @@
 "One-time tip or monthly membership — your choice" = "One-time tip or monthly membership — your choice";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported.";
 "Open Command Bar (⌘K)" = "Open Command Bar (⌘K)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "Open Settings";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again.";
@@ -506,6 +508,7 @@
 "Show DeArrow title" = "Show DeArrow title";
 "Show Large Artwork" = "Show Large Artwork";
 "Show Lyrics" = "Show Lyrics";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "Show Now Playing Notifications";
 "Show Regular Mini Player" = "Show Regular Mini Player";
 "Show a notification when a new track starts playing" = "Show a notification when a new track starts playing";

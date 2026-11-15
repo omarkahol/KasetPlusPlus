@@ -155,6 +155,7 @@
 "Dislike comment" = "不喜欢的评论";
 "Disliked" = "不喜欢的";
 "Dismiss" = "关闭";
+"Display a player icon and popover in the macOS menu bar." = "Display a player icon and popover in the macOS menu bar.";
 "Done" = "完成";
 "Double-tap to retry" = "双击重试";
 "Double-tap to retry loading accounts" = "双击重试加载账户";
@@ -380,6 +381,7 @@
 "One-time tip or monthly membership — your choice" = "一次性提示或月份成员 — — 您的选择";
 "Only WebKit-compatible extensions (with a valid **manifest.json**) are supported." = "仅支持 WebKit 兼容的扩展(有效的 **manifest.json**)。";
 "Open Command Bar (⌘K)" = "打开命令栏 (prozK)";
+"Open Kaset++" = "Open Kaset++";
 "Open Settings" = "打开设置";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then retry playback or toggle the equalizer off and on.";
 "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again." = "Open System Settings → Privacy & Security → Screen & System Audio Recording and enable Kaset++, then toggle the equalizer on again.";
@@ -506,6 +508,7 @@
 "Show DeArrow title" = "显示箭头标题";
 "Show Large Artwork" = "显示大型美工";
 "Show Lyrics" = "显示歌词";
+"Show Menu Bar Extra" = "Show Menu Bar Extra";
 "Show Now Playing Notifications" = "显示正在播放通知";
 "Show Regular Mini Player" = "显示普通迷你玩家";
 "Show a notification when a new track starts playing" = "当新音轨开始播放时显示通知";
