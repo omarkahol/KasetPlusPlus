@@ -50,9 +50,9 @@ struct Sidebar: View {
                 }
             }
 
-            if self.hasPersonalAccount {
-                // Collection section
-                Section(String(localized: "Collection")) {
+            // Collection section
+            Section(String(localized: "Collection")) {
+                if self.hasPersonalAccount {
                     self.navigationRow(.library)
                         .accessibilityIdentifier(AccessibilityID.Sidebar.libraryItem)
 
@@ -62,6 +62,9 @@ struct Sidebar: View {
                     self.navigationRow(.history)
                         .accessibilityIdentifier(AccessibilityID.Sidebar.historyItem)
                 }
+
+                self.navigationRow(.downloads)
+                    .accessibilityIdentifier(AccessibilityID.Sidebar.downloadsItem)
             }
 
             if self.hasPersonalAccount {

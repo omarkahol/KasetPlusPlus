@@ -184,6 +184,8 @@ private struct QueueRowView: View {
                 // Favorite toggle
                 LikeButton(song: self.song, isRowHovered: self.isHovering, allowsActions: self.allowsLikeActions)
 
+                DownloadButton(song: self.song, isRowHovered: self.isHovering)
+
                 // Duration
                 if let duration = song.duration {
                     Text(self.formatDuration(duration))
@@ -210,6 +212,10 @@ private struct QueueRowView: View {
             Divider()
 
             ShareContextMenu.menuItem(for: self.song)
+
+            Divider()
+
+            DownloadSongContextMenu(song: self.song)
 
             if !self.isCurrentTrack {
                 Button(role: .destructive) {

@@ -72,6 +72,47 @@ struct AddToQueueContextMenu: View {
     }
 }
 
+// MARK: - DownloadSongContextMenu
+
+/// Reusable context menu items for downloading / removing downloaded songs.
+struct DownloadSongContextMenu: View {
+    let song: Song
+    @State private var downloadManager = DownloadManager.shared
+
+    var body: some View {
+        let isDownloaded = self.downloadManager.isDownloaded(videoId: self.song.videoId)
+        let status = self.downloadManager.status(for: self.song.videoId)
+
+        if isDownloaded {
+            Button {
+                if let fileURL = self.downloadManager.fileURL(for: self.song.videoId) {
+                    NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                }
+            } label: {
+                Label(String(localized: "Show in Finder"), systemImage: "folder")
+            }
+
+            Button(role: .destructive) {
+                self.downloadManager.removeDownload(videoId: self.song.videoId)
+            } label: {
+                Label(String(localized: "Remove Download"), systemImage: "trash")
+            }
+        } else if let status, status.isDownloading {
+            Button {
+                self.downloadManager.cancel(videoId: self.song.videoId)
+            } label: {
+                Label(String(localized: "Cancel Download"), systemImage: "xmark.circle")
+            }
+        } else {
+            Button {
+                self.downloadManager.download(song: self.song)
+            } label: {
+                Label(String(localized: "Download"), systemImage: "arrow.down.circle")
+            }
+        }
+    }
+}
+
 // MARK: - AddToPlaylistContextMenu
 
 /// Reusable context-menu submenu for adding a song to one of the user's playlists.

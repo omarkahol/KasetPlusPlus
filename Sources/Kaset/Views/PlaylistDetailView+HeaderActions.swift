@@ -53,6 +53,7 @@ extension PlaylistDetailView {
                 showsTitles: showsTitles
             )
 
+            self.downloadAllButton(playableTracks, showsTitles: showsTitles)
             self.sidebarButton(detail, showsTitles: showsTitles)
             self.libraryButton(detail, showsTitles: showsTitles)
             self.playlistManagementButtons(detail, showsTitles: showsTitles)
@@ -106,6 +107,50 @@ extension PlaylistDetailView {
         .buttonStyle(.bordered)
         .controlSize(.large)
         .disabled(playableTracks.isEmpty)
+    }
+
+    @ViewBuilder
+    private func downloadAllButton(_ playableTracks: [Song], showsTitles: Bool) -> some View {
+        let downloadManager = DownloadManager.shared
+        let unDownloadedCount = playableTracks.filter { !downloadManager.isDownloaded(videoId: $0.videoId) }.count
+        let allDownloaded = !playableTracks.isEmpty && unDownloadedCount == 0
+        let hasActiveDownloads = playableTracks.contains { downloadManager.status(for: $0.videoId)?.isDownloading == true }
+
+        Button {
+            if hasActiveDownloads {
+                for track in playableTracks {
+                    downloadManager.cancel(videoId: track.videoId)
+                }
+            } else if !allDownloaded {
+                downloadManager.downloadAll(songs: playableTracks)
+            }
+        } label: {
+            if allDownloaded {
+                self.headerActionLabel(
+                    localized: "Downloaded",
+                    systemImage: "checkmark.circle.fill",
+                    showsTitle: showsTitles
+                )
+                .foregroundStyle(.green)
+            } else if hasActiveDownloads {
+                self.headerActionLabel(
+                    localized: "Downloading…",
+                    systemImage: "arrow.down.circle.dotted",
+                    showsTitle: showsTitles
+                )
+                .foregroundStyle(.secondary)
+            } else {
+                self.headerActionLabel(
+                    localized: "Download All",
+                    systemImage: "arrow.down.circle",
+                    showsTitle: showsTitles
+                )
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(playableTracks.isEmpty)
+        .help(allDownloaded ? String(localized: "All tracks downloaded") : String(localized: "Download all tracks for offline playback"))
     }
 
     @ViewBuilder

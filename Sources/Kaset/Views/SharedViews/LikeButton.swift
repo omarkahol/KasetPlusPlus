@@ -19,7 +19,7 @@ struct LikeButton: View {
     @Environment(SongLikeStatusManager.self) private var likeStatusManager
 
     var body: some View {
-        let isLiked = self.allowsActions && self.likeStatusManager.isLiked(self.song)
+        let isLiked = self.likeStatusManager.isLiked(self.song) || self.song.likeStatus == .like
         if self.allowsActions {
             Button {
                 guard self.allowsActions else { return }
@@ -33,10 +33,10 @@ struct LikeButton: View {
                 Image(systemName: isLiked ? "hand.thumbsup.fill" : "hand.thumbsup")
                     .font(.system(size: 13))
                     .foregroundStyle(isLiked ? .red : .secondary)
-                    .frame(width: 22, height: 22)
-                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
+            .frame(width: 22, height: 22)
+            .contentShape(Rectangle())
             .disabled(!self.allowsActions)
             .opacity(isLiked || self.isRowHovered ? 1 : 0)
             .animation(.easeInOut(duration: 0.12), value: isLiked)
@@ -52,9 +52,16 @@ struct LikeButton: View {
                     : String(localized: "Like")
             )
         } else {
-            Color.clear
-                .frame(width: 22, height: 22)
-                .accessibilityHidden(true)
+            if isLiked {
+                Image(systemName: "hand.thumbsup.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.red)
+                    .frame(width: 22, height: 22)
+            } else {
+                Color.clear
+                    .frame(width: 22, height: 22)
+                    .accessibilityHidden(true)
+            }
         }
     }
 }

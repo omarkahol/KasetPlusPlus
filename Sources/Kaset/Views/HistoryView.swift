@@ -184,15 +184,10 @@ struct HistoryView: View {
 
     private func songRow(_ song: Song, allSongs: [Song], index: Int) -> some View {
         HoverObservingRow { isHovered in
-            Button {
-                Task {
-                    await self.playerService.playQueue(allSongs, startingAt: index)
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    SongThumbnailView(song: song)
+            HStack(spacing: 12) {
+                SongThumbnailView(song: song)
 
-                    VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             Text(song.title)
                                 .font(.system(size: 14))
@@ -216,6 +211,8 @@ struct HistoryView: View {
 
                     LikeButton(song: song, isRowHovered: isHovered)
 
+                    DownloadButton(song: song, isRowHovered: isHovered)
+
                     Image(systemName: "play.circle")
                         .font(.title2)
                         .foregroundStyle(.secondary)
@@ -223,8 +220,14 @@ struct HistoryView: View {
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
                 .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+                .background {
+                    Button {
+                        Task { await self.playerService.playQueue(allSongs, startingAt: index) }
+                    } label: {
+                        Color.clear.contentShape(Rectangle())
+                    }
+                    .buttonStyle(.interactiveRow(cornerRadius: 6))
+                }
         }
         .contextMenu {
             Button {
@@ -248,6 +251,10 @@ struct HistoryView: View {
             Divider()
 
             AddToQueueContextMenu(song: song, playerService: self.playerService)
+
+            Divider()
+
+            DownloadSongContextMenu(song: song)
 
             Divider()
 

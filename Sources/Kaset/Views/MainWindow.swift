@@ -870,6 +870,8 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
                 } else if let vm = historyViewModel {
                     HistoryView(viewModel: vm)
                 }
+            case .downloads:
+                DownloadsView()
             }
         }
         .environment(\.libraryViewModel, self.libraryViewModel)
@@ -1248,6 +1250,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case likedMusic = "Liked Music"
     case library = "Library"
     case history = "History"
+    case downloads = "Downloads"
 
     var id: String {
         rawValue
@@ -1275,6 +1278,8 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             String(localized: "Library")
         case .history:
             String(localized: "History")
+        case .downloads:
+            String(localized: "Downloads")
         }
     }
 
@@ -1300,12 +1305,14 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             "square.stack.fill"
         case .history:
             "clock.arrow.circlepath"
+        case .downloads:
+            "arrow.down.circle"
         }
     }
 
     var requiresSignIn: Bool {
         switch self {
-        case .home, .explore, .search, .charts, .moodsAndGenres, .newReleases, .podcasts:
+        case .home, .explore, .search, .charts, .moodsAndGenres, .newReleases, .podcasts, .downloads:
             false
         case .likedMusic, .library, .history:
             true

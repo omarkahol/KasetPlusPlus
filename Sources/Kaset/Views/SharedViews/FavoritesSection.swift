@@ -190,6 +190,9 @@ struct FavoritesSection: View {
             Divider()
             AddToQueueContextMenu(song: song, playerService: self.playerService)
 
+            Divider()
+            DownloadSongContextMenu(song: song)
+
             if let client = self.playerService.ytMusicClient {
                 Divider()
                 AddToPlaylistContextMenu(song: song, client: client)

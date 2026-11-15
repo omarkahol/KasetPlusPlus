@@ -1,0 +1,526 @@
+// swiftlint:disable file_length
+import Foundation
+import Observation
+
+// MARK: - DownloadManager
+
+/// Manages downloading YouTube Music tracks for offline playback using yt-dlp.
+@MainActor
+@Observable
+final class DownloadManager {
+    static let shared = DownloadManager()
+
+    // MARK: - DownloadStatus
+
+    enum DownloadStatus: Equatable, Sendable {
+        case queued
+        case preparing
+        case downloading(progress: Double, speed: String)
+        case completed(fileURL: URL)
+        case failed(error: String)
+
+        var isDownloading: Bool {
+            switch self {
+            case .queued, .preparing, .downloading:
+                true
+            case .completed, .failed:
+                false
+            }
+        }
+
+        var progress: Double {
+            switch self {
+            case .downloading(let progress, _):
+                progress
+            case .completed:
+                1.0
+            default:
+                0.0
+            }
+        }
+    }
+
+    // MARK: - Observable State
+
+    /// All downloaded songs currently indexed on disk.
+    var downloadedSongs: [DownloadedSong] = []
+
+    /// Current statuses of active and queued downloads keyed by video ID.
+    var activeDownloads: [String: DownloadStatus] = [:]
+
+    // MARK: - Private State
+
+    @ObservationIgnored private var downloadQueue: [Song] = []
+    @ObservationIgnored private var activeProcesses: [String: Process] = [:]
+    @ObservationIgnored private var canceledVideoIds: Set<String> = []
+    @ObservationIgnored private let logger = DiagnosticsLogger.download
+
+    private init() {
+        self.loadIndex()
+    }
+
+    // MARK: - Directories
+
+    /// Base download directory configured in settings.
+    var downloadsDirectory: URL {
+        let dir = SettingsManager.shared.resolvedDownloadDirectory
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Subdirectory for cached track artwork.
+    var artworksDirectory: URL {
+        let dir = self.downloadsDirectory.appendingPathComponent("Artworks", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// JSON metadata index file path.
+    private var indexFileURL: URL {
+        self.downloadsDirectory.appendingPathComponent("downloads_index.json")
+    }
+
+    // MARK: - Binary Path Resolution
+
+    /// Resolved executable path for `yt-dlp`.
+    var ytdlpPath: String? {
+        let custom = SettingsManager.shared.customYtdlpPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !custom.isEmpty, FileManager.default.isExecutableFile(atPath: custom) {
+            return custom
+        }
+
+        // 1. App bundle resource
+        if let resourcePath = Bundle.main.resourcePath {
+            let bundled = (resourcePath as NSString).appendingPathComponent("yt-dlp")
+            if FileManager.default.isExecutableFile(atPath: bundled) {
+                return bundled
+            }
+        }
+
+        // 2. Common Homebrew and system paths
+        for path in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+
+        // 3. System PATH lookup
+        return Self.resolveBinaryInPath("yt-dlp")
+    }
+
+    /// Resolved executable path for `ffmpeg`.
+    var ffmpegPath: String? {
+        let custom = SettingsManager.shared.customFfmpegPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !custom.isEmpty, FileManager.default.isExecutableFile(atPath: custom) {
+            return custom
+        }
+
+        for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"] {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+
+        return Self.resolveBinaryInPath("ffmpeg")
+    }
+
+    var isYtdlpAvailable: Bool {
+        self.ytdlpPath != nil
+    }
+
+    var isFfmpegAvailable: Bool {
+        self.ffmpegPath != nil
+    }
+
+    private static func resolveBinaryInPath(_ name: String) -> String? {
+        let which = Process()
+        which.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        which.arguments = ["which", name]
+        let pipe = Pipe()
+        which.standardOutput = pipe
+        which.standardError = FileHandle.nullDevice
+        do {
+            try which.run()
+            which.waitUntilExit()
+            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) {
+                return path
+            }
+        } catch {}
+        return nil
+    }
+
+    // MARK: - Query Status
+
+    /// Returns true if the song is downloaded and exists on disk.
+    func isDownloaded(videoId: String) -> Bool {
+        guard let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) else {
+            return false
+        }
+        let url = song.fileURL(baseDirectory: self.downloadsDirectory)
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    /// Returns the download status of a video ID.
+    func status(for videoId: String) -> DownloadStatus? {
+        if let status = self.activeDownloads[videoId] {
+            return status
+        }
+        if self.isDownloaded(videoId: videoId) {
+            if let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) {
+                return .completed(fileURL: song.fileURL(baseDirectory: self.downloadsDirectory))
+            }
+        }
+        return nil
+    }
+
+    /// Returns the local audio file URL for a downloaded song if it exists on disk.
+    func fileURL(for videoId: String) -> URL? {
+        guard let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) else {
+            return nil
+        }
+        let url = song.fileURL(baseDirectory: self.downloadsDirectory)
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    // MARK: - Queue Actions
+
+    /// Enqueues a song for download.
+    func download(song: Song) {
+        guard !self.isDownloaded(videoId: song.videoId) else { return }
+        if let currentStatus = self.activeDownloads[song.videoId], currentStatus.isDownloading {
+            return
+        }
+
+        self.canceledVideoIds.remove(song.videoId)
+        self.logger.info("Enqueuing download for \(song.title) (\(song.videoId))")
+        self.activeDownloads[song.videoId] = .queued
+
+        if !self.downloadQueue.contains(where: { $0.videoId == song.videoId }) {
+            self.downloadQueue.append(song)
+        }
+
+        self.processQueue()
+    }
+
+    /// Enqueues multiple songs for download.
+    func downloadAll(songs: [Song]) {
+        for song in songs where !self.isDownloaded(videoId: song.videoId) {
+            if let currentStatus = self.activeDownloads[song.videoId], currentStatus.isDownloading {
+                continue
+            }
+            self.canceledVideoIds.remove(song.videoId)
+            self.activeDownloads[song.videoId] = .queued
+            if !self.downloadQueue.contains(where: { $0.videoId == song.videoId }) {
+                self.downloadQueue.append(song)
+            }
+        }
+        self.processQueue()
+    }
+
+    /// Cancels a queued or active download.
+    func cancel(videoId: String) {
+        self.logger.info("Canceling download for \(videoId)")
+        self.canceledVideoIds.insert(videoId)
+        self.downloadQueue.removeAll { $0.videoId == videoId }
+
+        if let proc = self.activeProcesses.removeValue(forKey: videoId) {
+            proc.terminate()
+        }
+
+        self.activeDownloads.removeValue(forKey: videoId)
+        self.cleanupPartialFiles(for: videoId)
+        self.processQueue()
+    }
+
+    /// Deletes a downloaded song from disk and removes it from the metadata index.
+    func removeDownload(videoId: String) {
+        self.logger.info("Removing download for \(videoId)")
+        self.cancel(videoId: videoId)
+
+        if let index = self.downloadedSongs.firstIndex(where: { $0.videoId == videoId }) {
+            let song = self.downloadedSongs[index]
+            let fileURL = song.fileURL(baseDirectory: self.downloadsDirectory)
+            try? FileManager.default.removeItem(at: fileURL)
+
+            if let artwork = song.artworkPath {
+                let artworkURL = self.downloadsDirectory.appendingPathComponent(artwork)
+                try? FileManager.default.removeItem(at: artworkURL)
+            }
+
+            self.downloadedSongs.remove(at: index)
+            self.saveIndex()
+        }
+
+        self.activeDownloads.removeValue(forKey: videoId)
+    }
+
+    /// Deletes all downloaded songs, artworks, and resets the index.
+    func removeAllDownloads() {
+        self.logger.info("Removing all downloads")
+        for videoId in self.activeProcesses.keys {
+            self.cancel(videoId: videoId)
+        }
+        self.downloadQueue.removeAll()
+        self.activeDownloads.removeAll()
+
+        for song in self.downloadedSongs {
+            let fileURL = song.fileURL(baseDirectory: self.downloadsDirectory)
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+        try? FileManager.default.removeItem(at: self.artworksDirectory)
+        try? FileManager.default.removeItem(at: self.indexFileURL)
+
+        self.downloadedSongs.removeAll()
+    }
+
+    // MARK: - Queue Processing
+
+    private func processQueue() {
+        let maxConcurrent = SettingsManager.shared.maxConcurrentDownloads
+        while self.activeProcesses.count < maxConcurrent, !self.downloadQueue.isEmpty {
+            let song = self.downloadQueue.removeFirst()
+            self.startDownload(song: song)
+        }
+    }
+
+    private func startDownload(song: Song) {
+        guard let ytdlp = self.ytdlpPath else {
+            self.activeDownloads[song.videoId] = .failed(error: String(localized: "yt-dlp is not installed."))
+            self.processQueue()
+            return
+        }
+
+        self.activeDownloads[song.videoId] = .preparing
+        let videoId = song.videoId
+        let format = SettingsManager.shared.downloadAudioFormat
+        let destinationDir = self.downloadsDirectory
+        let destinationPath = destinationDir.path
+
+        // Build Process
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: ytdlp)
+
+        var args: [String] = [
+            "--newline", // Line-by-line progress updates
+            "--no-playlist",
+            "--no-mtime",
+            "--embed-thumbnail",
+            "--add-metadata",
+            "-o", "\(destinationPath)/%(title)s [%(id)s].%(ext)s",
+        ]
+
+        if let ffmpeg = self.ffmpegPath {
+            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
+        }
+
+        args.append(contentsOf: format.ytDlpArguments)
+        args.append("https://www.youtube.com/watch?v=\(videoId)")
+        proc.arguments = args
+
+        // Configure environment with standard Homebrew paths so yt-dlp can locate external tools
+        var env = ProcessInfo.processInfo.environment
+        let extraPaths = "/opt/homebrew/bin:/usr/local/bin"
+        if let currentPath = env["PATH"] {
+            env["PATH"] = "\(extraPaths):\(currentPath)"
+        } else {
+            env["PATH"] = extraPaths
+        }
+        proc.environment = env
+
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = pipe
+
+        self.activeProcesses[videoId] = proc
+
+        nonisolated(unsafe) var lastDestination = ""
+        let songTitle = song.title
+
+        pipe.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
+            guard !chunk.isEmpty else { return }
+
+            let lines = chunk.components(separatedBy: "\n")
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.contains("[download] Destination:") {
+                    lastDestination = trimmed
+                        .replacingOccurrences(of: "[download] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.contains("[ExtractAudio] Destination:") {
+                    lastDestination = trimmed
+                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.contains("%") {
+                    let percent = Self.parsePercent(trimmed)
+                    let speed = Self.parseSpeed(trimmed)
+                    Task { @MainActor in
+                        if DownloadManager.shared.activeDownloads[videoId] != nil {
+                            DownloadManager.shared.activeDownloads[videoId] = .downloading(progress: percent, speed: speed)
+                        }
+                    }
+                }
+            }
+        }
+
+        proc.terminationHandler = { [weak self] process in
+            pipe.fileHandleForReading.readabilityHandler = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.activeProcesses.removeValue(forKey: videoId)
+                let wasCanceled = self.canceledVideoIds.remove(videoId) != nil
+
+                if wasCanceled {
+                    self.logger.info("Download was canceled for \(songTitle) (\(videoId))")
+                    self.activeDownloads.removeValue(forKey: videoId)
+                    self.cleanupPartialFiles(for: videoId)
+                } else if process.terminationStatus == 0 {
+                    self.logger.info("Download completed successfully for \(songTitle) (\(videoId))")
+                    self.finalizeDownload(song: song, format: format, detectedDestination: lastDestination)
+                } else {
+                    self.logger.error("Download failed for \(songTitle) (\(videoId)) with exit code \(process.terminationStatus)")
+                    self.activeDownloads[videoId] = .failed(error: String(localized: "Download failed."))
+                }
+
+                self.processQueue()
+            }
+        }
+
+        do {
+            try proc.run()
+        } catch {
+            pipe.fileHandleForReading.readabilityHandler = nil
+            self.activeProcesses.removeValue(forKey: videoId)
+            self.activeDownloads[videoId] = .failed(error: error.localizedDescription)
+            self.processQueue()
+        }
+    }
+
+    private func finalizeDownload(song: Song, format: SettingsManager.DownloadAudioFormat, detectedDestination: String) {
+        let baseDir = self.downloadsDirectory
+        let fallbackFileName = "\(song.title) [\(song.videoId)].\(format.fileExtension)"
+        let actualFileName: String
+
+        if !detectedDestination.isEmpty {
+            actualFileName = (detectedDestination as NSString).lastPathComponent
+        } else {
+            actualFileName = fallbackFileName
+        }
+
+        let audioFileURL = baseDir.appendingPathComponent(actualFileName)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: audioFileURL.path)[.size] as? Int64)
+
+        // Cache Artwork thumbnail asynchronously
+        let currentLikeStatus = SongLikeStatusManager.shared.status(for: song) ?? song.likeStatus
+        Task {
+            let relativeArtworkPath = await self.cacheArtwork(for: song)
+
+            let downloaded = DownloadedSong(
+                id: song.videoId,
+                videoId: song.videoId,
+                title: song.title,
+                artists: song.artists,
+                albumTitle: song.album?.title,
+                duration: song.duration,
+                artworkPath: relativeArtworkPath,
+                localRelativePath: actualFileName,
+                fileSize: fileSize,
+                downloadDate: Date(),
+                audioFormat: format.fileExtension,
+                likeStatus: currentLikeStatus
+            )
+
+            self.downloadedSongs.removeAll { $0.videoId == song.videoId }
+            self.downloadedSongs.insert(downloaded, at: 0)
+            self.saveIndex()
+
+            self.activeDownloads[song.videoId] = .completed(fileURL: audioFileURL)
+        }
+    }
+
+    /// Updates the stored like status of a downloaded song and persists the index.
+    func updateLikeStatus(videoId: String, likeStatus: LikeStatus?) {
+        guard let index = self.downloadedSongs.firstIndex(where: { $0.videoId == videoId }) else { return }
+        var updated = self.downloadedSongs[index]
+        updated.likeStatus = likeStatus
+        self.downloadedSongs[index] = updated
+        self.saveIndex()
+    }
+
+    private func cacheArtwork(for song: Song) async -> String? {
+        guard let thumbnailURL = song.thumbnailURL else { return nil }
+        let artworkFileName = "\(song.videoId).jpg"
+        let fileURL = self.artworksDirectory.appendingPathComponent(artworkFileName)
+
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            return "Artworks/\(artworkFileName)"
+        }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: thumbnailURL)
+            try data.write(to: fileURL)
+            return "Artworks/\(artworkFileName)"
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Index Persistence
+
+    private func loadIndex() {
+        guard FileManager.default.fileExists(atPath: self.indexFileURL.path),
+              let data = try? Data(contentsOf: self.indexFileURL),
+              let decoded = try? JSONDecoder().decode([DownloadedSong].self, from: data)
+        else {
+            self.downloadedSongs = []
+            return
+        }
+
+        // Validate that files actually exist on disk; purge missing records
+        let baseDir = self.downloadsDirectory
+        self.downloadedSongs = decoded.filter { song in
+            let url = song.fileURL(baseDirectory: baseDir)
+            return FileManager.default.fileExists(atPath: url.path)
+        }
+    }
+
+    private func saveIndex() {
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(self.downloadedSongs)
+            try data.write(to: self.indexFileURL, options: .atomic)
+        } catch {
+            self.logger.error("Failed to save downloads index: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Output Parsers
+
+    /// Removes any lingering `.part` or temporary download files left behind by yt-dlp.
+    private func cleanupPartialFiles(for videoId: String) {
+        let dir = self.downloadsDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        for file in files where file.contains("[\(videoId)]") {
+            let fileURL = dir.appendingPathComponent(file)
+            try? FileManager.default.removeItem(at: fileURL)
+        }
+    }
+
+    private nonisolated static func parsePercent(_ line: String) -> Double {
+        guard let range = line.range(of: #"\d+\.?\d*%"#, options: .regularExpression) else {
+            return 0
+        }
+        let str = String(line[range]).replacingOccurrences(of: "%", with: "")
+        return (Double(str) ?? 0) / 100.0
+    }
+
+    private nonisolated static func parseSpeed(_ line: String) -> String {
+        guard let range = line.range(of: #"at\s+\S+"#, options: .regularExpression) else {
+            return ""
+        }
+        return String(line[range])
+    }
+}

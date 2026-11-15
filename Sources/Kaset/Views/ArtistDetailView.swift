@@ -330,58 +330,64 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
     /// Song row for top songs section - fetches all songs and plays as queue.
     private func topSongRow(_ song: Song, index: Int) -> some View {
         HoverObservingRow { isHovered in
-            Button {
-                self.playTopSong(song, displayedIndex: index)
-            } label: {
-                HStack(spacing: 12) {
-                    // Thumbnail
-                    SongThumbnailView(song: song, size: 40, cornerRadius: 4)
+            HStack(spacing: 12) {
+                // Thumbnail
+                SongThumbnailView(song: song, size: 40, cornerRadius: 4)
 
-                    // Title (with optional explicit badge)
-                    HStack(spacing: 6) {
-                        Text(song.title)
-                            .font(.system(size: 14))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        if song.isExplicit == true {
-                            ExplicitBadge()
-                        }
+                // Title (with optional explicit badge)
+                HStack(spacing: 6) {
+                    Text(song.title)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if song.isExplicit == true {
+                        ExplicitBadge()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Artist column
-                    Text(song.artistsDisplay)
+                // Artist column
+                Text(song.artistsDisplay)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 150, alignment: .leading)
+
+                // Album column (if available)
+                if let album = song.album {
+                    Text(album.title)
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .frame(width: 150, alignment: .leading)
-
-                    // Album column (if available)
-                    if let album = song.album {
-                        Text(album.title)
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .frame(width: 150, alignment: .leading)
-                    } else {
-                        Text(String(localized: ""))
-                            .frame(width: 150, alignment: .leading)
-                    }
-
-                    // Favorite toggle
-                    LikeButton(song: song, isRowHovered: isHovered, allowsActions: self.hasPersonalAccount)
-
-                    // Duration
-                    Text(song.durationDisplay)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 50, alignment: .trailing)
+                } else {
+                    Text(String(localized: ""))
+                        .frame(width: 150, alignment: .leading)
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 4)
-                .contentShape(Rectangle())
+
+                // Favorite toggle
+                LikeButton(song: song, isRowHovered: isHovered, allowsActions: self.hasPersonalAccount)
+
+                // Download button
+                DownloadButton(song: song, isRowHovered: isHovered)
+
+                // Duration
+                Text(song.durationDisplay)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .trailing)
             }
-            .buttonStyle(.plain)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .background {
+                Button {
+                    self.playTopSong(song, displayedIndex: index)
+                } label: {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.interactiveRow(cornerRadius: 6))
+            }
         }
         .contextMenu {
             Button {
@@ -425,6 +431,10 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             Divider()
 
             AddToQueueContextMenu(song: song, playerService: self.playerService)
+
+            Divider()
+
+            DownloadSongContextMenu(song: song)
 
             // Go to Album - show if album has valid browse ID
             if let album = song.album, album.hasNavigableId {

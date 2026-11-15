@@ -486,6 +486,10 @@ struct PlaylistDetailView: View {
 
             Divider()
 
+            DownloadSongContextMenu(song: track)
+
+            Divider()
+
             if let artist = track.artists.first(where: { $0.hasNavigableId }) {
                 NavigationLink(value: artist) {
                     Label(String(localized: "Go to Artist"), systemImage: "person")

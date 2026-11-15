@@ -178,7 +178,14 @@ final class SongLikeStatusManager {
     /// - Parameter song: The song to check.
     /// - Returns: The status from cache, song property, or nil.
     func status(for song: Song) -> LikeStatus? {
-        self.status(for: song.videoId) ?? song.likeStatus
+        if let cached = self.status(for: song.videoId) {
+            return cached
+        }
+        if let songStatus = song.likeStatus {
+            self.setStatus(songStatus, for: song.videoId, accountID: self.activeAccountID)
+            return songStatus
+        }
+        return nil
     }
 
     /// Checks if a song is liked.
@@ -824,5 +831,8 @@ final class SongLikeStatusManager {
         guard accountID == self.activeAccountID, let lastEvent = events.last else { return }
         self.lastLikeEvent = lastEvent
         self.lastLikeEventBatch = LikeStatusEventBatch(accountID: accountID, events: events)
+        for event in events {
+            DownloadManager.shared.updateLikeStatus(videoId: event.videoId, likeStatus: event.status)
+        }
     }
 }

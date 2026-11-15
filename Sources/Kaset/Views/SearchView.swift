@@ -349,74 +349,83 @@ struct SearchView: View {
 
     private func resultRow(_ item: SearchResultItem, index: Int) -> some View {
         HoverObservingRow { isHovered in
-            Button {
-                self.handleItemTap(item)
-            } label: {
-                HStack(spacing: 12) {
-                    // Thumbnail
-                    CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 48, height: 48)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                Image(systemName: self.iconForItem(item))
-                                    .foregroundStyle(.secondary)
-                            }
-                    }
-                    .frame(width: 48, height: 48)
-                    .clipShape(.rect(cornerRadius: item.usesCircularThumbnail ? 24 : 6))
-
-                    // Info
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(item.title)
-                                .font(.system(size: 14))
-                                .lineLimit(1)
-                            if let song = self.songResultPayload(for: item), song.isExplicit == true {
-                                ExplicitBadge()
-                            }
+            HStack(spacing: 12) {
+                // Thumbnail
+                CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 48, height: 48)) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    Rectangle()
+                        .fill(.quaternary)
+                        .overlay {
+                            Image(systemName: self.iconForItem(item))
+                                .foregroundStyle(.secondary)
                         }
+                }
+                .frame(width: 48, height: 48)
+                .clipShape(.rect(cornerRadius: item.usesCircularThumbnail ? 24 : 6))
 
-                        HStack(spacing: 4) {
-                            Text(item.resultType)
+                // Info
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(item.title)
+                            .font(.system(size: 14))
+                            .lineLimit(1)
+                        if let song = self.songResultPayload(for: item), song.isExplicit == true {
+                            ExplicitBadge()
+                        }
+                    }
+
+                    HStack(spacing: 4) {
+                        Text(item.resultType)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+
+                        if let subtitle = item.subtitle {
+                            Text(String(localized: "•"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+
+                            Text(subtitle)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
-
-                            if let subtitle = item.subtitle {
-                                Text(String(localized: "•"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.tertiary)
-
-                                Text(subtitle)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
+                                .lineLimit(1)
                         }
                     }
+                }
 
-                    Spacer()
+                Spacer()
 
-                    // Favorite toggle for songs
-                    if let song = self.songResultPayload(for: item) {
-                        LikeButton(song: song, isRowHovered: isHovered, allowsActions: self.authService.hasPersonalAccount)
-                    }
+                // Favorite toggle for songs
+                if let song = self.songResultPayload(for: item) {
+                    LikeButton(song: song, isRowHovered: isHovered, allowsActions: self.authService.hasPersonalAccount)
+                    DownloadButton(song: song, isRowHovered: isHovered)
+                }
 
-                    // Play indicator for songs
-                    if item.videoId != nil {
+                // Play indicator for songs
+                if item.videoId != nil {
+                    Button {
+                        self.handleItemTap(item)
+                    } label: {
                         Image(systemName: "play.circle")
                             .font(.title2)
                             .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Play"))
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.interactiveRow(cornerRadius: 6))
+            .padding(.horizontal, 24)
+            .padding(.vertical, 8)
+            .background {
+                Button {
+                    self.handleItemTap(item)
+                } label: {
+                    Color.clear.contentShape(Rectangle())
+                }
+                .buttonStyle(.interactiveRow(cornerRadius: 6))
+            }
             .accessibilityIdentifier(AccessibilityID.Search.resultRow(index: index))
         }
         .contextMenu {
@@ -487,6 +496,10 @@ struct SearchView: View {
         Divider()
 
         AddToQueueContextMenu(song: song, playerService: self.playerService)
+
+        Divider()
+
+        DownloadSongContextMenu(song: song)
 
         Divider()
 
@@ -650,6 +663,10 @@ struct SearchView: View {
         Divider()
 
         AddToQueueContextMenu(song: song, playerService: self.playerService)
+
+        Divider()
+
+        DownloadSongContextMenu(song: song)
 
         Divider()
 

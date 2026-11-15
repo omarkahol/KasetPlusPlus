@@ -344,8 +344,8 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
 
     @ViewBuilder
     private var songActionButtons: some View {
-        if self.hasPersonalAccount {
-            HStack(spacing: 6) {
+        HStack(spacing: 6) {
+            if self.hasPersonalAccount {
                 PlayerBarIconButton(
                     action: self.likeCurrentTrack,
                     isSelected: self.playerService.currentTrackLikeStatus == .like,
@@ -377,6 +377,10 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                 }
                 .symbolEffect(.bounce, value: self.playerService.currentTrackLikeStatus == .dislike)
                 .disabled(self.playerService.currentTrack == nil)
+            }
+
+            if let track = self.playerService.currentTrack {
+                DownloadButton(song: track, isRowHovered: true)
             }
         }
     }
@@ -860,6 +864,10 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
         Divider()
 
         AddToQueueContextMenu(song: track, playerService: self.playerService)
+
+        Divider()
+
+        DownloadSongContextMenu(song: track)
 
         if self.hasPersonalAccount, let client = self.playerService.ytMusicClient {
             Divider()

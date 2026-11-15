@@ -127,6 +127,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     var isAwaitingPlaybackConfirmation = false
     var isExplicitPauseIntentActive = false
 
+    /// Whether the currently playing track is being played via native offline audio player (AVPlayer).
+    var isPlayingOfflineTrack: Bool = false
+
     /// Currently playing track.
     var currentTrack: Song? {
         didSet {
@@ -684,6 +687,23 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         // Queue metadata enrichment is event/one-shot driven; this only schedules if restored
         // state already needs enrichment and a client is available.
         self.startQueueEnrichmentService()
+
+        // Wire up NativeAudioPlayer callbacks for offline playback
+        NativeAudioPlayer.shared.onProgressUpdate = { [weak self] seconds in
+            guard let self, self.isPlayingOfflineTrack else { return }
+            self.progress = seconds
+            self.currentTimeMs = Int(seconds * 1000)
+        }
+        NativeAudioPlayer.shared.onStateChange = { [weak self] isPlaying in
+            guard let self, self.isPlayingOfflineTrack else { return }
+            self.state = isPlaying ? .playing : .paused
+        }
+        NativeAudioPlayer.shared.onPlaybackEnded = { [weak self] in
+            guard let self, self.isPlayingOfflineTrack else { return }
+            Task {
+                await self.next()
+            }
+        }
     }
 
     // MARK: - Controlled Mutators

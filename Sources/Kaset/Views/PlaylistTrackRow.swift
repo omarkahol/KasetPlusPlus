@@ -86,6 +86,10 @@ struct PlaylistTrackRow<Menu: View>: View {
                 .disabled(!self.track.isPlayable)
                 .allowsHitTesting(self.allowsLikeActions && self.track.isPlayable)
 
+            DownloadButton(song: self.track, isRowHovered: self.isHovered)
+                .disabled(!self.track.isPlayable)
+                .allowsHitTesting(self.track.isPlayable)
+
             Text(self.track.durationDisplay)
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)

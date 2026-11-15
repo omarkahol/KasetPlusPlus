@@ -903,6 +903,11 @@ struct SettingsView: View {
                     .tabItem {
                         Label(String(localized: "Music"), systemImage: "music.note")
                     }
+
+                DownloadsSettingsView()
+                    .tabItem {
+                        Label(String(localized: "Downloads"), systemImage: "arrow.down.circle")
+                    }
             }
 
             YouTubeSettingsView()
@@ -942,10 +947,10 @@ struct SettingsView: View {
                     Label("Addons", systemImage: "app.connected.to.app.below.fill")
                 }
         }
-        // 840 wide so all eight tabs fit in the toolbar without overflowing into
+        // 880 wide so all tabs fit in the toolbar without overflowing into
         // the "»" menu (the localized labels are wide); height 520 fits the
         // Equalizer tab's six-band slider grid + curve preview. Other tabs grow
         // comfortably into the extra space.
-        .frame(width: 840, height: 520)
+        .frame(width: 880, height: 520)
     }
 }

@@ -202,6 +202,56 @@ extension PlayerService {
         )
     }
 
+    // MARK: - Native Offline Playback
+
+    /// Plays a downloaded song locally using `NativeAudioPlayer` (AVPlayer).
+    func playOfflineTrack(
+        song: Song,
+        fileURL: URL,
+        queueEntryID: UUID?,
+        startsPaused: Bool = false,
+        restoreClock: MusicPlaybackRestoreClock? = nil
+    ) {
+        self.logger.info("Routing playback through NativeAudioPlayer for downloaded song: \(song.title)")
+        SingletonPlayerWebView.shared.pause()
+        self.isPlayingOfflineTrack = true
+        self.currentTrack = song
+        self.activePlaybackQueueEntryID = queueEntryID
+        self.currentEpisode = nil
+        self.isStoppingPlayback = false
+        self.shouldResumeAfterInterruption = !startsPaused
+        self.isAwaitingPlaybackConfirmation = false
+        self.isExplicitPauseIntentActive = startsPaused
+        self.progress = restoreClock?.progress ?? 0
+        self.currentTimeMs = Int(self.progress * 1000)
+        self.duration = song.duration ?? 0
+
+        NativeAudioPlayer.shared.play(fileURL: fileURL)
+        NativeAudioPlayer.shared.setVolume(self.volume)
+
+        if let initialDuration = song.duration, initialDuration > 0 {
+            self.duration = initialDuration
+        } else {
+            let nativeDuration = NativeAudioPlayer.shared.duration
+            if nativeDuration > 0 {
+                self.duration = nativeDuration
+            }
+        }
+
+        if let restoreClock, restoreClock.progress > 0 {
+            NativeAudioPlayer.shared.seek(to: restoreClock.progress)
+        }
+
+        if startsPaused {
+            NativeAudioPlayer.shared.pause()
+            self.state = .paused
+        } else {
+            self.state = .playing
+        }
+
+        self.saveQueueForPersistence(syncWebQueue: false)
+    }
+
     // swiftlint:disable function_body_length
     func play(
         song: Song,
@@ -223,6 +273,22 @@ extension PlayerService {
         self.clearWebQueueInjectionState()
         self.clearPendingNativeQueueAdvance()
         self.logger.info("Playing song: \(song.title)")
+
+        if let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId) {
+            self.playOfflineTrack(
+                song: song,
+                fileURL: localAudioURL,
+                queueEntryID: queueEntryID,
+                startsPaused: startsPaused,
+                restoreClock: restoreClock
+            )
+            return
+        }
+
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.stop()
+            self.isPlayingOfflineTrack = false
+        }
         let acceptsPlaybackRequest = SingletonPlayerWebView.shared.acceptsPlaybackRequest(
             videoId: song.videoId,
             strategy: webLoadStrategy
@@ -470,6 +536,12 @@ extension PlayerService {
         guard self.acceptsMusicPlaybackIntent(intent) else { return }
         self.logger.debug("Toggle play/pause")
 
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.togglePlayPause()
+            self.state = NativeAudioPlayer.shared.isPlaying ? .playing : .paused
+            return
+        }
+
         // `resume()` owns restored-session transitions. Never clear these flags
         // here: a failed navigation may have deferred a still-authoritative seek.
         if self.isRestoringPlaybackSession {
@@ -515,6 +587,14 @@ extension PlayerService {
     func pause(intent: MusicPlaybackIntent) async {
         guard self.acceptsMusicPlaybackIntent(intent) else { return }
         self.logger.debug("Pausing playback")
+
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.pause()
+            self.state = .paused
+            self.shouldResumeAfterInterruption = false
+            self.isExplicitPauseIntentActive = true
+            return
+        }
         self.clearQueueNavigationRecovery()
         self.shouldResumeAfterInterruption = false
         self.isAwaitingPlaybackConfirmation = false
@@ -558,6 +638,13 @@ extension PlayerService {
     // swiftlint:disable:next cyclomatic_complexity
     func resume(intent: MusicPlaybackIntent) async {
         guard self.acceptsMusicPlaybackIntent(intent) else { return }
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.resume()
+            self.state = .playing
+            self.shouldResumeAfterInterruption = true
+            self.isExplicitPauseIntentActive = false
+            return
+        }
         if await self.resolvePendingNativeQueueAdvanceForResume(intent: intent) {
             return
         }
@@ -1018,6 +1105,13 @@ extension PlayerService {
     func seek(to time: TimeInterval, intent: MusicPlaybackIntent) async {
         guard !self.isShowingAd, self.acceptsMusicPlaybackIntent(intent) else { return }
         let clampedTime = self.duration > 0 ? min(max(time, 0), self.duration) : max(time, 0)
+
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.seek(to: clampedTime)
+            self.progress = clampedTime
+            self.currentTimeMs = Int(clampedTime * 1000)
+            return
+        }
         if self.pendingNativeQueueAdvance != nil,
            self.duration > 0,
            clampedTime >= self.duration - Self.seekToEndThreshold
@@ -1096,6 +1190,9 @@ extension PlayerService {
         let clampedValue = max(0, min(1, value))
         self.volume = clampedValue
         UserDefaults.standard.set(clampedValue, forKey: Self.volumeKey)
+        if self.isPlayingOfflineTrack {
+            NativeAudioPlayer.shared.setVolume(clampedValue)
+        }
         return clampedValue
     }
 

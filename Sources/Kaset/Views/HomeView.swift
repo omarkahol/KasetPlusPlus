@@ -197,6 +197,10 @@ struct HomeView: View {
 
             Divider()
 
+            DownloadSongContextMenu(song: song)
+
+            Divider()
+
             AddToPlaylistContextMenu(song: song, client: self.viewModel.client)
 
             Divider()

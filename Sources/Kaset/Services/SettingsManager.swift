@@ -49,6 +49,11 @@ final class SettingsManager {
         static let distractionFreeEnabled = "settings.distractionFree.enabled"
         static let youtubeAutoplayEnabled = "settings.youtube.autoplay.enabled"
         static let accentColorHex = "settings.accentColorHex"
+        static let downloadAudioFormat = "settings.downloadAudioFormat"
+        static let downloadDirectoryPath = "settings.downloadDirectoryPath"
+        static let customYtdlpPath = "settings.customYtdlpPath"
+        static let customFfmpegPath = "settings.customFfmpegPath"
+        static let maxConcurrentDownloads = "settings.maxConcurrentDownloads"
         #if DEBUG
             static let useLegacyMacOS15UI = "settings.debug.useLegacyMacOS15UI"
         #endif
@@ -278,6 +283,60 @@ final class SettingsManager {
             case .high: "High"
             }
         }
+    }
+
+    // MARK: - Download Audio Format
+
+    /// Audio quality/format options for offline downloads mapped directly to yt-dlp arguments.
+    enum DownloadAudioFormat: String, CaseIterable, Identifiable, Codable {
+        case bestAudio = "best"
+        case mp3_320 = "mp3"
+        case opus = "opus"
+
+        var id: String {
+            self.rawValue
+        }
+
+        var displayName: String {
+            switch self {
+            case .bestAudio:
+                String(localized: "Best Audio (M4A / AAC)")
+            case .mp3_320:
+                String(localized: "MP3 (320 kbps)")
+            case .opus:
+                String(localized: "Opus (High Quality)")
+            }
+        }
+
+        var ytDlpArguments: [String] {
+            switch self {
+            case .bestAudio:
+                ["-x", "--audio-format", "m4a", "--audio-quality", "0"]
+            case .mp3_320:
+                ["-x", "--audio-format", "mp3", "--audio-quality", "0"]
+            case .opus:
+                ["-x", "--audio-format", "opus", "--audio-quality", "0"]
+            }
+        }
+
+        var fileExtension: String {
+            switch self {
+            case .bestAudio: "m4a"
+            case .mp3_320: "mp3"
+            case .opus: "opus"
+            }
+        }
+    }
+
+    /// The default directory for offline downloads (~/Music/KasetPlus Downloads).
+    static var defaultDownloadDirectory: URL {
+        if let musicDir = FileManager.default.urls(for: .musicDirectory, in: .userDomainMask).first {
+            return musicDir.appendingPathComponent("KasetPlus Downloads", isDirectory: true)
+        }
+        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        return appSupport
+            .appendingPathComponent("Kaset", isDirectory: true)
+            .appendingPathComponent("Downloads", isDirectory: true)
     }
 
     // MARK: - Settings Properties
@@ -688,6 +747,50 @@ final class SettingsManager {
         let useLegacyMacOS15UI = false
     #endif
 
+    /// Preferred audio quality/format for offline downloads.
+    var downloadAudioFormat: DownloadAudioFormat {
+        didSet {
+            UserDefaults.standard.set(self.downloadAudioFormat.rawValue, forKey: Keys.downloadAudioFormat)
+        }
+    }
+
+    /// Custom download directory path on disk.
+    var downloadDirectoryPath: String {
+        didSet {
+            UserDefaults.standard.set(self.downloadDirectoryPath, forKey: Keys.downloadDirectoryPath)
+        }
+    }
+
+    /// Resolved URL of the download directory.
+    var resolvedDownloadDirectory: URL {
+        URL(fileURLWithPath: self.downloadDirectoryPath, isDirectory: true)
+    }
+
+    /// User-specified custom path to yt-dlp binary (if any).
+    var customYtdlpPath: String {
+        didSet {
+            UserDefaults.standard.set(self.customYtdlpPath, forKey: Keys.customYtdlpPath)
+        }
+    }
+
+    /// User-specified custom path to ffmpeg binary (if any).
+    var customFfmpegPath: String {
+        didSet {
+            UserDefaults.standard.set(self.customFfmpegPath, forKey: Keys.customFfmpegPath)
+        }
+    }
+
+    /// Maximum concurrent downloads allowed at once (1...5).
+    var maxConcurrentDownloads: Int {
+        didSet {
+            let clamped = min(max(self.maxConcurrentDownloads, 1), 5)
+            if clamped != self.maxConcurrentDownloads {
+                self.maxConcurrentDownloads = clamped
+            }
+            UserDefaults.standard.set(clamped, forKey: Keys.maxConcurrentDownloads)
+        }
+    }
+
     // MARK: - Initialization
 
     private init() {
@@ -759,6 +862,19 @@ final class SettingsManager {
         } else {
             self.playbackAudioQuality = .auto
         }
+
+        if let rawValue = UserDefaults.standard.string(forKey: Keys.downloadAudioFormat),
+           let format = DownloadAudioFormat(rawValue: rawValue)
+        {
+            self.downloadAudioFormat = format
+        } else {
+            self.downloadAudioFormat = .bestAudio
+        }
+
+        self.downloadDirectoryPath = UserDefaults.standard.string(forKey: Keys.downloadDirectoryPath) ?? Self.defaultDownloadDirectory.path
+        self.customYtdlpPath = UserDefaults.standard.string(forKey: Keys.customYtdlpPath) ?? ""
+        self.customFfmpegPath = UserDefaults.standard.string(forKey: Keys.customFfmpegPath) ?? ""
+        self.maxConcurrentDownloads = UserDefaults.standard.object(forKey: Keys.maxConcurrentDownloads) as? Int ?? 3
 
         if let rawValue = UserDefaults.standard.string(forKey: Keys.ambientBackdropStyle),
            let style = AmbientBackdropStyle(rawValue: rawValue)

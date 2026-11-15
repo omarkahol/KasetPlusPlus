@@ -1014,6 +1014,7 @@ enum PlaylistParser {
         // Ignore the credits ID when it just repeats the row (ordinary audio tracks).
         let creditsVideoId = ParsingHelpers.extractTrackCreditsVideoId(from: responsiveRenderer)
         let audioTrackVideoId = creditsVideoId == videoId ? nil : creditsVideoId
+        let menuData = SongMetadataParser.parseMenuData(from: responsiveRenderer)
 
         return Song(
             id: videoId,
@@ -1025,6 +1026,9 @@ enum PlaylistParser {
             videoId: videoId,
             isPlayable: isPlayable,
             musicVideoType: musicVideoType,
+            likeStatus: menuData.likeStatus,
+            isInLibrary: menuData.isInLibrary,
+            feedbackTokens: menuData.feedbackTokens,
             isExplicit: isExplicit,
             playlistSetVideoId: playlistSetVideoId,
             audioTrackVideoId: audioTrackVideoId

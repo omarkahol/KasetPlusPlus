@@ -448,6 +448,38 @@ struct QueueListControllerRepresentable: NSViewControllerRepresentable {
                 menu.addItem(NSMenuItem.separator())
             }
 
+            let isDownloaded = DownloadManager.shared.isDownloaded(videoId: song.videoId)
+            let status = DownloadManager.shared.status(for: song.videoId)
+
+            if isDownloaded {
+                let showInFinderItem = NSMenuItem(title: "Show in Finder", action: #selector(Coordinator.contextMenuShowInFinder(_:)), keyEquivalent: "")
+                showInFinderItem.target = self
+                showInFinderItem.representedObject = song
+                showInFinderItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+                menu.addItem(showInFinderItem)
+
+                let removeDownloadItem = NSMenuItem(title: "Remove Download", action: #selector(Coordinator.contextMenuRemoveDownload(_:)), keyEquivalent: "")
+                removeDownloadItem.target = self
+                removeDownloadItem.representedObject = song
+                removeDownloadItem.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+                menu.addItem(removeDownloadItem)
+                menu.addItem(NSMenuItem.separator())
+            } else if let status, status.isDownloading {
+                let cancelDownloadItem = NSMenuItem(title: "Cancel Download", action: #selector(Coordinator.contextMenuCancelDownload(_:)), keyEquivalent: "")
+                cancelDownloadItem.target = self
+                cancelDownloadItem.representedObject = song
+                cancelDownloadItem.image = NSImage(systemSymbolName: "xmark.circle", accessibilityDescription: nil)
+                menu.addItem(cancelDownloadItem)
+                menu.addItem(NSMenuItem.separator())
+            } else {
+                let downloadItem = NSMenuItem(title: "Download", action: #selector(Coordinator.contextMenuDownload(_:)), keyEquivalent: "")
+                downloadItem.target = self
+                downloadItem.representedObject = song
+                downloadItem.image = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
+                menu.addItem(downloadItem)
+                menu.addItem(NSMenuItem.separator())
+            }
+
             if entry.id != self.currentEntryID {
                 let removeItem = NSMenuItem(title: "Remove from Queue", action: #selector(Coordinator.contextMenuRemove(_:)), keyEquivalent: "")
                 removeItem.target = self
@@ -485,6 +517,36 @@ struct QueueListControllerRepresentable: NSViewControllerRepresentable {
                   let entryID = UUID(uuidString: entryIDString)
             else { return }
             self.onRemove(entryID)
+        }
+
+        @objc private func contextMenuDownload(_ sender: NSMenuItem) {
+            guard let song = sender.representedObject as? Song else { return }
+            MainActor.assumeIsolated {
+                DownloadManager.shared.download(song: song)
+            }
+        }
+
+        @objc private func contextMenuCancelDownload(_ sender: NSMenuItem) {
+            guard let song = sender.representedObject as? Song else { return }
+            MainActor.assumeIsolated {
+                DownloadManager.shared.cancel(videoId: song.videoId)
+            }
+        }
+
+        @objc private func contextMenuShowInFinder(_ sender: NSMenuItem) {
+            guard let song = sender.representedObject as? Song else { return }
+            MainActor.assumeIsolated {
+                if let fileURL = DownloadManager.shared.fileURL(for: song.videoId) {
+                    NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                }
+            }
+        }
+
+        @objc private func contextMenuRemoveDownload(_ sender: NSMenuItem) {
+            guard let song = sender.representedObject as? Song else { return }
+            MainActor.assumeIsolated {
+                DownloadManager.shared.removeDownload(videoId: song.videoId)
+            }
         }
     }
 }
