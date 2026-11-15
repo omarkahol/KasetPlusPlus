@@ -48,7 +48,7 @@ struct GeneralSettingsView: View {
             Section {
                 // Show YouTube Music (feature request #8: YouTube-only mode)
                 Toggle(String(localized: "Show YouTube Music"), isOn: self.$settings.youTubeMusicEnabled)
-                    .help(String(localized: "Show the YouTube Music experience and its source toggle. Turn this off to use KasetPlus for YouTube only."))
+                    .help(String(localized: "Show the YouTube Music experience and its source toggle. Turn this off to use Kaset++ for YouTube only."))
 
                 // Haptic Feedback
                 Toggle("Haptic Feedback", isOn: self.$settings.hapticFeedbackEnabled)
@@ -96,7 +96,7 @@ struct GeneralSettingsView: View {
             } header: {
                 Text(String(localized: "Privacy"))
             } footer: {
-                Text(String(localized: "When something breaks while loading data from YouTube, KasetPlus sends an anonymous report — no account, no personal data, no listening history — so it can be fixed quickly. You can turn this off at any time."))
+                Text(String(localized: "When something breaks while loading data from YouTube, Kaset++ sends an anonymous report — no account, no personal data, no listening history — so it can be fixed quickly. You can turn this off at any time."))
             }
 
             // MARK: - Language Section
@@ -194,7 +194,7 @@ struct GeneralSettingsView: View {
 
                 Link(destination: URL(string: "https://github.com/Yoddikko/kasetPlus")!) {
                     HStack {
-                        Text("KasetPlus GitHub")
+                        Text("Kaset++ GitHub")
                         Spacer()
                         Image(systemName: "arrow.up.forward.square")
                             .foregroundStyle(.secondary)

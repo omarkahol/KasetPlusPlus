@@ -129,8 +129,8 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
 
     static func trackMetadata(for track: ScrobbleTrack) -> [String: Any] {
         var additionalInfo: [String: Any] = [
-            "media_player": "KasetPlus",
-            "submission_client": "KasetPlus",
+            "media_player": "Kaset++",
+            "submission_client": "Kaset++",
             "music_service_name": "YouTube Music",
         ]
         if let duration = track.duration, duration > 0 {

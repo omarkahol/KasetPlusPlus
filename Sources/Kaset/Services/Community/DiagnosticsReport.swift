@@ -45,7 +45,7 @@ enum DiagnosticsReport {
             "",
             "| | |",
             "|---|---|",
-            "| KasetPlus | \(env.appVersion) (build \(env.buildNumber)) |",
+            "| Kaset++ | \(env.appVersion) (build \(env.buildNumber)) |",
             "| macOS | \(env.macOSVersion) |",
             "| Model | \(env.hardwareModel) |",
             "| Chip | \(env.cpu) |",

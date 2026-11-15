@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Kaset++</string>
+	<key>CFBundleName</key>
+	<string>Kaset++</string>
+
 	<!-- URL Scheme Registration -->
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -46,11 +51,11 @@
 	<!-- Process tap on macOS 14.2+ is gated by Screen Recording / System Audio Recording TCC, -->
 	<!-- not microphone TCC, despite what the dialog button text might suggest. -->
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>KasetPlus processes its own music output through a built-in equalizer. This permission only covers KasetPlus's own playback — no other app's audio is captured.</string>
+	<string>Kaset++ processes its own music output through a built-in equalizer. This permission only covers Kaset++'s own playback — no other app's audio is captured.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>KasetPlus taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
+	<string>Kaset++ taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
 
-	<!-- KasetPlus support (Ko-fi) — Cloudflare Worker that records supporters and answers /kofi/verify -->
+	<!-- Kaset++ support (Ko-fi) — Cloudflare Worker that records supporters and answers /kofi/verify -->
 	<key>SupportWorkerURL</key>
 	<string>https://kaset-lastfm.alessioiodiceuni.workers.dev</string>
 </dict>

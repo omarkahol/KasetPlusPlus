@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The in-app community hub: report/browse GitHub issues and browse/vote/create
-/// GitHub Discussions for KasetPlus, all in native SwiftUI. Signed-out users see
+/// GitHub Discussions for Kaset++, all in native SwiftUI. Signed-out users see
 /// a sign-in screen first.
 struct CommunityView: View {
     @State private var viewModel = CommunityViewModel()
@@ -80,7 +80,7 @@ struct CommunityView: View {
                 Image(systemName: "bubble.left.and.bubble.right.fill")
                     .font(.system(size: 15))
                     .foregroundStyle(Self.accent)
-                Text("KasetPlus Community", comment: "Community window title")
+                Text("Kaset++ Community", comment: "Community window title")
                     .font(.title2.bold())
                 Spacer()
                 self.accountMenu
@@ -170,7 +170,7 @@ struct CommunityLoginView: View {
             .shadow(color: Self.accent.opacity(0.4), radius: 16, y: 6)
 
             VStack(spacing: 6) {
-                Text("KasetPlus Community", comment: "Login title")
+                Text("Kaset++ Community", comment: "Login title")
                     .font(.title.bold())
                 Text("Report issues and join the conversation — right inside the app.", comment: "Login subtitle")
                     .font(.callout)

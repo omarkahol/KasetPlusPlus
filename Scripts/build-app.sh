@@ -442,9 +442,9 @@ ${APP_LOCALIZATIONS_PLIST}
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>${APP_NAME}</string>
+    <string>Kaset++</string>
     <key>CFBundleDisplayName</key>
-    <string>${APP_NAME}</string>
+    <string>Kaset++</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
