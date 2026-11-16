@@ -130,6 +130,10 @@ final class NowPlayingManager {
     private var isAssertingNativeClaim = false
     @ObservationIgnored private var nowPlayingObservationGeneration: UInt64 = 0
 
+    private var currentArtworkImage: NSImage?
+    private var currentArtworkTrackId: String?
+    private var artworkLoadTask: Task<Void, Never>?
+
     /// YouTube video routing (optional; absent in music-only flows).
     /// When the arbiter says the video source played last, play/pause/toggle
     /// media keys control it instead of the music player. Guarded so music
@@ -173,7 +177,8 @@ final class NowPlayingManager {
     nonisolated static func desiredClaim(
         state: PlayerService.PlaybackState,
         track: (title: String, artist: String)?,
-        activeVideo: ActiveVideoClaim?
+        activeVideo: ActiveVideoClaim?,
+        isPlayingOffline: Bool = false
     ) -> NowPlayingClaim {
         if let activeVideo {
             guard activeVideo.isPlaybackConfirmed else {
@@ -186,6 +191,18 @@ final class NowPlayingManager {
             return .handsOff
         }
 
+        if isPlayingOffline {
+            guard let track else { return .release }
+            switch state {
+            case .playing:
+                return .claim(title: track.title, artist: track.artist, playbackState: .playing)
+            case .buffering, .loading:
+                return .claim(title: track.title, artist: track.artist, playbackState: .playing)
+            case .idle, .paused, .ended, .error:
+                return .claim(title: track.title, artist: track.artist, playbackState: .paused)
+            }
+        }
+
         switch state {
         case .playing, .buffering, .loading:
             return .handsOff
@@ -195,16 +212,48 @@ final class NowPlayingManager {
         }
     }
 
+    private func syncArtwork(for song: Song?) {
+        guard let song else {
+            self.artworkLoadTask?.cancel()
+            self.artworkLoadTask = nil
+            self.currentArtworkImage = nil
+            self.currentArtworkTrackId = nil
+            return
+        }
+
+        guard self.currentArtworkTrackId != song.id else { return }
+        self.currentArtworkTrackId = song.id
+        self.currentArtworkImage = nil
+        self.artworkLoadTask?.cancel()
+
+        guard let thumbnailURL = song.thumbnailURL else { return }
+
+        self.artworkLoadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let image: NSImage?
+            if thumbnailURL.isFileURL {
+                image = NSImage(contentsOf: thumbnailURL)
+            } else {
+                image = await ImageCache.shared.image(for: thumbnailURL)
+            }
+            guard !Task.isCancelled, self.currentArtworkTrackId == song.id else { return }
+            self.currentArtworkImage = image
+            self.updateNowPlayingClaim()
+        }
+    }
+
     /// Reads current player state and pushes the desired claim to the system center.
     private func updateNowPlayingClaim() {
         guard let player = self.playerService else { return }
+        self.syncArtwork(for: player.currentTrack)
         let track = player.currentTrack.map { song in
             (title: song.title, artist: song.artists.map(\.name).joined(separator: ", "))
         }
         let claim = Self.desiredClaim(
             state: player.state,
             track: track,
-            activeVideo: self.activeVideoClaimInput
+            activeVideo: self.activeVideoClaimInput,
+            isPlayingOffline: player.isPlayingOfflineTrack
         )
         self.applyNowPlayingClaim(claim)
     }
@@ -222,6 +271,20 @@ final class NowPlayingManager {
             // Preserve the fallback until WebKit atomically replaces the app-wide metadata.
             // A non-destructive state update cannot clear a concurrently published WebKit card.
             center.playbackState = .playing
+            if var info = center.nowPlayingInfo, let player = self.playerService {
+                if player.duration > 0 {
+                    info[MPMediaItemPropertyPlaybackDuration] = player.duration
+                }
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.progress
+                info[MPNowPlayingInfoPropertyPlaybackRate] = 1.0
+                if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
+                    info[MPMediaItemPropertyAlbumTitle] = albumTitle
+                }
+                if let artworkImage = self.currentArtworkImage {
+                    info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
+                }
+                center.nowPlayingInfo = info
+            }
         case .release:
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false
@@ -236,6 +299,19 @@ final class NowPlayingManager {
             if !artist.isEmpty {
                 info[MPMediaItemPropertyArtist] = artist
             }
+            if let player = self.playerService {
+                if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
+                    info[MPMediaItemPropertyAlbumTitle] = albumTitle
+                }
+                if player.duration > 0 {
+                    info[MPMediaItemPropertyPlaybackDuration] = player.duration
+                }
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.progress
+                info[MPNowPlayingInfoPropertyPlaybackRate] = (playbackState == .playing && player.isPlaying) ? 1.0 : 0.0
+            }
+            if let artworkImage = self.currentArtworkImage {
+                info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
+            }
             center.nowPlayingInfo = info
             center.playbackState = switch playbackState {
             case .playing: .playing
@@ -248,6 +324,15 @@ final class NowPlayingManager {
     /// Returns whether the current center metadata is the tagged native claim Kaset published.
     nonisolated static func isNativeClaim(_ info: [String: Any]?) -> Bool {
         info?[MPNowPlayingInfoPropertyServiceIdentifier] as? String == self.nativeClaimServiceIdentifier
+    }
+
+    /// Creates an MPMediaItemArtwork whose sizing callback is nonisolated and safe to invoke
+    /// on MediaPlayer's internal queue without triggering actor isolation checks.
+    private nonisolated static func makeArtwork(from image: NSImage) -> MPMediaItemArtwork {
+        let size = image.size
+        return MPMediaItemArtwork(boundsSize: size) { @Sendable _ in
+            image
+        }
     }
 
     /// Video metadata used for a native fallback until its WebView confirms active playback.
@@ -338,7 +423,7 @@ final class NowPlayingManager {
         withObservationTracking {
             _ = self.settings.mediaControlStyle
             _ = self.settings.playbackAudioQuality
-        } onChange: {
+        } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 self?.syncMediaControlSetting()
                 self?.syncPlaybackAudioQualitySetting()

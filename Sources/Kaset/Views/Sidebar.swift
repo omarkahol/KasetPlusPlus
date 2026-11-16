@@ -256,6 +256,10 @@ struct Sidebar: View {
         Button {
             withAnimation(.easeInOut(duration: 0.15)) {
                 self.settings.isOfflineModeEnabled.toggle()
+                if self.settings.isOfflineModeEnabled {
+                    self.selection = .downloads
+                    self.pinnedSelection = nil
+                }
             }
         } label: {
             HStack(spacing: 8) {
@@ -272,7 +276,13 @@ struct Sidebar: View {
 
                 Toggle("", isOn: Binding(
                     get: { self.settings.isOfflineModeEnabled },
-                    set: { self.settings.isOfflineModeEnabled = $0 }
+                    set: { isEnabled in
+                        self.settings.isOfflineModeEnabled = isEnabled
+                        if isEnabled {
+                            self.selection = .downloads
+                            self.pinnedSelection = nil
+                        }
+                    }
                 ))
                 .toggleStyle(.switch)
                 .controlSize(.mini)

@@ -50,7 +50,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             GeometryReader { proxy in
                 let usesCompactDetails = proxy.size.width <= PlayerBarLayout.compactDetailsBreakpoint
 
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     self.songInfoSection(usesCompactDetails: usesCompactDetails)
                         .frame(
                             width: usesCompactDetails ? Self.compactSongInfoWidth : Self.fullSongInfoWidth,
@@ -62,7 +62,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                         .frame(height: 52)
 
                     self.playbackOptionsSection
-                        .frame(width: 142, height: 52)
+                        .frame(width: 178, height: 52)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -414,6 +414,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                     }
                 )
                 .padding(.top, 18)
+                .padding(.horizontal, 10)
                 // Keeps the segment tooltip above the transport buttons; the tooltip
                 // itself is non-hit-testable so the buttons stay clickable.
                 .zIndex(1)
@@ -714,7 +715,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             self.sleepTimerButton
             self.miniPlayerButton
         }
-        .padding(.trailing, 12)
+        .padding(.trailing, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
     }
 

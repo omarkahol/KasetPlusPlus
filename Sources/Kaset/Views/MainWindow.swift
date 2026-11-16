@@ -793,85 +793,124 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
         }
     }
 
+    private var offlineModePlaceholderView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                .font(.system(size: 48))
+                .foregroundStyle(self.settings.accentColor)
+
+            Text(String(localized: "Offline Mode is Active"))
+                .font(.title2.bold())
+
+            Text(String(localized: "Online music streaming and browsing are disabled. You can listen to all your saved music in Downloads."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+
+            HStack(spacing: 12) {
+                Button {
+                    self.navigationSelection = .downloads
+                    self.selectedSidebarPinnedItem = nil
+                } label: {
+                    Label(String(localized: "Go to Downloads"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(String(localized: "Disable Offline Mode")) {
+                    self.settings.isOfflineModeEnabled = false
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+
     /// Returns the view for a specific navigation item.
     private func viewForNavigationItem(_ item: NavigationItem) -> some View { // swiftlint:disable:this cyclomatic_complexity
         Group {
-            switch item {
-            case .home:
-                if let vm = homeViewModel {
-                    HomeView(viewModel: vm)
-                }
-            case .explore:
-                if let vm = exploreViewModel {
-                    ExploreView(viewModel: vm)
-                }
-            case .search:
-                if let vm = searchViewModel {
-                    SearchView(viewModel: vm, focusTrigger: self.searchFocusTrigger)
-                }
-            case .charts:
-                if let vm = chartsViewModel {
-                    ChartsView(viewModel: vm)
-                }
-            case .moodsAndGenres:
-                if let vm = moodsAndGenresViewModel {
-                    MoodsAndGenresView(viewModel: vm)
-                }
-            case .newReleases:
-                if let vm = newReleasesViewModel {
-                    NewReleasesView(viewModel: vm)
-                }
-            case .podcasts:
-                if let vm = podcastsViewModel {
-                    PodcastsView(viewModel: vm)
-                }
-            case .likedMusic:
-                if self.requiresSignIn(item) {
-                    self.signInRequiredView(for: item)
-                } else if let vm = likedMusicViewModel {
-                    NavigationStack(path: self.$likedMusicNavigationPath) {
-                        Group {
-                            if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
-                                PlaylistDetailView(
-                                    playlist: LikedMusicPlaylist.playlist,
-                                    viewModel: vm,
-                                    playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
-                                )
-                                .environment(\.libraryViewModel, self.libraryViewModel)
-                            } else {
-                                SimplePlaylistDetailView(
-                                    playlist: LikedMusicPlaylist.playlist,
-                                    viewModel: vm,
-                                    playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
-                                )
-                                .environment(\.libraryViewModel, self.libraryViewModel)
-                            }
-                        }
-                        .navigationDestinations(
-                            client: self.client,
-                            playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
-                        )
-                        .playerBarMusicNavigation(path: self.$likedMusicNavigationPath)
+            if self.settings.isOfflineModeEnabled, item != .downloads, item != .search {
+                self.offlineModePlaceholderView
+            } else {
+                switch item {
+                case .home:
+                    if let vm = homeViewModel {
+                        HomeView(viewModel: vm)
                     }
-                    .popsNavigationStackOnSidebarReselect(
-                        path: self.$likedMusicNavigationPath,
-                        for: .likedMusic
-                    )
+                case .explore:
+                    if let vm = exploreViewModel {
+                        ExploreView(viewModel: vm)
+                    }
+                case .search:
+                    if let vm = searchViewModel {
+                        SearchView(viewModel: vm, focusTrigger: self.searchFocusTrigger)
+                    }
+                case .charts:
+                    if let vm = chartsViewModel {
+                        ChartsView(viewModel: vm)
+                    }
+                case .moodsAndGenres:
+                    if let vm = moodsAndGenresViewModel {
+                        MoodsAndGenresView(viewModel: vm)
+                    }
+                case .newReleases:
+                    if let vm = newReleasesViewModel {
+                        NewReleasesView(viewModel: vm)
+                    }
+                case .podcasts:
+                    if let vm = podcastsViewModel {
+                        PodcastsView(viewModel: vm)
+                    }
+                case .likedMusic:
+                    if self.requiresSignIn(item) {
+                        self.signInRequiredView(for: item)
+                    } else if let vm = likedMusicViewModel {
+                        NavigationStack(path: self.$likedMusicNavigationPath) {
+                            Group {
+                                if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
+                                    PlaylistDetailView(
+                                        playlist: LikedMusicPlaylist.playlist,
+                                        viewModel: vm,
+                                        playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
+                                    )
+                                    .environment(\.libraryViewModel, self.libraryViewModel)
+                                } else {
+                                    SimplePlaylistDetailView(
+                                        playlist: LikedMusicPlaylist.playlist,
+                                        viewModel: vm,
+                                        playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
+                                    )
+                                    .environment(\.libraryViewModel, self.libraryViewModel)
+                                }
+                            }
+                            .navigationDestinations(
+                                client: self.client,
+                                playerBarNavigationAction: self.likedMusicPlayerBarNavigationAction
+                            )
+                            .playerBarMusicNavigation(path: self.$likedMusicNavigationPath)
+                        }
+                        .popsNavigationStackOnSidebarReselect(
+                            path: self.$likedMusicNavigationPath,
+                            for: .likedMusic
+                        )
+                    }
+                case .library:
+                    if self.requiresSignIn(item) {
+                        self.signInRequiredView(for: item)
+                    } else if let vm = libraryViewModel {
+                        LibraryView(viewModel: vm)
+                    }
+                case .history:
+                    if self.requiresSignIn(item) {
+                        self.signInRequiredView(for: item)
+                    } else if let vm = historyViewModel {
+                        HistoryView(viewModel: vm)
+                    }
+                case .downloads:
+                    DownloadsView()
                 }
-            case .library:
-                if self.requiresSignIn(item) {
-                    self.signInRequiredView(for: item)
-                } else if let vm = libraryViewModel {
-                    LibraryView(viewModel: vm)
-                }
-            case .history:
-                if self.requiresSignIn(item) {
-                    self.signInRequiredView(for: item)
-                } else if let vm = historyViewModel {
-                    HistoryView(viewModel: vm)
-                }
-            case .downloads:
-                DownloadsView()
             }
         }
         .environment(\.libraryViewModel, self.libraryViewModel)
@@ -903,38 +942,44 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
         _ item: SidebarPinnedItem,
         client: any YTMusicClientProtocol
     ) -> some View {
-        NavigationStack(path: Binding(
-            get: { self.pinnedNavigationPaths[item.contentId, default: NavigationPath()] },
-            set: { self.pinnedNavigationPaths[item.contentId] = $0 }
-        )) {
-            Group {
-                if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
-                    PlaylistDetailView(
-                        playlist: item.playlistRoute,
-                        viewModel: PlaylistDetailViewModel(
-                            playlist: item.playlistRoute,
-                            client: client
-                        )
-                    )
-                    .environment(\.libraryViewModel, self.libraryViewModel)
-                } else {
-                    SimplePlaylistDetailView(
-                        playlist: item.playlistRoute,
-                        viewModel: PlaylistDetailViewModel(
-                            playlist: item.playlistRoute,
-                            client: client
-                        )
-                    )
-                    .environment(\.libraryViewModel, self.libraryViewModel)
+        Group {
+            if self.settings.isOfflineModeEnabled {
+                self.offlineModePlaceholderView
+            } else {
+                NavigationStack(path: Binding(
+                    get: { self.pinnedNavigationPaths[item.contentId, default: NavigationPath()] },
+                    set: { self.pinnedNavigationPaths[item.contentId] = $0 }
+                )) {
+                    Group {
+                        if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
+                            PlaylistDetailView(
+                                playlist: item.playlistRoute,
+                                viewModel: PlaylistDetailViewModel(
+                                    playlist: item.playlistRoute,
+                                    client: client
+                                )
+                            )
+                            .environment(\.libraryViewModel, self.libraryViewModel)
+                        } else {
+                            SimplePlaylistDetailView(
+                                playlist: item.playlistRoute,
+                                viewModel: PlaylistDetailViewModel(
+                                    playlist: item.playlistRoute,
+                                    client: client
+                                )
+                            )
+                            .environment(\.libraryViewModel, self.libraryViewModel)
+                        }
+                    }
+                    .id(item.contentId)
+                    .navigationDestinations(client: client)
+                }
+                .environment(\.libraryViewModel, self.libraryViewModel)
+                .environment(\.onPlaylistDeleted) {
+                    self.selectedSidebarPinnedItem = nil
+                    self.navigationSelection = .home
                 }
             }
-            .id(item.contentId)
-            .navigationDestinations(client: client)
-        }
-        .environment(\.libraryViewModel, self.libraryViewModel)
-        .environment(\.onPlaylistDeleted) {
-            self.selectedSidebarPinnedItem = nil
-            self.navigationSelection = .home
         }
     }
 

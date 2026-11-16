@@ -335,13 +335,6 @@ extension PlayerService {
         self.directStreamTask?.cancel()
         self.directStreamTask = nil
 
-        // Optimistic UI updates: immediately reflect selected song and loading state
-        self.currentTrack = song
-        self.duration = song.duration ?? 0
-        self.progress = restoreClock?.progress ?? 0
-        self.currentTimeMs = Int(self.progress * 1000)
-        self.state = startsPaused ? .paused : .loading
-
         let isOffline = SettingsManager.shared.isOfflineModeEnabled || !NetworkMonitor.shared.isConnected
         if isOffline {
             if DownloadManager.shared.isDownloaded(videoId: song.videoId),
@@ -383,7 +376,7 @@ extension PlayerService {
 
         // Fast Native Streaming: attempt lightweight direct stream URL resolution
         if SettingsManager.shared.isFastNativeStreamingEnabled {
-            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: song.videoId) {
+            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: song.videoId, timeoutSeconds: 2.0) {
                 self.playOfflineTrack(
                     song: song,
                     fileURL: streamURL,

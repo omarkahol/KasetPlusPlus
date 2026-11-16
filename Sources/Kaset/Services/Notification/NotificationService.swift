@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import UserNotifications
@@ -229,6 +230,34 @@ final class NotificationService {
         content.title = track.title
         content.body = track.artistsDisplay.isEmpty ? "Unknown Artist" : track.artistsDisplay
         content.sound = nil // Silent notification
+
+        if let thumbnailURL = track.thumbnailURL {
+            if thumbnailURL.isFileURL {
+                if let attachment = try? UNNotificationAttachment(
+                    identifier: "artwork-\(track.id)",
+                    url: thumbnailURL,
+                    options: nil
+                ) {
+                    content.attachments = [attachment]
+                }
+            } else if let image = await ImageCache.shared.image(for: thumbnailURL),
+                      let tiffData = image.tiffRepresentation,
+                      let bitmap = NSBitmapImageRep(data: tiffData),
+                      let pngData = bitmap.representation(using: .png, properties: [:])
+            {
+                let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                    .appendingPathComponent("notif-art-\(track.id).png")
+                if (try? pngData.write(to: tempURL)) != nil,
+                   let attachment = try? UNNotificationAttachment(
+                       identifier: "artwork-\(track.id)",
+                       url: tempURL,
+                       options: nil
+                   )
+                {
+                    content.attachments = [attachment]
+                }
+            }
+        }
 
         let request = UNNotificationRequest(
             identifier: "track-change-\(track.id)",

@@ -445,9 +445,8 @@ struct MiniPlayerWebView: NSViewRepresentable {
 @MainActor
 // swiftlint:disable:next type_body_length
 final class SingletonPlayerWebView {
-    /// Media confirmation can take longer than three seconds while AirPlay changes
-    /// sources. Keep a bounded recovery window without reloading a healthy handoff.
-    private static let routerNavigationFallbackDelay: Duration = .seconds(15)
+    /// Fast fallback recovery when YouTube Music router doesn't start playback.
+    private static let routerNavigationFallbackDelay: Duration = .seconds(3)
 
     private struct PendingRouterNavigation {
         let videoId: String

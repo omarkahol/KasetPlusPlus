@@ -109,6 +109,13 @@ extension SingletonPlayerWebView {
                 return 'clicked';
             }
             try {
+                if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+                    const moviePlayer = document.getElementById('movie_player')
+                        || (typeof document.querySelector === 'function' && document.querySelector('ytmusic-player')?.playerApi);
+                    if (moviePlayer && typeof moviePlayer.playVideo === 'function') {
+                        try { moviePlayer.playVideo(); } catch (_) {}
+                    }
+                }
                 const playResult = video.play();
                 if (playResult && typeof playResult.catch === 'function') {
                     playResult.catch(() => scheduleRetry());
@@ -417,7 +424,12 @@ extension SingletonPlayerWebView {
                         }
                         // Autoplay recovery: YTM sometimes leaves the video paused
                         // after navigation even with the WebKit autoplay allowance.
-                        const btn = document.querySelector('.play-pause-button.ytmusic-player-bar');
+                        const btn = document.querySelector('ytmusic-player-bar #play-pause-button')
+                            || document.querySelector('#play-pause-button')
+                            || document.querySelector('.play-pause-button.ytmusic-player-bar')
+                            || document.querySelector('.play-pause-button')
+                            || document.querySelector('tp-yt-paper-icon-button#play-pause-button')
+                            || document.querySelector('button[aria-label="Play"]');
                         __kasetAttemptAutoplayRecovery(video, btn);
                     }
 

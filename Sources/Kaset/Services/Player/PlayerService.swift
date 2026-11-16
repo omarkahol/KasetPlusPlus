@@ -721,6 +721,8 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
                         return
                     }
                 }
+                self.isExplicitPauseIntentActive = false
+                self.shouldResumeAfterInterruption = true
                 await self.next()
             }
         }

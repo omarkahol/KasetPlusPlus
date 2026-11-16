@@ -224,6 +224,18 @@ final class SearchViewModel {
     private func performFetchSuggestions() async {
         let currentQuery = self.query
 
+        if SettingsManager.shared.isOfflineModeEnabled {
+            let q = currentQuery.lowercased()
+            let matched = DownloadManager.shared.downloadedSongs
+                .filter { $0.title.lowercased().contains(q) || $0.artistsDisplay.lowercased().contains(q) }
+                .prefix(5)
+                .map { SearchSuggestion(query: $0.title) }
+            if self.query == currentQuery, currentQuery != self.suppressedSuggestionsQuery {
+                self.suggestions = Array(matched)
+            }
+            return
+        }
+
         do {
             let fetchedSuggestions = try await client.getSearchSuggestions(query: currentQuery)
             // Only update if query hasn't changed and this query was not explicitly submitted.
@@ -360,27 +372,42 @@ final class SearchViewModel {
 
     /// Routes one query to the endpoint owned by the selected filter.
     private func executeSearch(query: String, filter: SearchFilter) async throws -> SearchResponse {
+        if SettingsManager.shared.isOfflineModeEnabled {
+            let q = query.lowercased()
+            let baseDir = DownloadManager.shared.downloadsDirectory
+            let matchedSongs = DownloadManager.shared.downloadedSongs
+                .filter { $0.mediaType == .audio }
+                .filter {
+                    $0.title.lowercased().contains(q)
+                        || $0.artistsDisplay.lowercased().contains(q)
+                        || ($0.albumTitle?.lowercased().contains(q) ?? false)
+                }
+                .map { $0.toSong(baseDirectory: baseDir) }
+            let items = matchedSongs.map { SearchResultItem.song($0) }
+            return SearchResponse(items: items, continuationToken: nil)
+        }
+
         switch filter {
         case .all:
-            try await self.searchAll(query: query, filter: filter)
+            return try await self.searchAll(query: query, filter: filter)
         case .songs:
-            try await self.client.searchSongsWithPagination(query: query)
+            return try await self.client.searchSongsWithPagination(query: query)
         case .videos:
-            try await self.client.searchVideos(query: query)
+            return try await self.client.searchVideos(query: query)
         case .albums:
-            try await self.client.searchAlbums(query: query)
+            return try await self.client.searchAlbums(query: query)
         case .artists:
-            try await self.client.searchArtists(query: query)
+            return try await self.client.searchArtists(query: query)
         case .profiles:
-            try await self.client.searchProfiles(query: query)
+            return try await self.client.searchProfiles(query: query)
         case .featuredPlaylists:
-            try await self.client.searchFeaturedPlaylists(query: query)
+            return try await self.client.searchFeaturedPlaylists(query: query)
         case .communityPlaylists:
-            try await self.client.searchCommunityPlaylists(query: query)
+            return try await self.client.searchCommunityPlaylists(query: query)
         case .podcasts:
-            try await self.client.searchPodcasts(query: query)
+            return try await self.client.searchPodcasts(query: query)
         case .episodes:
-            try await self.client.searchEpisodes(query: query)
+            return try await self.client.searchEpisodes(query: query)
         }
     }
 

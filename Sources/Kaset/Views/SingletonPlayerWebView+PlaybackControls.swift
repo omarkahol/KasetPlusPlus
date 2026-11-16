@@ -106,7 +106,12 @@ extension SingletonPlayerWebView {
     nonisolated static var playPauseCommandScript: String {
         """
         (function() {
-            const playBtn = document.querySelector('.play-pause-button.ytmusic-player-bar');
+            const playBtn = document.querySelector('ytmusic-player-bar #play-pause-button')
+                || document.querySelector('#play-pause-button')
+                || document.querySelector('.play-pause-button.ytmusic-player-bar')
+                || document.querySelector('.play-pause-button')
+                || document.querySelector('tp-yt-paper-icon-button#play-pause-button')
+                || document.querySelector('button[aria-label="Play"], button[aria-label="Pause"]');
             if (playBtn) {
                 const video = document.querySelector('video');
                 const wantsPlay = !video || video.paused;
@@ -117,11 +122,25 @@ extension SingletonPlayerWebView {
                     \(WebPlaybackAudioOutput.prepareScript)
                     window.__kasetAutoplayAttempts = 0;
                     window.__kasetAutoplayRetryScheduled = false;
+                    if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+                        const moviePlayer = document.getElementById('movie_player')
+                            || (typeof document.querySelector === 'function' && document.querySelector('ytmusic-player')?.playerApi);
+                        if (moviePlayer && typeof moviePlayer.playVideo === 'function') {
+                            try { moviePlayer.playVideo(); } catch (_) {}
+                        }
+                    }
                     if (video && typeof window.__kasetAttemptAutoplayRecovery === 'function') {
                         return window.__kasetAttemptAutoplayRecovery(video, playBtn);
                     }
                 } else {
                     \(WebPlaybackAudioOutput.stopScript)
+                    if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+                        const moviePlayer = document.getElementById('movie_player')
+                            || (typeof document.querySelector === 'function' && document.querySelector('ytmusic-player')?.playerApi);
+                        if (moviePlayer && typeof moviePlayer.pauseVideo === 'function') {
+                            try { moviePlayer.pauseVideo(); } catch (_) {}
+                        }
+                    }
                 }
                 playBtn.click();
                 return 'clicked';
@@ -135,6 +154,13 @@ extension SingletonPlayerWebView {
                     \(WebPlaybackAudioOutput.prepareScript)
                     window.__kasetAutoplayAttempts = 0;
                     window.__kasetAutoplayRetryScheduled = false;
+                    if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+                        const moviePlayer = document.getElementById('movie_player')
+                            || (typeof document.querySelector === 'function' && document.querySelector('ytmusic-player')?.playerApi);
+                        if (moviePlayer && typeof moviePlayer.playVideo === 'function') {
+                            try { moviePlayer.playVideo(); } catch (_) {}
+                        }
+                    }
                     if (typeof window.__kasetAttemptAutoplayRecovery === 'function') {
                         return window.__kasetAttemptAutoplayRecovery(video, null);
                     }
@@ -144,6 +170,13 @@ extension SingletonPlayerWebView {
                     window.__kasetAutoplayPending = false;
                     window.__kasetPlaybackSuppressed = true;
                     \(WebPlaybackAudioOutput.stopScript)
+                    if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+                        const moviePlayer = document.getElementById('movie_player')
+                            || (typeof document.querySelector === 'function' && document.querySelector('ytmusic-player')?.playerApi);
+                        if (moviePlayer && typeof moviePlayer.pauseVideo === 'function') {
+                            try { moviePlayer.pauseVideo(); } catch (_) {}
+                        }
+                    }
                     video.pause();
                     return 'paused';
                 }
