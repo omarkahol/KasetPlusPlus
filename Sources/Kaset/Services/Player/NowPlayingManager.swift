@@ -178,7 +178,8 @@ final class NowPlayingManager {
         state: PlayerService.PlaybackState,
         track: (title: String, artist: String)?,
         activeVideo: ActiveVideoClaim?,
-        isPlayingOffline: Bool = false
+        isPlayingOffline: Bool = false,
+        hasConfirmedWebPlayback: Bool = false
     ) -> NowPlayingClaim {
         if let activeVideo {
             guard activeVideo.isPlaybackConfirmed else {
@@ -203,13 +204,12 @@ final class NowPlayingManager {
             }
         }
 
-        switch state {
-        case .playing, .buffering, .loading:
+        if hasConfirmedWebPlayback || state == .playing || state == .buffering || state == .loading {
             return .handsOff
-        case .idle, .paused, .ended, .error:
-            guard let track else { return .release }
-            return .claim(title: track.title, artist: track.artist, playbackState: .paused)
         }
+
+        guard let track else { return .release }
+        return .claim(title: track.title, artist: track.artist, playbackState: .paused)
     }
 
     private func syncArtwork(for song: Song?) {
@@ -253,7 +253,8 @@ final class NowPlayingManager {
             state: player.state,
             track: track,
             activeVideo: self.activeVideoClaimInput,
-            isPlayingOffline: player.isPlayingOfflineTrack
+            isPlayingOffline: player.isPlayingOfflineTrack,
+            hasConfirmedWebPlayback: player.hasConfirmedWebPlayback
         )
         self.applyNowPlayingClaim(claim)
     }
@@ -264,27 +265,10 @@ final class NowPlayingManager {
         switch claim {
         case .handsOff:
             guard self.isAssertingNativeClaim else { return }
-            guard Self.isNativeClaim(center.nowPlayingInfo) else {
-                self.isAssertingNativeClaim = false
-                return
-            }
-            // Preserve the fallback until WebKit atomically replaces the app-wide metadata.
-            // A non-destructive state update cannot clear a concurrently published WebKit card.
-            center.playbackState = .playing
-            if var info = center.nowPlayingInfo, let player = self.playerService {
-                if player.duration > 0 {
-                    info[MPMediaItemPropertyPlaybackDuration] = player.duration
-                }
-                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.progress
-                info[MPNowPlayingInfoPropertyPlaybackRate] = 1.0
-                if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
-                    info[MPMediaItemPropertyAlbumTitle] = albumTitle
-                }
-                if let artworkImage = self.currentArtworkImage {
-                    info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
-                }
-                center.nowPlayingInfo = info
-            }
+            self.isAssertingNativeClaim = false
+            guard Self.isNativeClaim(center.nowPlayingInfo) else { return }
+            center.playbackState = .stopped
+            center.nowPlayingInfo = nil
         case .release:
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false
@@ -361,6 +345,8 @@ final class NowPlayingManager {
         withObservationTracking {
             _ = self.playerService?.state
             _ = self.playerService?.currentTrack
+            _ = self.playerService?.isPlayingOfflineTrack
+            _ = self.playerService?.hasConfirmedWebPlayback
             _ = self.activeVideoClaimInput
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in

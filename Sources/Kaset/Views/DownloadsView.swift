@@ -1,33 +1,24 @@
 // swiftlint:disable file_length
 import SwiftUI
 
+// MARK: - DownloadsScope
+
+enum DownloadsScope: Sendable {
+    case music
+    case video
+}
+
 // MARK: - DownloadsView
 
 /// Displays locally downloaded songs for 100% offline playback.
 struct DownloadsView: View {
+    var scope: DownloadsScope = .music
     @State private var downloadManager = DownloadManager.shared
     @Environment(PlayerService.self) private var playerService
     @State private var searchText = ""
     @State private var sortOption: SortOption = .dateAdded
-    @State private var filterFilter: MediaFilter = .all
     @State private var navigationPath = NavigationPath()
     @State private var playingVideoItem: DownloadedSong?
-
-    enum MediaFilter: String, CaseIterable, Identifiable {
-        case all
-        case music
-        case videos
-
-        var id: String { self.rawValue }
-
-        var displayName: String {
-            switch self {
-            case .all: String(localized: "All")
-            case .music: String(localized: "Music")
-            case .videos: String(localized: "Videos")
-            }
-        }
-    }
 
     enum SortOption: String, CaseIterable, Identifiable {
         case dateAdded
@@ -46,45 +37,18 @@ struct DownloadsView: View {
     }
 
     var body: some View {
-        NavigationStack(path: self.$navigationPath) {
-            Group {
-                if self.downloadManager.downloadedSongs.isEmpty {
-                    self.emptyStateView
-                } else {
-                    self.contentView
+        Group {
+            if self.scope == .music {
+                NavigationStack(path: self.$navigationPath) {
+                    self.mainContent
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .localizedNavigationTitle("Downloads")
-            .toolbar {
-                if !self.downloadManager.downloadedSongs.isEmpty {
-                    ToolbarItem(placement: .automatic) {
-                        Menu {
-                            Picker(String(localized: "Sort by"), selection: self.$sortOption) {
-                                ForEach(SortOption.allCases) { option in
-                                    Text(option.displayName).tag(option)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "arrow.up.arrow.down")
-                        }
-                        .help(String(localized: "Sort options"))
-                    }
-
-                    ToolbarItem(placement: .automatic) {
-                        Button {
-                            NSWorkspace.shared.open(self.downloadManager.downloadsDirectory)
-                        } label: {
-                            Image(systemName: "folder")
-                        }
-                        .help(String(localized: "Show in Finder"))
-                    }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    PlayerBar()
+                        .playerBarMusicNavigation(path: self.$navigationPath)
                 }
+            } else {
+                self.mainContent
             }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            PlayerBar()
-                .playerBarMusicNavigation(path: self.$navigationPath)
         }
         .sheet(item: self.$playingVideoItem) { item in
             DownloadedVideoPlayerSheet(
@@ -94,18 +58,57 @@ struct DownloadsView: View {
         }
     }
 
+    private var mainContent: some View {
+        Group {
+            if self.scopedSongs.isEmpty {
+                self.emptyStateView
+            } else {
+                self.contentView
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .localizedNavigationTitle("Downloads")
+        .toolbar {
+            if !self.scopedSongs.isEmpty {
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        Picker(String(localized: "Sort by"), selection: self.$sortOption) {
+                            ForEach(SortOption.allCases) { option in
+                                Text(option.displayName).tag(option)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                    .help(String(localized: "Sort options"))
+                }
+
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        NSWorkspace.shared.open(self.downloadManager.downloadsDirectory)
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    .help(String(localized: "Show in Finder"))
+                }
+            }
+        }
+    }
+
     // MARK: - Empty State
 
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "arrow.down.circle")
+            Image(systemName: self.scope == .music ? "arrow.down.circle" : "video.badge.plus")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
 
             Text(String(localized: "No Downloads Yet"))
                 .font(.title2.bold())
 
-            Text(String(localized: "Click the download button next to any song, album, or playlist to listen completely offline."))
+            Text(self.scope == .music
+                ? String(localized: "Click the download button next to any song, album, or playlist to listen completely offline.")
+                : String(localized: "Click the download button on any YouTube video to watch completely offline."))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -124,36 +127,26 @@ struct DownloadsView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
 
-                // Filter & Search Bar
-                HStack(spacing: 12) {
-                    Picker(String(localized: "Filter"), selection: self.$filterFilter) {
-                        ForEach(MediaFilter.allCases) { filter in
-                            Text(filter.displayName).tag(filter)
+                // Search Bar
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField(String(localized: "Filter downloads…"), text: self.$searchText)
+                        .textFieldStyle(.plain)
+                    if !self.searchText.isEmpty {
+                        Button {
+                            self.searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 240)
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField(String(localized: "Filter downloads…"), text: self.$searchText)
-                            .textFieldStyle(.plain)
-                        if !self.searchText.isEmpty {
-                            Button {
-                                self.searchText = ""
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(8)
-                    .background {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.secondary.opacity(0.1))
-                    }
+                }
+                .padding(8)
+                .background {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.secondary.opacity(0.1))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
@@ -188,14 +181,14 @@ struct DownloadsView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(
                         LinearGradient(
-                            colors: [.blue, .cyan],
+                            colors: self.scope == .music ? [.blue, .cyan] : [.red, .orange],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(width: 90, height: 90)
 
-                Image(systemName: "arrow.down.circle.fill")
+                Image(systemName: self.scope == .music ? "arrow.down.circle.fill" : "play.rectangle.fill")
                     .font(.system(size: 40))
                     .foregroundStyle(.white)
             }
@@ -204,27 +197,56 @@ struct DownloadsView: View {
                 Text(String(localized: "Downloads"))
                     .font(.largeTitle.bold())
 
-                let count = self.downloadManager.downloadedSongs.count
-                Text(String(localized: "\(count) songs • Available Offline"))
+                let count = self.scopedSongs.count
+                let countText = self.scope == .music
+                    ? String(localized: "\(count) songs • Available Offline")
+                    : String(localized: "\(count) videos • Available Offline")
+                Text(countText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 12) {
-                    Button {
-                        self.playAll(shuffled: false)
-                    } label: {
-                        Label(String(localized: "Play All"), systemImage: "play.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.regular)
+                    if self.scope == .music {
+                        Button {
+                            self.playAll(shuffled: false)
+                        } label: {
+                            Label(String(localized: "Play All"), systemImage: "play.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .disabled(self.filteredSongs.isEmpty)
 
-                    Button {
-                        self.playAll(shuffled: true)
-                    } label: {
-                        Label(String(localized: "Shuffle"), systemImage: "shuffle")
+                        Button {
+                            self.playAll(shuffled: true)
+                        } label: {
+                            Label(String(localized: "Shuffle"), systemImage: "shuffle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .disabled(self.filteredSongs.isEmpty)
+                    } else {
+                        Button {
+                            if let first = self.filteredSongs.first {
+                                self.playingVideoItem = first
+                            }
+                        } label: {
+                            Label(String(localized: "Play All"), systemImage: "play.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.regular)
+                        .disabled(self.filteredSongs.isEmpty)
+
+                        Button {
+                            if let random = self.filteredSongs.randomElement() {
+                                self.playingVideoItem = random
+                            }
+                        } label: {
+                            Label(String(localized: "Shuffle"), systemImage: "shuffle")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .disabled(self.filteredSongs.isEmpty)
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
                 }
                 .padding(.top, 4)
             }
@@ -405,17 +427,17 @@ struct DownloadsView: View {
 
     // MARK: - Helpers
 
-    private var filteredSongs: [DownloadedSong] {
-        var result = self.downloadManager.downloadedSongs
-
-        switch self.filterFilter {
-        case .all:
-            break
+    private var scopedSongs: [DownloadedSong] {
+        switch self.scope {
         case .music:
-            result = result.filter { $0.mediaType == .audio }
-        case .videos:
-            result = result.filter { $0.mediaType == .video }
+            self.downloadManager.downloadedSongs.filter { $0.mediaType == .audio }
+        case .video:
+            self.downloadManager.downloadedSongs.filter { $0.mediaType == .video }
         }
+    }
+
+    private var filteredSongs: [DownloadedSong] {
+        var result = self.scopedSongs
 
         if !self.searchText.isEmpty {
             let query = self.searchText.lowercased()
@@ -454,6 +476,17 @@ struct DownloadsView: View {
     }
 
     private func playAll(shuffled: Bool) {
+        if self.scope == .video {
+            if shuffled {
+                if let random = self.filteredSongs.randomElement() {
+                    self.playingVideoItem = random
+                }
+            } else if let first = self.filteredSongs.first {
+                self.playingVideoItem = first
+            }
+            return
+        }
+
         let audioItems = self.filteredSongs.filter { $0.mediaType == .audio }
         var songs = audioItems.map { $0.toSong(baseDirectory: self.downloadManager.downloadsDirectory) }
         if shuffled {

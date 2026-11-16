@@ -120,6 +120,9 @@ final class YouTubePlayerService {
     /// Whether the video is currently playing.
     private(set) var isPlaying = false
 
+    /// Whether the current video is playing via the hardware-accelerated native AVPlayer engine.
+    private(set) var isPlayingNativeVideo = false
+
     /// The page has reported ready media in a paused state. This distinguishes a
     /// settled autoplay failure from the pre-media loading gap.
     @ObservationIgnored private var hasObservedPausedMedia = false
@@ -348,6 +351,9 @@ final class YouTubePlayerService {
     var playbackSpeed: Double = 1.0 {
         didSet {
             guard self.playbackSpeed != oldValue else { return }
+            if self.isPlayingNativeVideo {
+                NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
+            }
             YouTubeWatchWebView.shared.setSpeed(self.playbackSpeed)
             self.defaults.set(self.playbackSpeed, forKey: Self.playbackSpeedKey)
         }
@@ -424,6 +430,9 @@ final class YouTubePlayerService {
     var volume: Double = 1.0 {
         didSet {
             guard oldValue != self.volume else { return }
+            if self.isPlayingNativeVideo {
+                NativeVideoPlayer.shared.setVolume(Float(self.volume))
+            }
             self.playbackController.setVolume(self.volume)
         }
     }
@@ -588,6 +597,39 @@ final class YouTubePlayerService {
         {
             self.playbackSpeed = saved
         }
+
+        // Wire up NativeVideoPlayer callbacks for low-latency native video streaming
+        NativeVideoPlayer.shared.onProgressUpdate = { [weak self] seconds in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.progress = seconds
+            self.lastNonAdContentProgress = seconds
+        }
+        NativeVideoPlayer.shared.onDurationResolved = { [weak self] duration in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.duration = duration
+        }
+        NativeVideoPlayer.shared.onStateChange = { [weak self] isPlaying in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.isPlaying = isPlaying
+        }
+        NativeVideoPlayer.shared.onLoadingChange = { [weak self] isLoading in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.isPlaybackLoading = isLoading
+        }
+        NativeVideoPlayer.shared.onPlaybackEnded = { [weak self] in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.handleVideoEnded(videoId: self.currentVideo?.videoId, isNativeTerminal: true)
+        }
+        NativeVideoPlayer.shared.onNearEnd = { [weak self] _ in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.preloadNextUpNextVideo()
+        }
+    }
+
+    /// Preloads the next Up Next video's stream URL for gapless transitions.
+    func preloadNextUpNextVideo() {
+        guard let next = self.upNext.first else { return }
+        DirectVideoStreamResolver.shared.prefetchStreamURL(videoId: next.videoId)
     }
 
     /// The speeds the player bar offers, and the only values restored from
@@ -629,16 +671,46 @@ final class YouTubePlayerService {
         self.beginPlaybackLoading()
         self.surfaceLocation = .inline
 
-        // Create the WebView on demand; containers reparent it on appear.
-        self.playbackController.prepare(
-            webKitManager: self.webKitManager,
-            playerService: self,
-            usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
-        )
-        if let normalizedStartAt {
-            self.playbackController.reloadVideo(videoId: video.videoId, resumeAt: normalizedStartAt)
+        // Fast Native Path: attempt to resolve stream URL with fallback to WebKit
+        if SettingsManager.shared.isFastNativeStreamingEnabled {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let streamURL = await DirectVideoStreamResolver.shared.resolveStreamURL(videoId: video.videoId, timeoutSeconds: 3.5) {
+                    self.logger.info("Routing video playback through NativeVideoPlayer for: \(video.title)")
+                    self.isPlayingNativeVideo = true
+                    NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
+                    NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
+                    NativeVideoPlayer.shared.setVolume(Float(self.volume))
+                    self.finishPlaybackLoading()
+                    return
+                }
+
+                // Fallback to WebKit controller if stream cannot be resolved (e.g. DRM or timeout)
+                self.logger.info("Falling back to WebKit watch controller for: \(video.title)")
+                self.isPlayingNativeVideo = false
+                self.playbackController.prepare(
+                    webKitManager: self.webKitManager,
+                    playerService: self,
+                    usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
+                )
+                if let normalizedStartAt {
+                    self.playbackController.reloadVideo(videoId: video.videoId, resumeAt: normalizedStartAt)
+                } else {
+                    self.playbackController.loadVideo(videoId: video.videoId)
+                }
+            }
         } else {
-            self.playbackController.loadVideo(videoId: video.videoId)
+            self.isPlayingNativeVideo = false
+            self.playbackController.prepare(
+                webKitManager: self.webKitManager,
+                playerService: self,
+                usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
+            )
+            if let normalizedStartAt {
+                self.playbackController.reloadVideo(videoId: video.videoId, resumeAt: normalizedStartAt)
+            } else {
+                self.playbackController.loadVideo(videoId: video.videoId)
+            }
         }
     }
 
@@ -949,6 +1021,11 @@ final class YouTubePlayerService {
             return
         }
         self.playbackWillStart?()
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.resume()
+            self.isPlaying = true
+            return
+        }
         self.playbackController.play()
     }
 
@@ -987,6 +1064,10 @@ final class YouTubePlayerService {
     func performPause() {
         self.autoplayRecoveryRequestGeneration &+= 1
         self.activateExplicitPauseIntent()
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.pause()
+            self.isPlaying = false
+        }
         let didCancelPendingLoad = self.playbackController.cancelPendingLoad()
         if didCancelPendingLoad {
             // Cancellation synchronously re-enters the service's retry path.
@@ -1023,6 +1104,10 @@ final class YouTubePlayerService {
         self.autoplayRecoveryRequestGeneration &+= 1
         self.shouldRecoverAutoplayTransitionOnResume = false
         self.logger.info("YouTubePlayer: stop")
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.stop()
+            self.isPlayingNativeVideo = false
+        }
         // Closing/stopping a video that accrued progress changes its resume
         // state in history, so signal the conclusion before clearing — this
         // covers closing the floating window (windowWillClose -> stop) and

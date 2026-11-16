@@ -13,6 +13,18 @@ struct NowPlayingClaimTests {
         #expect(NowPlayingManager.desiredClaim(state: .loading, track: track, activeVideo: nil) == .handsOff)
     }
 
+    @Test("Confirmed web playback stays hands-off when paused")
+    func confirmedWebPlaybackStaysHandsOffWhenPaused() {
+        let track = (title: "Song", artist: "Artist")
+        #expect(NowPlayingManager.desiredClaim(
+            state: .paused,
+            track: track,
+            activeVideo: nil,
+            isPlayingOffline: false,
+            hasConfirmedWebPlayback: true
+        ) == .handsOff)
+    }
+
     @Test("Not playing with a track yields a minimal claim")
     func pausedWithTrackClaims() {
         let track = (title: "Song", artist: "Artist")

@@ -109,6 +109,7 @@ extension PlayerService {
         self.clearQueueNavigationRecovery()
         self.clearWebQueueInjectionState()
         self.clearPendingNativeQueueAdvance()
+        self.hasConfirmedWebPlayback = false
         self.state = .idle
         self.songNearingEnd = false
         self.isKasetInitiatedPlayback = false

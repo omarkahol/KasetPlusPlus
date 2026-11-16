@@ -278,6 +278,11 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
                 DiagnosticsLogger.app.info("MainWindow: Starting login check check...")
                 await self.authService.checkLoginStatus()
                 DiagnosticsLogger.app.info("MainWindow: Login check complete")
+                _ = SingletonPlayerWebView.shared.getWebView(
+                    webKitManager: self.webKitManager,
+                    playerService: self.playerService,
+                    usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore
+                )
             }
 
             // Persistent WebView - eager once logged in, and mounted on demand for guest playback.
@@ -605,7 +610,7 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
                     )
                 } else {
                     YouTubeContentView(
-                        selection: self.youtubeNavigationSelection,
+                        selection: self.$youtubeNavigationSelection,
                         store: self.youtubeStore
                     )
                 }

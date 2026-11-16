@@ -319,6 +319,14 @@ struct KasetApp: App {
                     }
                     self.drainPendingIncomingURLsIfReady()
 
+                    // Pre-warm the singleton player webview in the background so the YouTube Music SPA
+                    // is already booted and warm before the user selects their first track.
+                    _ = SingletonPlayerWebView.shared.getWebView(
+                        webKitManager: self.webKitManager,
+                        playerService: self.playerService,
+                        usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore
+                    )
+
                     // This task owns account loading for startup, login, and recovery.
                     self.accountService?.authenticationIdentityDidChange()
                     await self.accountService?.fetchAccounts()

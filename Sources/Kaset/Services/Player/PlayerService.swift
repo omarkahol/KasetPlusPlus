@@ -130,6 +130,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Whether the currently playing track is being played via native offline audio player (AVPlayer).
     var isPlayingOfflineTrack: Bool = false
 
+    /// Whether the web player has confirmed playback for the current session.
+    /// When confirmed, WebKit owns the macOS Now Playing card and media keys.
+    var hasConfirmedWebPlayback: Bool = false
+
     /// In-flight task resolving direct audio stream via yt-dlp.
     @ObservationIgnored var directStreamTask: Task<Void, Never>?
 

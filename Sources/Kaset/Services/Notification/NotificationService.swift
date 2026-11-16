@@ -217,6 +217,48 @@ final class NotificationService {
 
     // MARK: - Notification
 
+    private static let nowPlayingNotificationIdentifier = "kaset.now-playing-track"
+
+    private func createNotificationAttachment(for thumbnailURL: URL) async -> UNNotificationAttachment? {
+        let tempDir = FileManager.default.temporaryDirectory
+        let targetURL = tempDir.appendingPathComponent("notif-art-\(UUID().uuidString).jpg")
+
+        let loadedImage: NSImage?
+        if thumbnailURL.isFileURL {
+            loadedImage = NSImage(contentsOf: thumbnailURL)
+        } else if let cached = await ImageCache.shared.image(for: thumbnailURL) {
+            loadedImage = cached
+        } else if let (data, _) = try? await URLSession.shared.data(from: thumbnailURL),
+                  let img = NSImage(data: data)
+        {
+            loadedImage = img
+        } else {
+            loadedImage = nil
+        }
+
+        guard let loadedImage,
+              let jpgData = self.jpegData(from: loadedImage)
+        else { return nil }
+
+        guard (try? jpgData.write(to: targetURL, options: .atomic)) != nil else { return nil }
+
+        let options: [AnyHashable: Any] = [
+            UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"
+        ]
+        return try? UNNotificationAttachment(
+            identifier: "artwork-\(UUID().uuidString)",
+            url: targetURL,
+            options: options
+        )
+    }
+
+    private func jpegData(from image: NSImage) -> Data? {
+        guard let tiffData = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiffData)
+        else { return nil }
+        return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.85])
+    }
+
     private func postTrackNotification(_ track: Song) async {
         // UNUserNotificationCenter crashes without an app bundle (e.g., unit/performance tests)
         guard Bundle.main.bundleIdentifier != nil, !UITestConfig.isRunningUnitTests else { return }
@@ -232,41 +274,22 @@ final class NotificationService {
         content.sound = nil // Silent notification
 
         if let thumbnailURL = track.thumbnailURL {
-            if thumbnailURL.isFileURL {
-                if let attachment = try? UNNotificationAttachment(
-                    identifier: "artwork-\(track.id)",
-                    url: thumbnailURL,
-                    options: nil
-                ) {
-                    content.attachments = [attachment]
-                }
-            } else if let image = await ImageCache.shared.image(for: thumbnailURL),
-                      let tiffData = image.tiffRepresentation,
-                      let bitmap = NSBitmapImageRep(data: tiffData),
-                      let pngData = bitmap.representation(using: .png, properties: [:])
-            {
-                let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("notif-art-\(track.id).png")
-                if (try? pngData.write(to: tempURL)) != nil,
-                   let attachment = try? UNNotificationAttachment(
-                       identifier: "artwork-\(track.id)",
-                       url: tempURL,
-                       options: nil
-                   )
-                {
-                    content.attachments = [attachment]
-                }
+            if let attachment = await self.createNotificationAttachment(for: thumbnailURL) {
+                content.attachments = [attachment]
             }
         }
 
+        let center = UNUserNotificationCenter.current()
+        center.removeDeliveredNotifications(withIdentifiers: [Self.nowPlayingNotificationIdentifier])
+
         let request = UNNotificationRequest(
-            identifier: "track-change-\(track.id)",
+            identifier: Self.nowPlayingNotificationIdentifier,
             content: content,
             trigger: nil // Deliver immediately
         )
 
         do {
-            try await UNUserNotificationCenter.current().add(request)
+            try await center.add(request)
             self.logger.debug("Posted notification for: \(track.title)")
         } catch {
             self.logger.error("Failed to post notification: \(error.localizedDescription)")

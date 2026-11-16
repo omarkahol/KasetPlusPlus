@@ -3,16 +3,33 @@ import WebKit
 
 // MARK: - YouTubeWatchSurfaceView
 
-/// Hosts the extracted YouTube video surface (the watch WebView) inside a
-/// native view. Used by both the inline WatchView and the floating window;
-/// whichever is on screen reparents the singleton WebView into itself.
-struct YouTubeWatchSurfaceView: NSViewRepresentable {
+/// Hosts the YouTube video surface (either the hardware-accelerated
+/// native AVPlayerLayer or the fallback watch WebView) inside a native view.
+/// Used by both the inline WatchView, Shorts pager, and the floating window.
+struct YouTubeWatchSurfaceView: View {
     @Environment(YouTubePlayerService.self) private var youtubePlayer
 
-    /// When present, this host may claim the singleton WebView only while that
-    /// video is still selected. Shorts pages overlap briefly during paging, so
-    /// an outgoing page can otherwise update late and steal the WebView back
-    /// from the newly active page.
+    let expectedVideoId: String?
+
+    init(expectedVideoId: String? = nil) {
+        self.expectedVideoId = expectedVideoId
+    }
+
+    var body: some View {
+        if self.youtubePlayer.isPlayingNativeVideo {
+            NativeVideoSurfaceView()
+        } else {
+            YouTubeWatchLegacySurfaceView(expectedVideoId: self.expectedVideoId)
+        }
+    }
+}
+
+// MARK: - YouTubeWatchLegacySurfaceView
+
+/// Legacy WebKit fallback container for the watch WebView.
+struct YouTubeWatchLegacySurfaceView: NSViewRepresentable {
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+
     let expectedVideoId: String?
 
     init(expectedVideoId: String? = nil) {

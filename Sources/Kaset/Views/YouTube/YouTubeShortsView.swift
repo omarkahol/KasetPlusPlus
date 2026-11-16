@@ -221,13 +221,14 @@ struct YouTubeShortsView: View {
             && self.youtubePlayer.surfaceLocation == .inline
     }
 
-    /// Loads the short after the scroll settles on it (~350ms), cancelling any
-    /// pending load for a short we only flew past. Prevents load thrashing.
+    /// Loads the short after the scroll settles on it (~120ms), cancelling any
+    /// pending load for a short we only flew past. Prevents load thrashing while
+    /// keeping vertical snap transitions snappy and responsive.
     private func schedulePlay(_ shortId: String?) {
         self.playDebounce?.cancel()
         guard let shortId else { return }
         self.playDebounce = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(350))
+            try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled else { return }
             self.play(shortId: shortId)
         }
@@ -240,6 +241,14 @@ struct YouTubeShortsView: View {
         guard self.youtubePlayer.currentVideo?.videoId != short.videoId else { return }
         self.youtubePlayer.play(video: short, usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore)
         self.youtubePlayer.activeInlineVideoId = short.videoId
+
+        // Pre-fetch the next short's video stream so subsequent vertical swipe is instant
+        if let currentIndex = self.viewModel.shorts.firstIndex(where: { $0.videoId == shortId }),
+           currentIndex + 1 < self.viewModel.shorts.count
+        {
+            let nextShort = self.viewModel.shorts[currentIndex + 1]
+            DirectVideoStreamResolver.shared.prefetchStreamURL(videoId: nextShort.videoId)
+        }
     }
 
     /// Leaving the Shorts surface ends shorts playback (a vertical short in

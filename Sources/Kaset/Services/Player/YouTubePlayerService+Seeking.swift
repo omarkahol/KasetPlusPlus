@@ -56,7 +56,11 @@ extension YouTubePlayerService {
             self.pendingPausedIdentityReloadResumeAt = target > 0 ? target : nil
             self.userUpdatedPendingPausedIdentityReloadSeek = true
         }
-        self.playbackController.seekWithRecovery(to: target)
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.seek(to: target)
+        } else {
+            self.playbackController.seekWithRecovery(to: target)
+        }
     }
 
     private func clampedSeekTarget(_ time: Double) -> Double {
@@ -87,11 +91,16 @@ extension YouTubePlayerService {
         self.userUpdatedPendingPausedIdentityReloadSeek = true
         self.playbackController.cancelPendingRecoverySeek()
         self.playbackController.markCurrentPlaybackOccurrenceEnded()
-        // Keep the WebView away from exact-duration seeks and pause it so a
-        // follow-up state update cannot look like a fresh replay of the just-
-        // concluded watch.
-        self.playbackController.seek(to: terminalSeekTime)
-        self.playbackController.pause()
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.pause()
+            NativeVideoPlayer.shared.seek(to: terminalSeekTime)
+        } else {
+            // Keep the WebView away from exact-duration seeks and pause it so a
+            // follow-up state update cannot look like a fresh replay of the just-
+            // concluded watch.
+            self.playbackController.seek(to: terminalSeekTime)
+            self.playbackController.pause()
+        }
         self.handleVideoEnded(
             videoId: self.currentVideo?.videoId,
             isNativeTerminal: true

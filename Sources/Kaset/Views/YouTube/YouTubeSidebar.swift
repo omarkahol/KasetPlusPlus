@@ -11,6 +11,7 @@ struct YouTubeSidebar: View {
     @Binding var selection: YouTubeNavigationItem?
     var onReselect: ((YouTubeNavigationItem) -> Void)?
     @Environment(AuthService.self) private var authService
+    @State private var settings = SettingsManager.shared
 
     var body: some View {
         List {
@@ -29,14 +30,17 @@ struct YouTubeSidebar: View {
                 self.row(for: .shorts)
             }
 
-            if self.hasPersonalAccount {
-                // Collection section
-                Section(String(localized: "Collection")) {
+            // Collection section
+            Section(String(localized: "Collection")) {
+                if self.hasPersonalAccount {
                     self.row(for: .likedVideos)
                     self.row(for: .watchLater)
                     self.row(for: .playlists)
                     self.row(for: .history)
                 }
+
+                self.row(for: .downloads)
+                self.offlineModeRow
             }
         }
         .listStyle(.sidebar)
@@ -50,6 +54,48 @@ struct YouTubeSidebar: View {
 
     private var hasPersonalAccount: Bool {
         self.authService.hasPersonalAccount
+    }
+
+    private var offlineModeRow: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                self.settings.isOfflineModeEnabled.toggle()
+                if self.settings.isOfflineModeEnabled {
+                    self.selection = .downloads
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: self.settings.isOfflineModeEnabled ? "antenna.radiowaves.left.and.right.slash" : "bolt.slash")
+                    .foregroundStyle(self.settings.isOfflineModeEnabled ? self.settings.accentColor : .secondary)
+                    .frame(width: 16)
+
+                Text(String(localized: "Offline Mode"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Toggle("", isOn: Binding(
+                    get: { self.settings.isOfflineModeEnabled },
+                    set: { isEnabled in
+                        self.settings.isOfflineModeEnabled = isEnabled
+                        if isEnabled {
+                            self.selection = .downloads
+                        }
+                    }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(AccessibilityID.YouTubeSidebar.offlineMode)
     }
 
     private func row(for item: YouTubeNavigationItem) -> some View {
@@ -83,6 +129,8 @@ extension AccessibilityID {
         static func item(for item: YouTubeNavigationItem) -> String {
             "youtubeSidebar.\(item.rawValue)"
         }
+
+        static let offlineMode = "youtubeSidebar.offlineMode"
     }
 }
 

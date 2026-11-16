@@ -284,6 +284,7 @@ extension PlayerService {
         self.isRestoringPlaybackSession = false
         self.shouldAutoResumeAfterRestoredLoad = false
         self.isAwaitingWebRestoredTrack = false
+        self.hasConfirmedWebPlayback = false
     }
 
     /// Reconciles an undo/redo clock against physical media before resuming playback.

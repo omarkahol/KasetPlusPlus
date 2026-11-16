@@ -7,7 +7,7 @@ import SwiftUI
 /// Mirrors `MainWindow.detailView`/`viewForNavigationItem` on the music side.
 /// Sections without an implementation yet render placeholders.
 struct YouTubeContentView: View {
-    let selection: YouTubeNavigationItem?
+    @Binding var selection: YouTubeNavigationItem?
     @Bindable var store: YouTubeViewModelStore
 
     @Environment(AuthService.self) private var authService
@@ -118,7 +118,9 @@ struct YouTubeContentView: View {
 
     @ViewBuilder
     private func rootView(for item: YouTubeNavigationItem) -> some View {
-        if item.requiresSignIn, !self.hasPersonalAccount {
+        if SettingsManager.shared.isOfflineModeEnabled, item != .downloads {
+            self.offlineModePlaceholderView
+        } else if item.requiresSignIn, !self.hasPersonalAccount {
             SignInRequiredView(
                 title: String(localized: "Sign in to use \(item.displayName)"),
                 message: String(localized: "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections.")
@@ -126,6 +128,40 @@ struct YouTubeContentView: View {
         } else {
             self.publicOrAuthenticatedRootView(for: item)
         }
+    }
+
+    private var offlineModePlaceholderView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                .font(.system(size: 48))
+                .foregroundStyle(SettingsManager.shared.accentColor)
+
+            Text(String(localized: "Offline Mode is Active"))
+                .font(.title2.bold())
+
+            Text(String(localized: "Online video streaming and browsing are disabled. You can watch all your saved videos in Downloads."))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 380)
+
+            HStack(spacing: 12) {
+                Button {
+                    self.selection = .downloads
+                } label: {
+                    Label(String(localized: "Go to Downloads"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(String(localized: "Disable Offline Mode")) {
+                    SettingsManager.shared.isOfflineModeEnabled = false
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
     }
 
     private var hasPersonalAccount: Bool {
@@ -155,6 +191,8 @@ struct YouTubeContentView: View {
             YouTubePlaylistsView(viewModel: self.store.playlists)
         case .history:
             YouTubeHistoryView(viewModel: self.store.history)
+        case .downloads:
+            DownloadsView(scope: .video)
         }
     }
 }
@@ -175,6 +213,7 @@ enum YouTubeNavigationItem: String, Hashable, CaseIterable, Identifiable {
     case watchLater = "Watch Later"
     case playlists = "Playlists"
     case history = "History"
+    case downloads = "Downloads"
 
     var id: String {
         rawValue
@@ -200,6 +239,8 @@ enum YouTubeNavigationItem: String, Hashable, CaseIterable, Identifiable {
             String(localized: "Playlists")
         case .history:
             String(localized: "History")
+        case .downloads:
+            String(localized: "Downloads")
         }
     }
 
@@ -223,12 +264,14 @@ enum YouTubeNavigationItem: String, Hashable, CaseIterable, Identifiable {
             "list.and.film"
         case .history:
             "clock.arrow.circlepath"
+        case .downloads:
+            "arrow.down.circle"
         }
     }
 
     var requiresSignIn: Bool {
         switch self {
-        case .home, .search, .explore, .shorts:
+        case .home, .search, .explore, .shorts, .downloads:
             false
         case .subscriptions, .likedVideos, .watchLater, .playlists, .history:
             true

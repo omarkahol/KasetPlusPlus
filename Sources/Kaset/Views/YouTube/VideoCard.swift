@@ -4,8 +4,12 @@ import SwiftUI
 
 /// Grid card for a YouTube video: 16:9 thumbnail with duration badge,
 /// title, and channel/meta lines.
-struct VideoCard: View {
+struct VideoCard: View, Equatable {
     let video: YouTubeVideo
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.video == rhs.video
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -134,7 +138,11 @@ struct VideoThumbnailView: View {
                     self.watchedProgressBar(percent: percent)
                 }
             }
-            .clipShape(.rect(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+            )
             .overlay(alignment: .bottomTrailing) {
                 self.badge
             }

@@ -246,6 +246,7 @@ extension PlayerService {
         self.logger.info("Routing playback through NativeAudioPlayer for song: \(song.title)")
         SingletonPlayerWebView.shared.pause()
         self.isPlayingOfflineTrack = true
+        self.hasConfirmedWebPlayback = false
         self.currentTrack = song
         self.activePlaybackQueueEntryID = queueEntryID
         self.currentEpisode = nil
@@ -566,6 +567,7 @@ extension PlayerService {
 
         self.showMiniPlayer = false
         self.state = .playing
+        self.hasConfirmedWebPlayback = true
 
         if shouldRecordInteraction {
             self.markUserInteractedThisSession()
