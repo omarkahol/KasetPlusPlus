@@ -33,10 +33,6 @@ struct YouTubeWatchView: View {
     @State private var showsDownloadSheet = false
     @State private var showsSavePopover = false
 
-    /// Measured height of the left content column, used to cap the related rail
-    /// so filtering the comments short can't leave a giant empty gap beside it.
-    @State private var leftColumnHeight: CGFloat = 0
-
     /// Current width of the watch page content, used to decide whether the live
     /// chat can sit beside the video (side-by-side) or must stack below it.
     @State private var pageWidth: CGFloat = 0
@@ -139,30 +135,18 @@ struct YouTubeWatchView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { newHeight in
-                        self.leftColumnHeight = newHeight
-                    }
 
                     if !self.settings.distractionFreeEnabled {
-                        // Capped to the left column's height and scrolls internally
-                        // when taller, so a short (e.g. search-filtered) comment
-                        // column can't leave a giant empty gap next to a tall rail.
-                        ScrollView(.vertical, showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: 20) {
-                                // When the chat sits beside the video (wide
-                                // window, live stream) it's shown up top; only
-                                // fall back to stacking it here when it can't.
-                                if self.viewModel.hasLiveChat, !self.showsSideChat {
-                                    self.liveChatSection(height: 440)
-                                }
-                                self.relatedColumn
+                        VStack(alignment: .leading, spacing: 20) {
+                            // When the chat sits beside the video (wide
+                            // window, live stream) it's shown up top; only
+                            // fall back to stacking it here when it can't.
+                            if self.viewModel.hasLiveChat, !self.showsSideChat {
+                                self.liveChatSection(height: 440)
                             }
+                            self.relatedColumn
                         }
-                        .scrollBounceBehavior(.basedOnSize)
                         .frame(width: Self.railWidth)
-                        .frame(maxHeight: self.leftColumnHeight > 0 ? self.leftColumnHeight : nil)
                     }
                 }
             }
@@ -171,7 +155,9 @@ struct YouTubeWatchView: View {
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.width
             } action: { newWidth in
-                self.pageWidth = newWidth
+                if abs(newWidth - self.pageWidth) > 2 {
+                    self.pageWidth = newWidth
+                }
             }
         }
         .disabled(self.viewModel.ask.isExpanded)
@@ -195,9 +181,9 @@ struct YouTubeWatchView: View {
             }
         }
         .overlay {
-            YouTubeAskFloatingOverlay(
-                viewModel: self.viewModel.ask,
-                playerOffsetMilliseconds: self.askPlayerOffsetMilliseconds
+            WatchAskFloatingOverlayHost(
+                videoId: self.video.videoId,
+                viewModel: self.viewModel.ask
             )
         }
         .youtubeAskAccessibilityAnnouncements(viewModel: self.viewModel.ask)
@@ -237,13 +223,6 @@ struct YouTubeWatchView: View {
                 self.youtubePlayer.inlineVideoOnScreen = false
                 self.viewModel.stopLiveChat()
             }
-    }
-
-    private var askPlayerOffsetMilliseconds: Int64 {
-        guard self.youtubePlayer.currentVideo?.videoId == self.video.videoId else {
-            return 0
-        }
-        return YouTubeAskPlayerOffset.milliseconds(for: self.youtubePlayer.progress)
     }
 
     /// Shows the on-video controls and (re)starts the idle countdown that hides
@@ -319,7 +298,9 @@ struct YouTubeWatchView: View {
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.size.height
                     } action: { newHeight in
-                        self.videoSurfaceHeight = newHeight
+                        if abs(newHeight - self.videoSurfaceHeight) > 2 {
+                            self.videoSurfaceHeight = newHeight
+                        }
                     }
 
                 self.liveChatSection(
@@ -1535,6 +1516,7 @@ struct YouTubeWatchView: View {
                     ForEach(self.viewModel.data.related) { related in
                         NavigationLink(value: YouTubeRoute.watch(related)) {
                             RelatedVideoRow(video: related)
+                                .equatable()
                         }
                         .buttonStyle(.interactiveRow)
                     }
@@ -1999,6 +1981,31 @@ private struct WatchAmbientBackground: View {
     private var storyboardSpec: String? {
         guard self.isCurrentVideo else { return nil }
         return self.youtubePlayer.storyboardSpec
+    }
+}
+
+// MARK: - WatchAskFloatingOverlayHost
+
+/// Hosts the floating Ask overlay and owns the 1 Hz `progress` read so playback
+/// ticks invalidate only the overlay instead of the entire watch page.
+private struct WatchAskFloatingOverlayHost: View {
+    let videoId: String
+    let viewModel: YouTubeAskViewModel
+
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+
+    var body: some View {
+        YouTubeAskFloatingOverlay(
+            viewModel: self.viewModel,
+            playerOffsetMilliseconds: self.playerOffsetMilliseconds
+        )
+    }
+
+    private var playerOffsetMilliseconds: Int64 {
+        guard self.youtubePlayer.currentVideo?.videoId == self.videoId else {
+            return 0
+        }
+        return YouTubeAskPlayerOffset.milliseconds(for: self.youtubePlayer.progress)
     }
 }
 
@@ -2522,8 +2529,13 @@ private struct ChapterCard: View {
 // MARK: - RelatedVideoRow
 
 /// Compact related-rail row sized for the right column.
-private struct RelatedVideoRow: View {
+private struct RelatedVideoRow: View, Equatable {
     let video: YouTubeVideo
+
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.video.id == rhs.video.id
+            && lhs.video.watchedPercent == rhs.video.watchedPercent
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -2555,6 +2567,11 @@ private struct RelatedVideoRow: View {
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
+        .onHover { isHovered in
+            if isHovered {
+                DirectVideoStreamResolver.shared.prefetchStreamURL(videoId: self.video.videoId)
+            }
+        }
         .accessibilityElement(children: .combine)
     }
 }

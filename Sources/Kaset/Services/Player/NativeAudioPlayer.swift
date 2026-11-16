@@ -75,8 +75,8 @@ final class NativeAudioPlayer: NSObject {
             playerItem = AVPlayerItem(url: url)
         }
 
-        // Configure player item for low latency
-        playerItem.preferredForwardBufferDuration = 10.0
+        // Configure player item for low latency: buffer the first 3 seconds so playback starts immediately
+        playerItem.preferredForwardBufferDuration = 3.0
 
         let player = AVPlayer(playerItem: playerItem)
         // Snappy start: start immediately without waiting to minimize stalling
@@ -85,7 +85,7 @@ final class NativeAudioPlayer: NSObject {
 
         self.setupItemObservers(for: playerItem, in: player)
 
-        player.play()
+        player.playImmediately(atRate: 1.0)
         self.isPlaying = true
     }
 
@@ -106,7 +106,7 @@ final class NativeAudioPlayer: NSObject {
         guard self.preloadedVideoId != videoId else { return }
         self.preloadedVideoId = videoId
         let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 15.0
+        item.preferredForwardBufferDuration = 3.0
         self.preloadedItem = item
     }
 

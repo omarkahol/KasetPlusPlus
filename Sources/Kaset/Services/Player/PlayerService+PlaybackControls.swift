@@ -301,12 +301,11 @@ extension PlayerService {
             return
         }
 
-        // 2. If fast native streaming is enabled, resolve stream URL ahead of time
-        if SettingsManager.shared.isFastNativeStreamingEnabled {
-            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: nextSong.videoId, timeoutSeconds: 3.0) {
-                NativeAudioPlayer.shared.preloadNext(url: streamURL, videoId: nextSong.videoId)
-                self.logger.info("Preloaded next stream URL for gapless playback: \(nextSong.title)")
-            }
+        // 2. Resolve stream URL ahead of time in the background so upcoming tracks start immediately
+        guard !UITestConfig.isRunningUnitTests else { return }
+        if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: nextSong.videoId, timeoutSeconds: 15.0) {
+            NativeAudioPlayer.shared.preloadNext(url: streamURL, videoId: nextSong.videoId)
+            self.logger.info("Preloaded next stream URL for gapless playback: \(nextSong.title)")
         }
     }
 
@@ -375,18 +374,24 @@ extension PlayerService {
             return
         }
 
-        // Fast Native Streaming: attempt lightweight direct stream URL resolution
-        if SettingsManager.shared.isFastNativeStreamingEnabled {
-            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: song.videoId, timeoutSeconds: 2.0) {
-                self.playOfflineTrack(
-                    song: song,
-                    fileURL: streamURL,
-                    queueEntryID: queueEntryID,
-                    startsPaused: startsPaused,
-                    restoreClock: restoreClock
-                )
-                return
+        // Fast Native Streaming: play immediately if stream URL is already cached, otherwise
+        // route straight to WebKit with zero delay and pre-resolve upcoming tracks in the background.
+        if let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId) {
+            self.playOfflineTrack(
+                song: song,
+                fileURL: streamURL,
+                queueEntryID: queueEntryID,
+                startsPaused: startsPaused,
+                restoreClock: restoreClock
+            )
+            self.directStreamTask = Task { [weak self] in
+                await self?.preloadNextQueueTrack()
             }
+            return
+        }
+
+        self.directStreamTask = Task { [weak self] in
+            await self?.preloadNextQueueTrack()
         }
 
         if self.isPlayingOfflineTrack {

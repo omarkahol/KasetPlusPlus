@@ -1,6 +1,10 @@
 import AVFoundation
 import Foundation
 
+extension Notification.Name {
+    static let nativeVideoPlayerChanged = Notification.Name("com.sertacozercan.kaset.nativeVideoPlayerChanged")
+}
+
 // MARK: - NativeVideoPlayer
 
 /// High-performance native video playback engine using `AVPlayer`.
@@ -103,8 +107,10 @@ final class NativeVideoPlayer: NSObject {
 
         let player = AVPlayer(playerItem: playerItem)
         player.automaticallyWaitsToMinimizeStalling = false
+        player.preventsDisplaySleepDuringVideoPlayback = true
         player.volume = self.storedVolume
         self.player = player
+        NotificationCenter.default.post(name: .nativeVideoPlayerChanged, object: player)
 
         self.setupItemObservers(for: playerItem, in: player)
 
@@ -185,6 +191,7 @@ final class NativeVideoPlayer: NSObject {
         self.removeObservers()
         self.player?.pause()
         self.player = nil
+        NotificationCenter.default.post(name: .nativeVideoPlayerChanged, object: nil)
         self.currentURL = nil
         self.currentVideoId = nil
         self.isPlaying = false

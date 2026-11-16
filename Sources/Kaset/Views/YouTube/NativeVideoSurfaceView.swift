@@ -34,6 +34,19 @@ final class NativeVideoContainerView: NSView {
         self.layer = layer
         self.playerLayer = layer
         self.setupPiP()
+        self.attach(player: NativeVideoPlayer.shared.player)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.handlePlayerNotification(_:)),
+            name: .nativeVideoPlayerChanged,
+            object: nil
+        )
+    }
+
+    @objc private func handlePlayerNotification(_ notification: Notification) {
+        let player = notification.object as? AVPlayer
+        self.attach(player: player)
     }
 
     @available(*, unavailable)

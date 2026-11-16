@@ -19,17 +19,35 @@ final class DirectVideoStreamResolver {
 
     private init() {}
 
+    /// Returns a cached direct stream URL synchronously if one is present and unexpired.
+    func cachedStreamURL(for videoId: String) -> URL? {
+        guard let cached = self.cache[videoId], cached.expirationDate > Date() else {
+            return nil
+        }
+        return cached.url
+    }
+
+    /// Resolves and caches a video stream URL in the background without blocking callers.
+    func prewarm(videoId: String) {
+        guard self.cachedStreamURL(for: videoId) == nil, self.inFlightTasks[videoId] == nil else {
+            return
+        }
+        Task {
+            _ = await self.resolveStreamURL(videoId: videoId, timeoutSeconds: 15.0)
+        }
+    }
+
     /// Attempts to resolve a direct HTTPS video streaming URL (progressive MP4 or HLS manifest)
     /// for a YouTube videoId.
     ///
     /// - Parameters:
     ///   - videoId: Target video ID.
-    ///   - timeoutSeconds: Maximum wait time before timing out (default 4.0s).
+    ///   - timeoutSeconds: Maximum wait time before timing out (default 10.0s).
     /// - Returns: Direct streaming URL if resolved within the timeout, or `nil` on failure/timeout/DRM.
-    func resolveStreamURL(videoId: String, timeoutSeconds: TimeInterval = 4.0) async -> URL? {
+    func resolveStreamURL(videoId: String, timeoutSeconds: TimeInterval = 10.0) async -> URL? {
         // 1. Check in-memory cache
-        if let cached = self.cache[videoId], cached.expirationDate > Date() {
-            return cached.url
+        if let cachedURL = self.cachedStreamURL(for: videoId) {
+            return cachedURL
         }
 
         // 2. Check if a task is already in-flight for this videoId to prevent duplicate processes
@@ -41,7 +59,7 @@ final class DirectVideoStreamResolver {
             return nil
         }
 
-        let task = Task<URL?, Never> {
+        let task: Task<URL?, Never> = Task.detached {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ytdlpPath)
             // Prioritize combined MP4 and HLS streams natively playable by AVPlayer without external demuxing:
@@ -54,8 +72,8 @@ final class DirectVideoStreamResolver {
                 "-f", "best[protocol^=m3u8]/22/18/best[ext=mp4]/b/best",
                 "--no-playlist",
                 "--no-warnings",
-                "--no-call-home",
-                "--socket-timeout", "4",
+                "--extractor-args", "youtube:player_client=android,web",
+                "--socket-timeout", "6",
                 "https://www.youtube.com/watch?v=\(videoId)",
             ]
 

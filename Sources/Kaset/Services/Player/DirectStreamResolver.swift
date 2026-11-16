@@ -18,6 +18,24 @@ final class DirectStreamResolver {
 
     private init() {}
 
+    /// Returns a cached direct stream URL synchronously if one is present and unexpired.
+    func cachedStreamURL(for videoId: String) -> URL? {
+        guard let cached = self.cache[videoId], cached.expirationDate > Date() else {
+            return nil
+        }
+        return cached.url
+    }
+
+    /// Resolves and caches a stream URL in the background without blocking callers.
+    func prewarm(videoId: String) {
+        guard self.cachedStreamURL(for: videoId) == nil, self.inFlightTasks[videoId] == nil else {
+            return
+        }
+        Task {
+            _ = await self.resolveStreamURL(videoId: videoId, timeoutSeconds: 15.0)
+        }
+    }
+
     /// Attempts to resolve a direct HTTPS audio streaming URL for a YouTube/YouTube Music videoId.
     ///
     /// - Parameters:
@@ -26,8 +44,8 @@ final class DirectStreamResolver {
     /// - Returns: Direct streaming URL if resolved within the timeout, or `nil` on failure/timeout/DRM.
     func resolveStreamURL(videoId: String, timeoutSeconds: TimeInterval = 3.5) async -> URL? {
         // 1. Check in-memory cache
-        if let cached = self.cache[videoId], cached.expirationDate > Date() {
-            return cached.url
+        if let cachedURL = self.cachedStreamURL(for: videoId) {
+            return cachedURL
         }
 
         // 2. Check if a task is already in-flight for this videoId
@@ -39,7 +57,7 @@ final class DirectStreamResolver {
             return nil
         }
 
-        let task = Task<URL?, Never> {
+        let task: Task<URL?, Never> = Task.detached {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ytdlpPath)
             // Extract the direct audio URL quickly without playlist, embed, or full metadata download
@@ -48,7 +66,6 @@ final class DirectStreamResolver {
                 "-f", "bestaudio/best",
                 "--no-playlist",
                 "--no-warnings",
-                "--no-call-home",
                 "--socket-timeout", "3",
                 "https://www.youtube.com/watch?v=\(videoId)",
             ]

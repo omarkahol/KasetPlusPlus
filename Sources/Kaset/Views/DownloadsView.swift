@@ -53,7 +53,7 @@ struct DownloadsView: View {
         .sheet(item: self.$playingVideoItem) { item in
             DownloadedVideoPlayerSheet(
                 title: item.title,
-                fileURL: item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                fileURL: self.downloadManager.mediaFileURL(for: item)
             )
         }
     }
@@ -85,7 +85,11 @@ struct DownloadsView: View {
 
                 ToolbarItem(placement: .automatic) {
                     Button {
-                        NSWorkspace.shared.open(self.downloadManager.downloadsDirectory)
+                        NSWorkspace.shared.open(
+                            self.scope == .video
+                                ? self.downloadManager.videosDirectory
+                                : self.downloadManager.downloadsDirectory
+                        )
                     } label: {
                         Image(systemName: "folder")
                     }
@@ -351,7 +355,7 @@ struct DownloadsView: View {
                             }
                         } else {
                             Button(String(localized: "Open in Default App")) {
-                                let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                                let fileURL = self.downloadManager.mediaFileURL(for: item)
                                 NSWorkspace.shared.open(fileURL)
                             }
                         }
@@ -359,7 +363,7 @@ struct DownloadsView: View {
                         Divider()
 
                         Button(String(localized: "Show in Finder")) {
-                            let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                            let fileURL = self.downloadManager.mediaFileURL(for: item)
                             NSWorkspace.shared.activateFileViewerSelecting([fileURL])
                         }
 
@@ -403,7 +407,7 @@ struct DownloadsView: View {
                 }
             } else {
                 Button(String(localized: "Open in Default App")) {
-                    let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                    let fileURL = self.downloadManager.mediaFileURL(for: item)
                     NSWorkspace.shared.open(fileURL)
                 }
             }
@@ -411,7 +415,7 @@ struct DownloadsView: View {
             Divider()
 
             Button(String(localized: "Show in Finder")) {
-                let fileURL = item.fileURL(baseDirectory: self.downloadManager.downloadsDirectory)
+                let fileURL = self.downloadManager.mediaFileURL(for: item)
                 NSWorkspace.shared.activateFileViewerSelecting([fileURL])
             }
 

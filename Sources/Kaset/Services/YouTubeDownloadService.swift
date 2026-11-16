@@ -8,12 +8,9 @@ import Foundation
 final class YouTubeDownloadService {
     static let shared = YouTubeDownloadService()
 
-    private let downloadsDir: URL = {
-        let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("KasetPlus")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }()
+    var downloadsDir: URL {
+        DownloadManager.shared.videosDirectory
+    }
 
     private init() {}
 
@@ -252,6 +249,7 @@ final class YouTubeDownloadService {
     /// Starts a download and returns a stream of state updates.
     func download(
         videoId: String,
+        videoTitle: String = "",
         format: DownloadFormat,
         downloadSubtitles: Bool = false,
         onUpdate: @escaping @Sendable (DownloadState) -> Void
@@ -270,10 +268,14 @@ final class YouTubeDownloadService {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ytdlpPath)
 
+        let targetDir = format.isAudioOnly
+            ? DownloadManager.shared.musicDirectory
+            : DownloadManager.shared.videosDirectory
+
         var args = [
             "--no-playlist",
             "--no-mtime",
-            "-o", "\(self.downloadsDir.path)/%(title)s.%(ext)s",
+            "-o", "\(targetDir.path)/%(title)s.%(ext)s",
         ]
 
         if format.isAudioOnly {
@@ -312,6 +314,8 @@ final class YouTubeDownloadService {
         // Parse progress from yt-dlp output
         nonisolated(unsafe) var lastFilename = ""
         let onUpdateSendable = onUpdate
+        let resolvedTitle = videoTitle
+        let isAudioOnly = format.isAudioOnly
 
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
@@ -319,22 +323,43 @@ final class YouTubeDownloadService {
 
             let lines = chunk.components(separatedBy: "\n")
             for line in lines {
-                if line.contains("[download] Destination:") {
-                    lastFilename = line
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.contains("[download] Destination:") {
+                    lastFilename = trimmed
                         .replacingOccurrences(of: "[download] Destination: ", with: "")
                         .trimmingCharacters(in: .whitespaces)
-                } else if line.contains("%") {
-                    let percent = Self.parsePercent(line)
-                    let speed = Self.parseSpeed(line)
+                } else if trimmed.contains("[ExtractAudio] Destination:") {
+                    lastFilename = trimmed
+                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                } else if trimmed.contains("[Merger] Merging formats into") {
+                    lastFilename = trimmed
+                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: "\"", with: "")
+                } else if trimmed.contains("%") {
+                    let percent = Self.parsePercent(trimmed)
+                    let speed = Self.parseSpeed(trimmed)
                     onUpdateSendable(.downloading(progress: percent, speed: speed))
                 }
             }
         }
 
         proc.terminationHandler = { process in
+            pipe.fileHandleForReading.readabilityHandler = nil
             let name = lastFilename.components(separatedBy: "/").last ?? lastFilename
             if process.terminationStatus == 0 {
-                onUpdateSendable(.completed(filename: name))
+                Task { @MainActor in
+                    if !name.isEmpty {
+                        DownloadManager.shared.registerCompletedDownload(
+                            videoId: videoId,
+                            title: resolvedTitle.isEmpty ? name : resolvedTitle,
+                            filename: name,
+                            isAudioOnly: isAudioOnly
+                        )
+                    }
+                    onUpdateSendable(.completed(filename: name))
+                }
             } else {
                 onUpdateSendable(.failed(String(localized: "Download failed. Is yt-dlp installed? Try: brew install yt-dlp")))
             }

@@ -225,4 +225,56 @@ struct DownloadManagerTests {
         manager.cancel(videoId: "test_cancel_id")
         #expect(manager.status(for: "test_cancel_id") == nil)
     }
+
+    @Test("videosDirectory matches downloadsDirectory with no Videos subfolder")
+    @MainActor
+    func videosDirectoryMatchesDownloadsDirectory() {
+        let manager = DownloadManager.shared
+        #expect(manager.videosDirectory == manager.downloadsDirectory)
+        #expect(manager.videosDirectory.lastPathComponent != "Videos")
+    }
+
+    @Test("registerCompletedDownload places videos directly in downloadsDirectory")
+    @MainActor
+    func registerCompletedVideoDownload() throws {
+        let manager = DownloadManager.shared
+        let settings = SettingsManager.shared
+        let originalPath = settings.downloadDirectoryPath
+        let tempDir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("kaset-download-test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        let testVideoId = "test_video_register_\(UUID().uuidString)"
+        let testFilename = "Sample Video.mp4"
+        let videoFile = tempDir.appendingPathComponent(testFilename)
+        try Data("mock-video".utf8).write(to: videoFile)
+
+        settings.downloadDirectoryPath = tempDir.path
+        defer {
+            manager.removeDownload(videoId: testVideoId)
+            settings.downloadDirectoryPath = originalPath
+            try? FileManager.default.removeItem(at: tempDir)
+        }
+
+        manager.registerCompletedDownload(
+            videoId: testVideoId,
+            title: "Sample Video",
+            filename: testFilename,
+            isAudioOnly: false
+        )
+
+        let registered = try #require(manager.downloadedSongs.first(where: { $0.videoId == testVideoId }))
+        #expect(registered.mediaType == .video)
+        #expect(registered.localRelativePath == testFilename)
+        #expect(!registered.localRelativePath.hasPrefix("Videos/"))
+        #expect(registered.fileURL(baseDirectory: manager.downloadsDirectory).path == videoFile.path)
+    }
+
+    @Test("DirectStreamResolver cachedStreamURL returns nil synchronously for uncached IDs")
+    @MainActor
+    func directStreamResolverUncachedReturnsNil() {
+        let uncachedId = "uncached_\(UUID().uuidString)"
+        #expect(DirectStreamResolver.shared.cachedStreamURL(for: uncachedId) == nil)
+        #expect(DirectVideoStreamResolver.shared.cachedStreamURL(for: uncachedId) == nil)
+    }
 }

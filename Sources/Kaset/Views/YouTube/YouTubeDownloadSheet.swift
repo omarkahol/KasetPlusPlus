@@ -168,9 +168,12 @@ struct YouTubeDownloadSheet: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("Downloading to Downloads/KasetPlus/", comment: "Download destination hint")
+            Text(DownloadManager.shared.videosDirectory.path)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 20)
         }
         .padding(.top, 40)
     }
@@ -190,9 +193,7 @@ struct YouTubeDownloadSheet: View {
                 .lineLimit(2)
 
             Button(String(localized: "Show in Finder")) {
-                let dir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-                    .appendingPathComponent("KasetPlus")
-                NSWorkspace.shared.open(dir)
+                NSWorkspace.shared.open(DownloadManager.shared.videosDirectory)
                 self.dismiss()
             }
             .buttonStyle(.borderedProminent)
@@ -231,6 +232,7 @@ struct YouTubeDownloadSheet: View {
     private func startDownload(format: YouTubeDownloadService.DownloadFormat) {
         YouTubeDownloadService.shared.download(
             videoId: self.videoId,
+            videoTitle: self.videoTitle,
             format: format,
             downloadSubtitles: self.downloadSubtitles
         ) { state in

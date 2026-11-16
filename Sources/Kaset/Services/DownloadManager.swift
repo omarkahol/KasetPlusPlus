@@ -101,6 +101,7 @@ final class DownloadManager {
 
     private init() {
         self.loadIndex()
+        self.cleanupLegacyVideosDirectory()
     }
 
     // MARK: - Directories
@@ -119,11 +120,24 @@ final class DownloadManager {
         return dir
     }
 
-    /// Subdirectory for downloaded video files.
+    /// Directory for downloaded video files (~/Movies/KasetPlus Downloads).
     var videosDirectory: URL {
-        let dir = self.downloadsDirectory.appendingPathComponent("Videos", isDirectory: true)
+        let dir = SettingsManager.defaultVideoDownloadDirectory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    /// Returns the base directory for a given media type (`videosDirectory` for `.video`, `downloadsDirectory` for `.audio`).
+    func baseDirectory(for mediaType: MediaType) -> URL {
+        switch mediaType {
+        case .audio: self.downloadsDirectory
+        case .video: self.videosDirectory
+        }
+    }
+
+    /// Returns the resolved local media file URL for a downloaded item.
+    func mediaFileURL(for song: DownloadedSong) -> URL {
+        song.fileURL(baseDirectory: self.baseDirectory(for: song.mediaType))
     }
 
     /// Subdirectory for cached track artwork.
@@ -262,7 +276,7 @@ final class DownloadManager {
         guard let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) else {
             return false
         }
-        let url = song.fileURL(baseDirectory: self.downloadsDirectory)
+        let url = self.mediaFileURL(for: song)
         return FileManager.default.fileExists(atPath: url.path)
     }
 
@@ -273,7 +287,7 @@ final class DownloadManager {
         }
         if self.isDownloaded(videoId: videoId) {
             if let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) {
-                return .completed(fileURL: song.fileURL(baseDirectory: self.downloadsDirectory))
+                return .completed(fileURL: self.mediaFileURL(for: song))
             }
         }
         return nil
@@ -284,7 +298,7 @@ final class DownloadManager {
         guard let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) else {
             return nil
         }
-        let url = song.fileURL(baseDirectory: self.downloadsDirectory)
+        let url = self.mediaFileURL(for: song)
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
@@ -395,7 +409,7 @@ final class DownloadManager {
 
         if let index = self.downloadedSongs.firstIndex(where: { $0.videoId == videoId }) {
             let song = self.downloadedSongs[index]
-            let fileURL = song.fileURL(baseDirectory: self.downloadsDirectory)
+            let fileURL = self.mediaFileURL(for: song)
             try? FileManager.default.removeItem(at: fileURL)
 
             if let artwork = song.artworkPath {
@@ -422,11 +436,12 @@ final class DownloadManager {
         self.activeDownloads.removeAll()
 
         for song in self.downloadedSongs {
-            let fileURL = song.fileURL(baseDirectory: self.downloadsDirectory)
+            let fileURL = self.mediaFileURL(for: song)
             try? FileManager.default.removeItem(at: fileURL)
         }
         try? FileManager.default.removeItem(at: self.musicDirectory)
-        try? FileManager.default.removeItem(at: self.videosDirectory)
+        let legacyVideosDir = self.downloadsDirectory.appendingPathComponent("Videos", isDirectory: true)
+        try? FileManager.default.removeItem(at: legacyVideosDir)
         try? FileManager.default.removeItem(at: self.artworksDirectory)
         try? FileManager.default.removeItem(at: self.lyricsDirectory)
         try? FileManager.default.removeItem(at: self.indexFileURL)
@@ -570,8 +585,7 @@ final class DownloadManager {
     }
 
     private func finalizeDownload(item: DownloadItem, fileExtension: String, detectedDestination: String) {
-        let baseDir = self.downloadsDirectory
-        let subfolder = (item.mediaType == .video) ? "Videos" : "Music"
+        let baseDir = self.baseDirectory(for: item.mediaType)
         let fallbackFileName = "\(item.title) [\(item.videoId)].\(fileExtension)"
         let actualFileName: String
 
@@ -581,7 +595,7 @@ final class DownloadManager {
             actualFileName = fallbackFileName
         }
 
-        let localRelativePath = "\(subfolder)/\(actualFileName)"
+        let localRelativePath = (item.mediaType == .video) ? actualFileName : "Music/\(actualFileName)"
         let mediaFileURL = baseDir.appendingPathComponent(localRelativePath)
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: mediaFileURL.path)[.size] as? Int64)
 
@@ -696,11 +710,47 @@ final class DownloadManager {
             return
         }
 
-        // Validate that files actually exist on disk; purge missing records
-        let baseDir = self.downloadsDirectory
-        self.downloadedSongs = decoded.filter { song in
-            let url = song.fileURL(baseDirectory: baseDir)
-            return FileManager.default.fileExists(atPath: url.path)
+        // Migrate any legacy video records stored in downloadsDirectory and validate existence
+        let legacyBaseDir = self.downloadsDirectory
+        let videosDir = self.videosDirectory
+        var didMigrate = false
+        self.downloadedSongs = decoded.compactMap { song in
+            var resolvedSong = song
+            if song.mediaType == .video {
+                let normalizedPath = song.localRelativePath.hasPrefix("Videos/")
+                    ? String(song.localRelativePath.dropFirst("Videos/".count))
+                    : song.localRelativePath
+                let targetURL = videosDir.appendingPathComponent(normalizedPath)
+                let legacyURL = legacyBaseDir.appendingPathComponent(song.localRelativePath)
+                if !FileManager.default.fileExists(atPath: targetURL.path),
+                   FileManager.default.fileExists(atPath: legacyURL.path)
+                {
+                    try? FileManager.default.moveItem(at: legacyURL, to: targetURL)
+                }
+                if normalizedPath != song.localRelativePath {
+                    didMigrate = true
+                    resolvedSong = DownloadedSong(
+                        id: song.id,
+                        videoId: song.videoId,
+                        title: song.title,
+                        artists: song.artists,
+                        albumTitle: song.albumTitle,
+                        duration: song.duration,
+                        artworkPath: song.artworkPath,
+                        localRelativePath: normalizedPath,
+                        fileSize: song.fileSize,
+                        downloadDate: song.downloadDate,
+                        audioFormat: song.audioFormat,
+                        likeStatus: song.likeStatus,
+                        mediaType: song.mediaType
+                    )
+                }
+            }
+            let url = self.mediaFileURL(for: resolvedSong)
+            return FileManager.default.fileExists(atPath: url.path) ? resolvedSong : nil
+        }
+        if didMigrate {
+            self.saveIndex()
         }
     }
 
@@ -713,6 +763,86 @@ final class DownloadManager {
         } catch {
             self.logger.error("Failed to save downloads index: \(error.localizedDescription)")
         }
+    }
+
+    /// Registers a download completed by an external service (such as `YouTubeDownloadService`)
+    /// so it appears in the app's Downloads library.
+    func registerCompletedDownload(
+        videoId: String,
+        title: String,
+        filename: String,
+        isAudioOnly: Bool
+    ) {
+        let baseDir = isAudioOnly ? self.downloadsDirectory : self.videosDirectory
+        let localRelativePath = isAudioOnly ? "Music/\(filename)" : filename
+        let mediaFileURL = baseDir.appendingPathComponent(localRelativePath)
+        let fileSize = (try? FileManager.default.attributesOfItem(atPath: mediaFileURL.path)[.size] as? Int64)
+        let ext = (filename as NSString).pathExtension.isEmpty ? (isAudioOnly ? "mp3" : "mp4") : (filename as NSString).pathExtension
+        let downloaded = DownloadedSong(
+            id: videoId,
+            videoId: videoId,
+            title: title,
+            artists: [],
+            albumTitle: nil,
+            duration: nil,
+            artworkPath: nil,
+            localRelativePath: localRelativePath,
+            fileSize: fileSize,
+            downloadDate: Date(),
+            audioFormat: ext,
+            likeStatus: nil,
+            mediaType: isAudioOnly ? .audio : .video
+        )
+        self.downloadedSongs.removeAll { $0.videoId == videoId }
+        self.downloadedSongs.insert(downloaded, at: 0)
+        self.saveIndex()
+    }
+
+    /// Migrates any files from the legacy `Videos` subfolder into `videosDirectory` and removes the folder.
+    private func cleanupLegacyVideosDirectory() {
+        let baseDir = self.downloadsDirectory
+        let legacyVideosDir = baseDir.appendingPathComponent("Videos", isDirectory: true)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: legacyVideosDir.path, isDirectory: &isDir), isDir.boolValue else {
+            return
+        }
+
+        let targetVideosDir = self.videosDirectory
+        if let contents = try? FileManager.default.contentsOfDirectory(at: legacyVideosDir, includingPropertiesForKeys: nil) {
+            for fileURL in contents {
+                let destURL = targetVideosDir.appendingPathComponent(fileURL.lastPathComponent)
+                if !FileManager.default.fileExists(atPath: destURL.path) {
+                    try? FileManager.default.moveItem(at: fileURL, to: destURL)
+                }
+            }
+        }
+
+        var didUpdateIndex = false
+        self.downloadedSongs = self.downloadedSongs.map { song in
+            guard song.localRelativePath.hasPrefix("Videos/") else { return song }
+            didUpdateIndex = true
+            let newPath = String(song.localRelativePath.dropFirst("Videos/".count))
+            return DownloadedSong(
+                id: song.id,
+                videoId: song.videoId,
+                title: song.title,
+                artists: song.artists,
+                albumTitle: song.albumTitle,
+                duration: song.duration,
+                artworkPath: song.artworkPath,
+                localRelativePath: newPath,
+                fileSize: song.fileSize,
+                downloadDate: song.downloadDate,
+                audioFormat: song.audioFormat,
+                likeStatus: song.likeStatus,
+                mediaType: song.mediaType
+            )
+        }
+        if didUpdateIndex {
+            self.saveIndex()
+        }
+
+        try? FileManager.default.removeItem(at: legacyVideosDir)
     }
 
     // MARK: - Output Parsers

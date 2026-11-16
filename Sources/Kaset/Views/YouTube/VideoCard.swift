@@ -45,6 +45,11 @@ struct VideoCard: View, Equatable {
             .padding(.horizontal, 2)
         }
         .contentShape(Rectangle())
+        .onHover { isHovered in
+            if isHovered {
+                DirectVideoStreamResolver.shared.prefetchStreamURL(videoId: self.video.videoId)
+            }
+        }
         .contextMenu {
             Button {
                 DownloadManager.shared.download(video: self.video)

@@ -671,35 +671,42 @@ final class YouTubePlayerService {
         self.beginPlaybackLoading()
         self.surfaceLocation = .inline
 
-        // Fast Native Path: attempt to resolve stream URL with fallback to WebKit
-        if SettingsManager.shared.isFastNativeStreamingEnabled {
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let streamURL = await DirectVideoStreamResolver.shared.resolveStreamURL(videoId: video.videoId, timeoutSeconds: 3.5) {
-                    self.logger.info("Routing video playback through NativeVideoPlayer for: \(video.title)")
-                    self.isPlayingNativeVideo = true
-                    NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
-                    NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
-                    NativeVideoPlayer.shared.setVolume(Float(self.volume))
-                    self.finishPlaybackLoading()
-                    return
-                }
+        // Always prioritize the native AVPlayer streaming path
+        self.isPlayingNativeVideo = true
 
-                // Fallback to WebKit controller if stream cannot be resolved (e.g. DRM or timeout)
-                self.logger.info("Falling back to WebKit watch controller for: \(video.title)")
-                self.isPlayingNativeVideo = false
-                self.playbackController.prepare(
-                    webKitManager: self.webKitManager,
-                    playerService: self,
-                    usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
-                )
-                if let normalizedStartAt {
-                    self.playbackController.reloadVideo(videoId: video.videoId, resumeAt: normalizedStartAt)
-                } else {
-                    self.playbackController.loadVideo(videoId: video.videoId)
-                }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // 1. Instant start if stream URL is already resolved & cached
+            if let streamURL = DirectVideoStreamResolver.shared.cachedStreamURL(for: video.videoId) {
+                guard self.currentVideo?.videoId == video.videoId else { return }
+                self.logger.info("Routing video playback through NativeVideoPlayer (cached) for: \(video.title)")
+                self.isPlayingNativeVideo = true
+                NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
+                NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
+                NativeVideoPlayer.shared.setVolume(Float(self.volume))
+                self.finishPlaybackLoading()
+                return
             }
-        } else {
+
+            // 2. Resolve direct stream asynchronously with native loading indicator
+            if let streamURL = await DirectVideoStreamResolver.shared.resolveStreamURL(videoId: video.videoId, timeoutSeconds: 10.0) {
+                guard self.currentVideo?.videoId == video.videoId else { return }
+                self.logger.info("Routing video playback through NativeVideoPlayer for: \(video.title)")
+                self.isPlayingNativeVideo = true
+                NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
+                NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
+                NativeVideoPlayer.shared.setVolume(Float(self.volume))
+                self.finishPlaybackLoading()
+                return
+            }
+
+            // 3. Fallback to WebKit watch controller ONLY if direct stream resolution fails/times out
+            guard self.currentVideo?.videoId == video.videoId else { return }
+            self.logger.info("Falling back to WebKit watch controller for: \(video.title)")
+            if self.isPlayingNativeVideo {
+                NativeVideoPlayer.shared.stop()
+            }
             self.isPlayingNativeVideo = false
             self.playbackController.prepare(
                 webKitManager: self.webKitManager,

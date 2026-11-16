@@ -389,6 +389,14 @@ final class SettingsManager {
             .appendingPathComponent("Downloads", isDirectory: true)
     }
 
+    /// The default directory for offline video downloads (~/Movies/KasetPlus Downloads).
+    static var defaultVideoDownloadDirectory: URL {
+        if let moviesDir = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first {
+            return moviesDir.appendingPathComponent("KasetPlus Downloads", isDirectory: true)
+        }
+        return Self.defaultDownloadDirectory
+    }
+
     // MARK: - Settings Properties
 
     /// The active content source (YouTube Music or regular YouTube).
