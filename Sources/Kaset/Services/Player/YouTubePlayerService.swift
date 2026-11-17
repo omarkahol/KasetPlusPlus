@@ -671,6 +671,17 @@ final class YouTubePlayerService {
         self.beginPlaybackLoading()
         self.surfaceLocation = .inline
 
+        // 0. Instant local-first: play downloaded video files directly via NativeVideoPlayer
+        if let localVideoURL = DownloadManager.shared.fileURL(for: video.videoId) {
+            self.logger.info("Routing local downloaded video through NativeVideoPlayer for: \(video.title)")
+            self.isPlayingNativeVideo = true
+            NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
+            NativeVideoPlayer.shared.play(url: localVideoURL, videoId: video.videoId, startAt: normalizedStartAt)
+            NativeVideoPlayer.shared.setVolume(Float(self.volume))
+            self.finishPlaybackLoading()
+            return
+        }
+
         // Always prioritize the native AVPlayer streaming path
         self.isPlayingNativeVideo = true
 

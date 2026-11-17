@@ -318,13 +318,13 @@ final class SettingsManager {
         var formatSelector: String {
             switch self {
             case .best:
-                "bestvideo+bestaudio/best"
+                "bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
             case .res1080p:
-                "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+                "bestvideo[height<=1080][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]"
             case .res720p:
-                "bestvideo[height<=720]+bestaudio/best[height<=720]"
+                "bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]"
             case .res480p:
-                "bestvideo[height<=480]+bestaudio/best[height<=480]"
+                "bestvideo[height<=480][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best[height<=480]"
             }
         }
 

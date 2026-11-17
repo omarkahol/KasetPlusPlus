@@ -95,7 +95,8 @@ struct DownloadManagerTests {
         let best = SettingsManager.VideoDownloadQuality.best
         #expect(best.fileExtension == "mp4")
         #expect(best.ytDlpArguments.contains("-f"))
-        #expect(best.formatSelector.contains("bestvideo+bestaudio/best"))
+        #expect(best.formatSelector.contains("vcodec^=avc1"))
+        #expect(best.formatSelector.contains("acodec^=mp4a"))
 
         let fhd = SettingsManager.VideoDownloadQuality.res1080p
         #expect(fhd.formatSelector.contains("height<=1080"))
@@ -226,15 +227,15 @@ struct DownloadManagerTests {
         #expect(manager.status(for: "test_cancel_id") == nil)
     }
 
-    @Test("videosDirectory matches downloadsDirectory with no Videos subfolder")
+    @Test("videosDirectory uses Movies/KasetPlus Downloads")
     @MainActor
-    func videosDirectoryMatchesDownloadsDirectory() {
+    func videosDirectoryUsesMoviesFolder() {
         let manager = DownloadManager.shared
-        #expect(manager.videosDirectory == manager.downloadsDirectory)
-        #expect(manager.videosDirectory.lastPathComponent != "Videos")
+        #expect(manager.videosDirectory == SettingsManager.defaultVideoDownloadDirectory)
+        #expect(Array(manager.videosDirectory.standardizedFileURL.pathComponents.suffix(2)) == ["Movies", "KasetPlus Downloads"])
     }
 
-    @Test("registerCompletedDownload places videos directly in downloadsDirectory")
+    @Test("registerCompletedDownload places videos directly in videosDirectory")
     @MainActor
     func registerCompletedVideoDownload() throws {
         let manager = DownloadManager.shared
@@ -245,13 +246,14 @@ struct DownloadManagerTests {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
 
         let testVideoId = "test_video_register_\(UUID().uuidString)"
-        let testFilename = "Sample Video.mp4"
-        let videoFile = tempDir.appendingPathComponent(testFilename)
+        let testFilename = "Sample Video [\(testVideoId)].mp4"
+        let videoFile = manager.videosDirectory.appendingPathComponent(testFilename)
         try Data("mock-video".utf8).write(to: videoFile)
 
         settings.downloadDirectoryPath = tempDir.path
         defer {
             manager.removeDownload(videoId: testVideoId)
+            try? FileManager.default.removeItem(at: videoFile)
             settings.downloadDirectoryPath = originalPath
             try? FileManager.default.removeItem(at: tempDir)
         }
@@ -267,7 +269,8 @@ struct DownloadManagerTests {
         #expect(registered.mediaType == .video)
         #expect(registered.localRelativePath == testFilename)
         #expect(!registered.localRelativePath.hasPrefix("Videos/"))
-        #expect(registered.fileURL(baseDirectory: manager.downloadsDirectory).path == videoFile.path)
+        #expect(manager.mediaFileURL(for: registered).path == videoFile.path)
+        #expect(manager.isDownloaded(videoId: testVideoId))
     }
 
     @Test("DirectStreamResolver cachedStreamURL returns nil synchronously for uncached IDs")

@@ -89,69 +89,26 @@ struct YouTubeWatchView: View {
         )
     }
 
+    private var isWideLayout: Bool {
+        self.pageWidth >= 1060 && !self.settings.distractionFreeEnabled
+    }
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                self.videoWithOptionalSideChat
-
-                // Below the video: title/metadata + chapters/comments down the
-                // left, the related rail down the right.
-                HStack(alignment: .top, spacing: Self.railSpacing) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        self.metadataSection
-
-                        if let description = self.descriptionText {
-                            self.descriptionSection(description)
-                        }
-
-                        if self.showsSummary, !self.isLiveStream {
-                            Divider()
-                            self.summarySection
-                        }
-
-                        if self.youtubePlayer.showsLyrics, !self.isLiveStream {
-                            Divider()
-                            self.lyricsSection
-                        }
-
-                        if !self.viewModel.data.chapters.isEmpty {
-                            Divider()
-
-                            WatchChaptersSection(
-                                chapters: self.viewModel.data.chapters,
-                                videoId: self.video.videoId,
-                                onSeek: self.seekToChapter
-                            )
-                        }
-
-                        // Distraction-free mode hides the comments and the
-                        // related rail, leaving just the video and its metadata.
-                        // Live streams show live chat instead of comments (like
-                        // YouTube), so the comments section is hidden for them.
-                        if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
-                            Divider()
-
-                            self.commentsSection
-                        }
+            Group {
+                if self.isWideLayout {
+                    HStack(alignment: .top, spacing: Self.railSpacing) {
+                        self.mainContentColumn
+                        self.secondaryContentColumn
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if !self.settings.distractionFreeEnabled {
-                        VStack(alignment: .leading, spacing: 20) {
-                            // When the chat sits beside the video (wide
-                            // window, live stream) it's shown up top; only
-                            // fall back to stacking it here when it can't.
-                            if self.viewModel.hasLiveChat, !self.showsSideChat {
-                                self.liveChatSection(height: 440)
-                            }
-                            self.relatedColumn
-                        }
-                        .frame(width: Self.railWidth)
-                    }
+                } else {
+                    self.compactContentColumn
                 }
             }
-            .padding(.horizontal, 16)
+            .frame(maxWidth: 1680)
+            .padding(.horizontal, 24)
             .padding(.vertical, 20)
+            .frame(maxWidth: .infinity)
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.width
             } action: { newWidth in
@@ -261,57 +218,110 @@ struct YouTubeWatchView: View {
         }
     }
 
-    // MARK: - Video + Side Chat
+    // MARK: - Responsive Layout Columns
 
-    /// Width of the right-hand rail — used for BOTH the related column below the
-    /// video and the live-chat column beside it — so the two rows line up as one
-    /// clean grid (video/chat above, metadata/related below).
-    static let railWidth: CGFloat = 360
+    /// Width of the right-hand related rail on wide displays.
+    static let railWidth: CGFloat = 380
 
-    /// Horizontal gap between the main (video/metadata) column and the rail.
-    /// Shared by both rows for the same reason.
+    /// Horizontal gap between the primary and secondary columns.
     static let railSpacing: CGFloat = 24
 
-    /// The page must be at least this wide before the chat can sit beside the
-    /// video; below it the chat stacks below (in the related column) instead.
-    private static let sideChatMinPageWidth: CGFloat = 820
-
-    /// Whether the live chat should render as a column beside the video (like
-    /// the official YouTube app) rather than stacked below it. Only for live
-    /// streams with an available chat, and only when the window is wide enough
-    /// to leave the video a reasonable size next to the chat column.
-    private var showsSideChat: Bool {
-        self.viewModel.hasLiveChat
-            && !self.settings.distractionFreeEnabled
-            && self.pageWidth >= Self.sideChatMinPageWidth
-    }
-
-    /// The top of the watch page: the video surface, with the live chat beside
-    /// it (side-by-side) for live streams on a wide-enough window, or on its own
-    /// (chat falls back to the related column below) otherwise.
-    @ViewBuilder
-    private var videoWithOptionalSideChat: some View {
-        if self.showsSideChat {
-            HStack(alignment: .top, spacing: Self.railSpacing) {
-                self.videoSurface
-                    .contextMenu { self.videoContextMenu }
-                    .onGeometryChange(for: CGFloat.self) { proxy in
-                        proxy.size.height
-                    } action: { newHeight in
-                        if abs(newHeight - self.videoSurfaceHeight) > 2 {
-                            self.videoSurfaceHeight = newHeight
-                        }
-                    }
-
-                self.liveChatSection(
-                    height: self.videoSurfaceHeight > 0 ? self.videoSurfaceHeight : 440
-                )
-                .frame(width: Self.railWidth)
-            }
-        } else {
+    /// Primary column for wide windows (video player + metadata + comments).
+    private var mainContentColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
             self.videoSurface
                 .contextMenu { self.videoContextMenu }
+
+            self.metadataSection
+
+            if let description = self.descriptionText {
+                self.descriptionSection(description)
+            }
+
+            if self.showsSummary, !self.isLiveStream {
+                Divider()
+                self.summarySection
+            }
+
+            if self.youtubePlayer.showsLyrics, !self.isLiveStream {
+                Divider()
+                self.lyricsSection
+            }
+
+            if !self.viewModel.data.chapters.isEmpty {
+                Divider()
+                WatchChaptersSection(
+                    chapters: self.viewModel.data.chapters,
+                    videoId: self.video.videoId,
+                    onSeek: self.seekToChapter
+                )
+            }
+
+            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
+                Divider()
+                self.commentsSection
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Secondary column for wide windows (live chat + related videos).
+    private var secondaryContentColumn: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if self.viewModel.hasLiveChat {
+                self.liveChatSection(height: 480)
+            }
+            self.relatedColumn
+        }
+        .frame(width: Self.railWidth)
+    }
+
+    /// Single unified column for compact / narrow windows or distraction-free mode.
+    private var compactContentColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            self.videoSurface
+                .contextMenu { self.videoContextMenu }
+
+            self.metadataSection
+
+            if let description = self.descriptionText {
+                self.descriptionSection(description)
+            }
+
+            if self.showsSummary, !self.isLiveStream {
+                Divider()
+                self.summarySection
+            }
+
+            if self.youtubePlayer.showsLyrics, !self.isLiveStream {
+                Divider()
+                self.lyricsSection
+            }
+
+            if !self.viewModel.data.chapters.isEmpty {
+                Divider()
+                WatchChaptersSection(
+                    chapters: self.viewModel.data.chapters,
+                    videoId: self.video.videoId,
+                    onSeek: self.seekToChapter
+                )
+            }
+
+            if !self.settings.distractionFreeEnabled {
+                if self.viewModel.hasLiveChat {
+                    self.liveChatSection(height: 440)
+                }
+
+                Divider()
+                self.relatedColumn
+            }
+
+            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
+                Divider()
+                self.commentsSection
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Video Surface
@@ -526,7 +536,8 @@ struct YouTubeWatchView: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(self.resolvedTitle)
                     .font(.title2.bold())
-                    .lineLimit(3)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if self.hasDearrow {
                     Button {
@@ -556,21 +567,34 @@ struct YouTubeWatchView: View {
             }
 
             // Channel on the left, engagement actions on the right (YouTube-style
-            // two sides). The whole cluster drops the actions onto their own
-            // wrapped line when the column is too narrow for one row.
+            // two sides). Drops onto a wrapped line when the column is too narrow
+            // so buttons and text NEVER clip or overflow!
             if !self.viewModel.collaborators.isEmpty {
                 self.collaboratorsRow(self.viewModel.collaborators)
                 FlowLayout(spacing: 8, lineSpacing: 8) { self.engagementButtons }
             } else if let channel = self.viewModel.data.channel {
-                // Stable two-sided row: channel on the left, engagement actions
-                // pushed to the right by the Spacer. Deterministic (no
-                // ViewThatFits branch-flipping when the async like counts load).
-                HStack(alignment: .center, spacing: 12) {
-                    self.channelInfoLink(channel)
-                    self.channelActionButtons
-                    Spacer(minLength: 12)
-                    HStack(spacing: 8) { self.engagementButtons }
+                ViewThatFits(in: .horizontal) {
+                    // Wide: 1 row
+                    HStack(alignment: .center, spacing: 12) {
+                        self.channelInfoLink(channel)
+                        self.channelActionButtons
+                        Spacer(minLength: 16)
+                        HStack(spacing: 8) { self.engagementButtons }
+                    }
+
+                    // Narrow: 2 rows
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .center, spacing: 12) {
+                            self.channelInfoLink(channel)
+                            self.channelActionButtons
+                        }
+                        FlowLayout(spacing: 8, lineSpacing: 8) {
+                            self.engagementButtons
+                        }
+                    }
                 }
+            } else {
+                FlowLayout(spacing: 8, lineSpacing: 8) { self.engagementButtons }
             }
 
             // KasetPlus tools (Summary, Lyrics). Hidden for live streams.

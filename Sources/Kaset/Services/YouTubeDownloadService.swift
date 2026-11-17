@@ -77,14 +77,34 @@ final class YouTubeDownloadService {
         }
     }
 
+    private nonisolated static func configuredEnvironment(customFfmpegPath: String = "") -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        var extraPaths = ["/opt/homebrew/bin", "/usr/local/bin", "\(NSHomeDirectory())/.deno/bin"]
+        if !customFfmpegPath.isEmpty {
+            let parent = (customFfmpegPath as NSString).deletingLastPathComponent
+            if !parent.isEmpty {
+                extraPaths.insert(parent, at: 0)
+            }
+        }
+        let prefix = extraPaths.joined(separator: ":")
+        if let currentPath = env["PATH"], !currentPath.isEmpty {
+            env["PATH"] = "\(prefix):\(currentPath)"
+        } else {
+            env["PATH"] = prefix
+        }
+        return env
+    }
+
     /// Fetches available download formats for a YouTube video.
     func fetchFormats(videoId: String) async -> [DownloadFormat] {
         guard let ytdlpPath, let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)") else { return [] }
+        let env = Self.configuredEnvironment(customFfmpegPath: SettingsManager.shared.customFfmpegPath)
 
         return await Task.detached(priority: .userInitiated) {
             let proc = Process()
             proc.executableURL = URL(fileURLWithPath: ytdlpPath)
             proc.arguments = ["-J", "--no-playlist", "--socket-timeout", "20", url.absoluteString]
+            proc.environment = env
             let outPipe = Pipe()
             let errPipe = Pipe()
             proc.standardOutput = outPipe
@@ -115,50 +135,57 @@ final class YouTubeDownloadService {
     }
 
     private nonisolated static func parseFormatsStatic(_ formats: [[String: Any]]) -> [DownloadFormat] {
-        var seen: Set<String> = []
-        var results: [DownloadFormat] = []
+        struct HeightCandidate {
+            let filesize: Int64?
+            let isPreferredCodec: Bool
+        }
 
-        // Always add MP3 option
-        results.append(DownloadFormat(
-            id: "bestaudio/best",
-            label: String(localized: "MP3 (audio only)"),
-            isAudioOnly: true,
-            fileSize: nil
-        ))
+        var byHeight: [Int: HeightCandidate] = [:]
 
         for fmt in formats {
             guard let formatId = fmt["format_id"] as? String,
-                  let ext = fmt["ext"] as? String,
                   !formatId.contains("storyboard"),
-                  fmt["vcodec"] as? String != "none" || formatId == "bestvideo+bestaudio"
+                  let vcodec = fmt["vcodec"] as? String,
+                  vcodec != "none",
+                  let height = fmt["height"] as? Int,
+                  height > 0
             else { continue }
 
-            let resolution = fmt["resolution"] as? String
-            let height = fmt["height"] as? Int
+            let ext = fmt["ext"] as? String ?? ""
+            let isPreferred = vcodec.hasPrefix("avc1") || ext == "mp4"
             let filesize = fmt["filesize"] as? Int64 ?? fmt["filesize_approx"] as? Int64
 
-            let label: String
-            if let resolution, !resolution.isEmpty {
-                label = "\(resolution) (\(ext))"
-            } else if let height {
-                label = "\(height)p (\(ext))"
+            if let existing = byHeight[height] {
+                if !existing.isPreferredCodec && isPreferred || (existing.isPreferredCodec == isPreferred && existing.filesize == nil && filesize != nil) {
+                    byHeight[height] = HeightCandidate(filesize: filesize ?? existing.filesize, isPreferredCodec: isPreferred)
+                }
             } else {
-                continue
+                byHeight[height] = HeightCandidate(filesize: filesize, isPreferredCodec: isPreferred)
             }
+        }
 
-            let key = resolution ?? "\(height ?? 0)"
-            guard seen.insert(key).inserted else { continue }
+        // Always add MP3 option first
+        var results: [DownloadFormat] = [
+            DownloadFormat(
+                id: "bestaudio/best",
+                label: String(localized: "MP3 (audio only)"),
+                isAudioOnly: true,
+                fileSize: nil
+            ),
+        ]
 
+        for height in byHeight.keys.sorted(by: >) {
+            let candidate = byHeight[height]
+            let selector = "bestvideo[height<=\(height)][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=\(height)][ext=mp4]+bestaudio[ext=m4a]/best[height<=\(height)][ext=mp4]/best[height<=\(height)]"
             results.append(DownloadFormat(
-                id: formatId,
-                label: label,
+                id: selector,
+                label: "\(height)p (MP4)",
                 isAudioOnly: false,
-                fileSize: filesize
+                fileSize: candidate?.filesize
             ))
         }
 
-        // Sort: audio first, then highest quality first
-        return results.sorted { a, _ in a.isAudioOnly }
+        return results
     }
 
     // MARK: - Transcript (for on-device AI)
@@ -172,10 +199,12 @@ final class YouTubeDownloadService {
             .appendingPathComponent("kaset-transcript-\(videoId)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let env = Self.configuredEnvironment(customFfmpegPath: SettingsManager.shared.customFfmpegPath)
 
         return await withCheckedContinuation { continuation in
             let proc = Process()
             proc.executableURL = URL(fileURLWithPath: ytdlpPath)
+            proc.environment = env
             proc.arguments = [
                 "--skip-download",
                 "--write-auto-subs", "--write-subs",
@@ -267,6 +296,7 @@ final class YouTubeDownloadService {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ytdlpPath)
+        proc.environment = Self.configuredEnvironment(customFfmpegPath: SettingsManager.shared.customFfmpegPath)
 
         let targetDir = format.isAudioOnly
             ? DownloadManager.shared.musicDirectory
@@ -275,8 +305,12 @@ final class YouTubeDownloadService {
         var args = [
             "--no-playlist",
             "--no-mtime",
-            "-o", "\(targetDir.path)/%(title)s.%(ext)s",
+            "-o", "\(targetDir.path)/%(title)s [%(id)s].%(ext)s",
         ]
+
+        if let ffmpeg = DownloadManager.shared.ffmpegPath {
+            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
+        }
 
         if format.isAudioOnly {
             args.append(contentsOf: [
@@ -286,7 +320,11 @@ final class YouTubeDownloadService {
                 "--embed-thumbnail",
             ])
         } else {
-            args.append(contentsOf: ["-f", format.id])
+            args.append(contentsOf: [
+                "-f", format.id,
+                "--merge-output-format", "mp4",
+                "--remux-video", "mp4",
+            ])
         }
 
         if downloadSubtitles {
@@ -337,6 +375,11 @@ final class YouTubeDownloadService {
                         .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
                         .trimmingCharacters(in: .whitespaces)
                         .replacingOccurrences(of: "\"", with: "")
+                } else if trimmed.contains("[VideoRemuxer] Remuxing video from"),
+                          let destinationPart = trimmed.components(separatedBy: " to ").last
+                {
+                    lastFilename = destinationPart
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
                 } else if trimmed.contains("%") {
                     let percent = Self.parsePercent(trimmed)
                     let speed = Self.parseSpeed(trimmed)
@@ -347,7 +390,13 @@ final class YouTubeDownloadService {
 
         proc.terminationHandler = { process in
             pipe.fileHandleForReading.readabilityHandler = nil
-            let name = lastFilename.components(separatedBy: "/").last ?? lastFilename
+            var name = lastFilename.components(separatedBy: "/").last ?? lastFilename
+            let expectedExt = isAudioOnly ? "mp3" : "mp4"
+            if let matchingFile = (try? FileManager.default.contentsOfDirectory(atPath: targetDir.path))?
+                .first(where: { $0.contains("[\(videoId)]") && $0.hasSuffix(".\(expectedExt)") })
+            {
+                name = matchingFile
+            }
             if process.terminationStatus == 0 {
                 Task { @MainActor in
                     if !name.isEmpty {

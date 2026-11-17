@@ -478,10 +478,13 @@ final class DownloadManager {
             "--newline", // Line-by-line progress updates
             "--no-playlist",
             "--no-mtime",
-            "--embed-thumbnail",
             "--add-metadata",
             "-o", "\(targetDirectory.path)/%(title)s [%(id)s].%(ext)s",
         ]
+
+        if item.mediaType == .audio {
+            args.append("--embed-thumbnail")
+        }
 
         if let ffmpeg = self.ffmpegPath {
             args.append(contentsOf: ["--ffmpeg-location", ffmpeg])

@@ -1,3 +1,4 @@
+import AVFoundation
 import AVKit
 import SwiftUI
 
@@ -10,6 +11,7 @@ struct DownloadedVideoPlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var player: AVPlayer?
+    @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,7 +49,23 @@ struct DownloadedVideoPlayerSheet: View {
             Divider()
 
             // Player View
-            if let player = self.player {
+            if let errorMessage = self.errorMessage {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.secondary)
+                    Text(errorMessage)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                    Button(String(localized: "Open in Default App")) {
+                        NSWorkspace.shared.open(self.fileURL)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let player = self.player {
                 AVPlayerViewContainer(player: player)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -58,13 +76,32 @@ struct DownloadedVideoPlayerSheet: View {
         .frame(minWidth: 640, minHeight: 400)
         .background(.black)
         .onAppear {
-            let player = AVPlayer(url: self.fileURL)
-            self.player = player
-            player.play()
+            self.loadAsset()
         }
         .onDisappear {
             self.player?.pause()
             self.player = nil
+        }
+    }
+
+    private func loadAsset() {
+        let asset = AVURLAsset(url: self.fileURL)
+        let item = AVPlayerItem(asset: asset)
+        let player = AVPlayer(playerItem: item)
+        self.player = player
+        player.play()
+
+        Task { @MainActor in
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                if !isPlayable {
+                    self.player?.pause()
+                    self.errorMessage = String(localized: "This downloaded video uses a format unsupported by QuickTime.")
+                }
+            } catch {
+                self.player?.pause()
+                self.errorMessage = error.localizedDescription
+            }
         }
     }
 }

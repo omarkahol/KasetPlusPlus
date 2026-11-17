@@ -319,7 +319,7 @@ struct YouTubePlayerBar: View {
                         )
                     }
                 }
-                .frame(width: 129, height: 29, alignment: .leading)
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
             }
 
             // Like/dislike moved to video metadata area (YouTubeWatchView)

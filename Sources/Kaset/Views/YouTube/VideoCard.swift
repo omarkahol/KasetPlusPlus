@@ -22,6 +22,7 @@ struct VideoCard: View, Equatable {
                     // Always reserve two lines so 1- vs 2-line titles don't make
                     // cards in a row different heights (they're top-aligned).
                     .lineLimit(2, reservesSpace: true)
+                    .fixedSize(horizontal: false, vertical: true)
                     .multilineTextAlignment(.leading)
                     // Long titles truncate to two lines — surface the full title
                     // as a native hover tooltip.
@@ -96,7 +97,7 @@ struct VideoCard: View, Equatable {
 /// 16:9 video thumbnail with a duration (or LIVE) badge.
 struct VideoThumbnailView: View {
     let video: YouTubeVideo
-    var targetSize = CGSize(width: 320, height: 180)
+    var targetSize = CGSize(width: 640, height: 360)
 
     /// Whether to give a Mix the playlist "stack" cue. Grid cards opt in; the
     /// strip is reserved on every card there, so mixes and plain videos still
@@ -138,6 +139,7 @@ struct VideoThumbnailView: View {
                         }
                 }
             }
+            .clipped()
             .overlay(alignment: .bottom) {
                 if let percent = self.video.watchedPercent {
                     self.watchedProgressBar(percent: percent)
