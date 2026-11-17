@@ -345,15 +345,18 @@ struct KasetApp: App {
                 // Claim deep links for this existing window so macOS does not
                 // spawn/tear down a second scene around `kaset://`.
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-                .onChange(of: self.playerService.isPlaying) { _, isPlaying in
-                    // The Core Audio process tap needs WebKit's GPU
-                    // process to be actively emitting audio before it
-                    // can be discovered. When playback starts, give the
-                    // equalizer a chance to spin up.
-                    if isPlaying {
+                .onChange(of: self.playerService.state) { _, newState in
+                    switch newState {
+                    case .playing:
                         self.equalizerService.retryStartIfEnabled()
                         // One audio source at a time: music starting pauses video.
                         self.playbackArbiter.musicDidStartPlaying()
+                    case .loading, .buffering:
+                        if !self.playerService.isRestoringPlaybackSession {
+                            self.playbackArbiter.musicDidStartPlaying()
+                        }
+                    case .idle, .paused, .ended, .error:
+                        break
                     }
                 }
                 .onChange(of: self.youtubePlayerService.surfaceLocation) { _, location in

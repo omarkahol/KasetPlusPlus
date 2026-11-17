@@ -793,15 +793,24 @@ struct YouTubePlayerBar: View {
         }
     }
 
+    private var hasActiveCaptions: Bool {
+        guard let code = self.youtubePlayer.activeCaptionLanguageCode?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !code.isEmpty,
+              code.lowercased() != "off"
+        else { return false }
+        return true
+    }
+
     private var compactCaptionsMenu: some View {
         Menu {
             self.captionMenuItems
         } label: {
-            Image(systemName: self.youtubePlayer.activeCaptionLanguageCode == nil ? "captions.bubble" : "captions.bubble.fill")
+            Image(systemName: self.hasActiveCaptions ? "captions.bubble.fill" : "captions.bubble")
                 .font(.system(size: 16, weight: .regular))
                 .frame(width: 16, height: 16)
-                .foregroundStyle(self.youtubePlayer.activeCaptionLanguageCode == nil ? .primary : Self.brandAccent)
+                .foregroundStyle(self.hasActiveCaptions ? Self.brandAccent : Color.primary)
         }
+        .tint(self.hasActiveCaptions ? Self.brandAccent : .primary)
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .buttonStyle(.plain)

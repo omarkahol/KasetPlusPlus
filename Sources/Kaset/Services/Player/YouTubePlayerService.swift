@@ -613,6 +613,8 @@ final class YouTubePlayerService {
         NativeVideoPlayer.shared.onStateChange = { [weak self] isPlaying in
             guard let self, self.isPlayingNativeVideo else { return }
             self.isPlaying = isPlaying
+            self.isAwaitingResumeConfirmation = false
+            self.hasObservedPausedMedia = !isPlaying
         }
         NativeVideoPlayer.shared.onLoadingChange = { [weak self] isLoading in
             guard let self, self.isPlayingNativeVideo else { return }
@@ -993,6 +995,14 @@ final class YouTubePlayerService {
     }
 
     func performPlayPause(resumeIssuedAtMilliseconds: Double? = nil) {
+        if self.isPlayingNativeVideo {
+            if self.isPlaying {
+                self.performPause()
+            } else {
+                self.performResume(issuedAtMilliseconds: resumeIssuedAtMilliseconds)
+            }
+            return
+        }
         if self.isPlaying
             || self.isAwaitingResumeConfirmation
             || (self.desiredPlaybackIntent == .playing
@@ -1063,6 +1073,7 @@ final class YouTubePlayerService {
         if self.isPlayingNativeVideo {
             NativeVideoPlayer.shared.resume()
             self.isPlaying = true
+            self.isAwaitingResumeConfirmation = false
             return
         }
         self.playbackController.play()
@@ -1465,7 +1476,8 @@ final class YouTubePlayerService {
                 ? levels
                 : levels + ["auto"]
             self.currentQuality = await self.playbackController.currentQualityLevel()
-            self.activeCaptionLanguageCode = await self.playbackController.currentCaptionLanguageCode()
+            let rawCaptionCode = await self.playbackController.currentCaptionLanguageCode()
+            self.activeCaptionLanguageCode = Self.normalizedCaptionLanguageCode(rawCaptionCode)
             self.audioTracks = await self.playbackController.availableAudioTracks()
             self.activeAudioTrackId = await self.playbackController.currentAudioTrackId()
 
@@ -1522,10 +1534,20 @@ final class YouTubePlayerService {
         }
     }
 
+    /// Normalizes empty or "off" caption language codes to `nil`.
+    static func normalizedCaptionLanguageCode(_ code: String?) -> String? {
+        guard let trimmed = code?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              trimmed.lowercased() != "off"
+        else { return nil }
+        return trimmed
+    }
+
     /// Selects a caption track (nil turns captions off).
     func selectCaptionTrack(languageCode: String?) {
-        self.activeCaptionLanguageCode = languageCode
-        self.playbackController.setCaptionTrack(languageCode: languageCode)
+        let normalized = Self.normalizedCaptionLanguageCode(languageCode)
+        self.activeCaptionLanguageCode = normalized
+        self.playbackController.setCaptionTrack(languageCode: normalized)
         HapticService.toggle()
     }
 

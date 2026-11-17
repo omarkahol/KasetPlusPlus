@@ -109,4 +109,36 @@ struct NowPlayingClaimTests {
         #expect(NowPlayingManager.isNativeClaim(webKitInfo) == false)
         #expect(NowPlayingManager.isNativeClaim(nil) == false)
     }
+
+    @Test("Elapsed time republishes on seek jumps but not on normal playback ticks")
+    func elapsedTimeRepublishThreshold() {
+        let baseDate = Date(timeIntervalSince1970: 1_000_000)
+
+        // Normal 1s tick at 1.0x rate -> no republish needed
+        #expect(NowPlayingManager.shouldRepublishElapsedTime(
+            publishedElapsed: 10.0,
+            publishedAt: baseDate,
+            currentElapsed: 11.0,
+            rate: 1.0,
+            now: baseDate.addingTimeInterval(1.0)
+        ) == false)
+
+        // Forward seek jump of +15s -> republish needed
+        #expect(NowPlayingManager.shouldRepublishElapsedTime(
+            publishedElapsed: 10.0,
+            publishedAt: baseDate,
+            currentElapsed: 26.0,
+            rate: 1.0,
+            now: baseDate.addingTimeInterval(1.0)
+        ))
+
+        // Backward seek while paused -> republish needed
+        #expect(NowPlayingManager.shouldRepublishElapsedTime(
+            publishedElapsed: 30.0,
+            publishedAt: baseDate,
+            currentElapsed: 5.0,
+            rate: 0.0,
+            now: baseDate.addingTimeInterval(2.0)
+        ))
+    }
 }

@@ -97,11 +97,16 @@ final class NativeVideoPlayer: NSObject {
         self.isLoading = true
 
         let playerItem: AVPlayerItem
-        if let preloaded = self.preloadedItem, self.preloadedVideoId == videoId {
+        if let preloaded = self.preloadedItem,
+           self.preloadedVideoId == videoId,
+           preloaded.status != .failed
+        {
             playerItem = preloaded
             self.preloadedItem = nil
             self.preloadedVideoId = nil
         } else {
+            self.preloadedItem = nil
+            self.preloadedVideoId = nil
             playerItem = AVPlayerItem(url: url)
         }
 

@@ -133,6 +133,10 @@ final class NowPlayingManager {
     private var currentArtworkImage: NSImage?
     private var currentArtworkTrackId: String?
     private var artworkLoadTask: Task<Void, Never>?
+    private var lastPublishedElapsedTime: TimeInterval?
+    private var lastPublishedAt: Date?
+    private var lastPublishedRate: Double = 0
+    @ObservationIgnored private var progressObservationGeneration: UInt64 = 0
 
     /// YouTube video routing (optional; absent in music-only flows).
     /// When the arbiter says the video source played last, play/pause/toggle
@@ -258,11 +262,17 @@ final class NowPlayingManager {
         let center = MPNowPlayingInfoCenter.default()
         switch claim {
         case .handsOff:
+            self.lastPublishedElapsedTime = nil
+            self.lastPublishedAt = nil
+            self.lastPublishedRate = 0
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false
             guard Self.isNativeClaim(center.nowPlayingInfo) else { return }
             center.playbackState = .playing
         case .release:
+            self.lastPublishedElapsedTime = nil
+            self.lastPublishedAt = nil
+            self.lastPublishedRate = 0
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false
             guard Self.isNativeClaim(center.nowPlayingInfo) else { return }
@@ -276,12 +286,16 @@ final class NowPlayingManager {
             if !artist.isEmpty {
                 info[MPMediaItemPropertyArtist] = artist
             }
+            var publishedElapsed: TimeInterval = 0
+            var publishedRate = 0.0
             if self.routesToYouTubeVideo, let youtube = self.youtubePlayerService, youtube.currentVideo != nil {
                 if youtube.duration > 0 {
                     info[MPMediaItemPropertyPlaybackDuration] = youtube.duration
                 }
-                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = youtube.progress
-                info[MPNowPlayingInfoPropertyPlaybackRate] = (playbackState == .playing && youtube.isPlaying) ? youtube.playbackSpeed : 0.0
+                publishedElapsed = youtube.progress
+                publishedRate = (playbackState == .playing && youtube.isPlaying) ? youtube.playbackSpeed : 0.0
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
+                info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
             } else if let player = self.playerService {
                 if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
                     info[MPMediaItemPropertyAlbumTitle] = albumTitle
@@ -289,8 +303,10 @@ final class NowPlayingManager {
                 if player.duration > 0 {
                     info[MPMediaItemPropertyPlaybackDuration] = player.duration
                 }
-                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.progress
-                info[MPNowPlayingInfoPropertyPlaybackRate] = (playbackState == .playing && player.isPlaying) ? 1.0 : 0.0
+                publishedElapsed = player.progress
+                publishedRate = (playbackState == .playing && player.isPlaying) ? 1.0 : 0.0
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
+                info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
             }
             if let artworkImage = self.currentArtworkImage {
                 info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
@@ -300,8 +316,26 @@ final class NowPlayingManager {
             case .playing: .playing
             case .paused: .paused
             }
+            self.lastPublishedElapsedTime = publishedElapsed
+            self.lastPublishedAt = Date()
+            self.lastPublishedRate = publishedRate
             self.isAssertingNativeClaim = true
         }
+    }
+
+    /// Returns whether elapsed playback time has jumped enough (e.g. after a seek) to warrant
+    /// republishing Now Playing metadata so Control Center's scrubber stays accurate.
+    nonisolated static func shouldRepublishElapsedTime(
+        publishedElapsed: TimeInterval?,
+        publishedAt: Date?,
+        currentElapsed: TimeInterval,
+        rate: Double,
+        now: Date = Date()
+    ) -> Bool {
+        guard let publishedElapsed, let publishedAt else { return false }
+        let dt = max(0, now.timeIntervalSince(publishedAt))
+        let expectedElapsed = publishedElapsed + dt * rate
+        return abs(currentElapsed - expectedElapsed) > 1.5
     }
 
     /// Returns whether the current center metadata is the tagged native claim Kaset published.
@@ -342,7 +376,38 @@ final class NowPlayingManager {
     /// Replaces the current one-shot observation loop with one that tracks the latest dependencies.
     private func restartNowPlayingObservation() {
         self.nowPlayingObservationGeneration &+= 1
+        self.progressObservationGeneration &+= 1
         self.observePlaybackState(generation: self.nowPlayingObservationGeneration)
+        self.observeProgressSync(generation: self.progressObservationGeneration)
+    }
+
+    private func observeProgressSync(generation: UInt64) {
+        withObservationTracking {
+            if self.routesToYouTubeVideo {
+                _ = self.youtubePlayerService?.progress
+            } else {
+                _ = self.playerService?.progress
+            }
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.progressObservationGeneration == generation
+                else { return }
+
+                let currentElapsed = self.routesToYouTubeVideo
+                    ? (self.youtubePlayerService?.progress ?? 0)
+                    : (self.playerService?.progress ?? 0)
+                if Self.shouldRepublishElapsedTime(
+                    publishedElapsed: self.lastPublishedElapsedTime,
+                    publishedAt: self.lastPublishedAt,
+                    currentElapsed: currentElapsed,
+                    rate: self.lastPublishedRate
+                ) {
+                    self.updateNowPlayingClaim()
+                }
+                self.observeProgressSync(generation: generation)
+            }
+        }
     }
 
     /// Re-runs the claim whenever music state, track metadata, or active-video state changes.
