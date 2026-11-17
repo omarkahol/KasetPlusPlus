@@ -202,8 +202,8 @@ final class NowPlayingManager {
         }
     }
 
-    private func syncArtwork(for song: Song?) {
-        guard let song else {
+    private func syncArtwork(itemId: String?, thumbnailURL: URL?) {
+        guard let itemId else {
             self.artworkLoadTask?.cancel()
             self.artworkLoadTask = nil
             self.currentArtworkImage = nil
@@ -211,12 +211,12 @@ final class NowPlayingManager {
             return
         }
 
-        guard self.currentArtworkTrackId != song.id else { return }
-        self.currentArtworkTrackId = song.id
+        guard self.currentArtworkTrackId != itemId else { return }
+        self.currentArtworkTrackId = itemId
         self.currentArtworkImage = nil
         self.artworkLoadTask?.cancel()
 
-        guard let thumbnailURL = song.thumbnailURL else { return }
+        guard let thumbnailURL else { return }
 
         self.artworkLoadTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -226,7 +226,7 @@ final class NowPlayingManager {
             } else {
                 image = await ImageCache.shared.image(for: thumbnailURL)
             }
-            guard !Task.isCancelled, self.currentArtworkTrackId == song.id else { return }
+            guard !Task.isCancelled, self.currentArtworkTrackId == itemId else { return }
             self.currentArtworkImage = image
             self.updateNowPlayingClaim()
         }
@@ -235,7 +235,11 @@ final class NowPlayingManager {
     /// Reads current player state and pushes the desired claim to the system center.
     private func updateNowPlayingClaim() {
         guard let player = self.playerService else { return }
-        self.syncArtwork(for: player.currentTrack)
+        if self.routesToYouTubeVideo, let video = self.youtubePlayerService?.currentVideo {
+            self.syncArtwork(itemId: "yt:\(video.videoId)", thumbnailURL: video.thumbnailURL)
+        } else {
+            self.syncArtwork(itemId: player.currentTrack?.id, thumbnailURL: player.currentTrack?.thumbnailURL)
+        }
         let track = player.currentTrack.map { song in
             (title: song.title, artist: song.artists.map(\.name).joined(separator: ", "))
         }
@@ -272,7 +276,13 @@ final class NowPlayingManager {
             if !artist.isEmpty {
                 info[MPMediaItemPropertyArtist] = artist
             }
-            if let player = self.playerService {
+            if self.routesToYouTubeVideo, let youtube = self.youtubePlayerService, youtube.currentVideo != nil {
+                if youtube.duration > 0 {
+                    info[MPMediaItemPropertyPlaybackDuration] = youtube.duration
+                }
+                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = youtube.progress
+                info[MPNowPlayingInfoPropertyPlaybackRate] = (playbackState == .playing && youtube.isPlaying) ? youtube.playbackSpeed : 0.0
+            } else if let player = self.playerService {
                 if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
                     info[MPMediaItemPropertyAlbumTitle] = albumTitle
                 }
@@ -308,18 +318,24 @@ final class NowPlayingManager {
         }
     }
 
-    /// Video metadata used for a native fallback until its WebView confirms active playback.
+    /// Video metadata used for native video playback or as a fallback until WebKit confirms playback.
     private var activeVideoClaimInput: ActiveVideoClaim? {
         guard self.routesToYouTubeVideo,
               let youtube = self.youtubePlayerService,
               let video = youtube.currentVideo
         else { return nil }
 
+        // Native AVPlayer video does not publish its own Now Playing card,
+        // so keep owning the claim whenever `isPlayingNativeVideo` is true.
+        let letsWebKitOwnCard = !youtube.isPlayingNativeVideo
+            && youtube.isPlaying
+            && !youtube.isPlaybackLoading
+
         return ActiveVideoClaim(
             title: video.title,
             artist: video.channelName ?? "",
             playbackState: youtube.isPlaying || youtube.isPlaybackLoading ? .playing : .paused,
-            isPlaybackConfirmed: youtube.isPlaying && !youtube.isPlaybackLoading
+            isPlaybackConfirmed: letsWebKitOwnCard
         )
     }
 
@@ -333,9 +349,15 @@ final class NowPlayingManager {
     private func observePlaybackState(generation: UInt64) {
         withObservationTracking {
             _ = self.playerService?.state
+            _ = self.playerService?.isPlaying
+            _ = self.playerService?.duration
             _ = self.playerService?.currentTrack
             _ = self.playerService?.isPlayingOfflineTrack
             _ = self.playerService?.hasConfirmedWebPlayback
+            _ = self.youtubePlayerService?.isPlaying
+            _ = self.youtubePlayerService?.duration
+            _ = self.youtubePlayerService?.playbackSpeed
+            _ = self.youtubePlayerService?.isPlayingNativeVideo
             _ = self.activeVideoClaimInput
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in

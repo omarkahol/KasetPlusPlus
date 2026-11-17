@@ -20,6 +20,8 @@ final class NativeVideoPlayer: NSObject {
     private var durationObserver: NSKeyValueObservation?
     private var statusObserver: NSKeyValueObservation?
     private var likelyToKeepUpObserver: NSKeyValueObservation?
+    private var timeControlStatusObserver: NSKeyValueObservation?
+    private var shouldBePlaying = false
 
     /// Preloaded next item to provide instant transitions between videos or shorts.
     private(set) var preloadedItem: AVPlayerItem?
@@ -107,10 +109,11 @@ final class NativeVideoPlayer: NSObject {
         playerItem.preferredForwardBufferDuration = 15.0
 
         let player = AVPlayer(playerItem: playerItem)
-        player.automaticallyWaitsToMinimizeStalling = false
+        player.automaticallyWaitsToMinimizeStalling = true
         player.preventsDisplaySleepDuringVideoPlayback = true
         player.volume = self.storedVolume
         self.player = player
+        self.shouldBePlaying = true
         NotificationCenter.default.post(name: .nativeVideoPlayerChanged, object: player)
 
         self.setupItemObservers(for: playerItem, in: player)
@@ -119,13 +122,13 @@ final class NativeVideoPlayer: NSObject {
             let targetTime = CMTime(seconds: startAt, preferredTimescale: 600)
             player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    self.player?.playImmediately(atRate: self.playbackSpeed)
+                    guard let self, self.shouldBePlaying, self.player === player else { return }
+                    player.rate = self.playbackSpeed
                     self.isPlaying = true
                 }
             }
         } else {
-            player.playImmediately(atRate: self.playbackSpeed)
+            player.rate = self.playbackSpeed
             self.isPlaying = true
         }
     }
@@ -141,6 +144,7 @@ final class NativeVideoPlayer: NSObject {
 
     /// Pauses playback.
     func pause() {
+        self.shouldBePlaying = false
         self.player?.pause()
         self.isPlaying = false
     }
@@ -148,7 +152,8 @@ final class NativeVideoPlayer: NSObject {
     /// Resumes playback.
     func resume() {
         guard let player = self.player else { return }
-        player.playImmediately(atRate: self.playbackSpeed)
+        self.shouldBePlaying = true
+        player.rate = self.playbackSpeed
         self.isPlaying = true
     }
 
@@ -189,6 +194,7 @@ final class NativeVideoPlayer: NSObject {
 
     /// Stops playback and tears down observers.
     func stop() {
+        self.shouldBePlaying = false
         self.removeObservers()
         self.player?.pause()
         self.player = nil
@@ -244,16 +250,20 @@ final class NativeVideoPlayer: NSObject {
         }
 
         // 4. Status KVO
-        self.statusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+        self.statusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, self.player?.currentItem === item else { return }
                 if item.status == .readyToPlay {
                     self.isLoading = false
                     let dur = item.duration.seconds
                     if dur.isFinite, dur > 0 {
                         self.onDurationResolved?(dur)
                     }
+                    if self.shouldBePlaying, let player = self.player, player.rate == 0 {
+                        player.rate = self.playbackSpeed
+                    }
                 } else if item.status == .failed {
+                    self.shouldBePlaying = false
                     self.isLoading = false
                     self.isPlaying = false
                     self.onPlaybackFailed?()
@@ -264,7 +274,33 @@ final class NativeVideoPlayer: NSObject {
         // 5. Buffer / Keep up KVO
         self.likelyToKeepUpObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
             Task { @MainActor [weak self] in
-                self?.isLoading = !item.isPlaybackLikelyToKeepUp
+                guard let self, self.player?.currentItem === item else { return }
+                self.isLoading = !item.isPlaybackLikelyToKeepUp
+                if item.isPlaybackLikelyToKeepUp, self.shouldBePlaying, let player = self.player, player.rate == 0 {
+                    player.rate = self.playbackSpeed
+                }
+            }
+        }
+
+        // 6. Time control status KVO
+        self.timeControlStatusObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.player === player else { return }
+                switch player.timeControlStatus {
+                case .playing:
+                    self.isLoading = false
+                    self.isPlaying = true
+                case .waitingToPlayAtSpecifiedRate:
+                    self.isLoading = true
+                case .paused:
+                    if !self.shouldBePlaying {
+                        self.isPlaying = false
+                    } else if player.currentItem?.status == .readyToPlay {
+                        player.rate = self.playbackSpeed
+                    }
+                @unknown default:
+                    break
+                }
             }
         }
     }
@@ -284,5 +320,7 @@ final class NativeVideoPlayer: NSObject {
         self.statusObserver = nil
         self.likelyToKeepUpObserver?.invalidate()
         self.likelyToKeepUpObserver = nil
+        self.timeControlStatusObserver?.invalidate()
+        self.timeControlStatusObserver = nil
     }
 }

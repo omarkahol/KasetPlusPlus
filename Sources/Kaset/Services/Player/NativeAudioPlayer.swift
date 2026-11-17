@@ -13,6 +13,8 @@ final class NativeAudioPlayer: NSObject {
     private var timeObserverToken: Any?
     private var playerItemEndObserver: (any NSObjectProtocol)?
     private var durationObserver: NSKeyValueObservation?
+    private var timeControlStatusObserver: NSKeyValueObservation?
+    private var shouldBePlaying = false
 
     /// Preloaded next item to provide gapless transitions.
     private(set) var preloadedItem: AVPlayerItem?
@@ -79,13 +81,13 @@ final class NativeAudioPlayer: NSObject {
         playerItem.preferredForwardBufferDuration = 3.0
 
         let player = AVPlayer(playerItem: playerItem)
-        // Snappy start: start immediately without waiting to minimize stalling
-        player.automaticallyWaitsToMinimizeStalling = false
+        player.automaticallyWaitsToMinimizeStalling = true
         self.player = player
+        self.shouldBePlaying = true
 
         self.setupItemObservers(for: playerItem, in: player)
 
-        player.playImmediately(atRate: 1.0)
+        player.play()
         self.isPlaying = true
     }
 
@@ -132,9 +134,34 @@ final class NativeAudioPlayer: NSObject {
             }
             guard status == .readyToPlay else { return }
             let duration = item.duration.seconds
-            guard duration.isFinite, duration > 0 else { return }
             Task { @MainActor [weak self] in
-                self?.onDurationResolved?(duration)
+                guard let self, self.player?.currentItem === item else { return }
+                if duration.isFinite, duration > 0 {
+                    self.onDurationResolved?(duration)
+                }
+                if self.shouldBePlaying, let player = self.player, player.rate == 0 {
+                    player.play()
+                }
+            }
+        }
+
+        self.timeControlStatusObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.player === player else { return }
+                switch player.timeControlStatus {
+                case .playing:
+                    self.isPlaying = true
+                case .waitingToPlayAtSpecifiedRate:
+                    break
+                case .paused:
+                    if !self.shouldBePlaying {
+                        self.isPlaying = false
+                    } else if player.currentItem?.status == .readyToPlay {
+                        player.play()
+                    }
+                @unknown default:
+                    break
+                }
             }
         }
 
@@ -173,12 +200,14 @@ final class NativeAudioPlayer: NSObject {
     /// Resumes playback.
     func resume() {
         guard let player = self.player else { return }
+        self.shouldBePlaying = true
         player.play()
         self.isPlaying = true
     }
 
     /// Pauses playback.
     func pause() {
+        self.shouldBePlaying = false
         guard let player = self.player else { return }
         player.pause()
         self.isPlaying = false
@@ -207,6 +236,7 @@ final class NativeAudioPlayer: NSObject {
 
     /// Stops playback and tears down observers.
     func stop() {
+        self.shouldBePlaying = false
         if let token = self.timeObserverToken {
             self.player?.removeTimeObserver(token)
             self.timeObserverToken = nil
@@ -219,6 +249,8 @@ final class NativeAudioPlayer: NSObject {
 
         self.durationObserver?.invalidate()
         self.durationObserver = nil
+        self.timeControlStatusObserver?.invalidate()
+        self.timeControlStatusObserver = nil
 
         self.player?.pause()
         self.player = nil
