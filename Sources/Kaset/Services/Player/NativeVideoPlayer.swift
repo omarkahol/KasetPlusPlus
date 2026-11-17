@@ -76,6 +76,7 @@ final class NativeVideoPlayer: NSObject {
     var onStateChange: (@MainActor (Bool) -> Void)?
     var onLoadingChange: (@MainActor (Bool) -> Void)?
     var onNearEnd: (@MainActor (TimeInterval) -> Void)?
+    var onPlaybackFailed: (@MainActor () -> Void)?
 
     private var hasFiredNearEnd = false
 
@@ -255,6 +256,7 @@ final class NativeVideoPlayer: NSObject {
                 } else if item.status == .failed {
                     self.isLoading = false
                     self.isPlaying = false
+                    self.onPlaybackFailed?()
                 }
             }
         }

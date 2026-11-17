@@ -25,6 +25,7 @@ extension View {
                 switch route {
                 case let .watch(video):
                     YouTubeWatchView(video: video, client: client)
+                        .id(video.videoId)
                 case let .channel(channelId):
                     YouTubeChannelView(channelId: channelId, client: client)
                 case let .playlist(playlistId):

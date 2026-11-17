@@ -57,9 +57,6 @@ struct YouTubeWatchView: View {
     /// Active tab below the video in compact/narrow windows (Comments vs Suggested).
     @State private var compactTab: CompactSectionTab = .comments
 
-    /// Local key-down monitor for toggling Theater Mode with the `T` key.
-    @State private var theaterKeyMonitor = WatchTheaterKeyMonitor()
-
     // AI video summary (on-device, macOS 26+). Stored as plain values so the
     // view doesn't reference the macOS-26-only VideoSummary type outside a guard.
     @State private var showsSummary = false
@@ -103,7 +100,6 @@ struct YouTubeWatchView: View {
         ScrollView {
             WatchPageLayout(
                 isWide: self.isWideLayout,
-                isTheater: self.youtubePlayer.isTheaterMode,
                 railWidth: Self.railWidth,
                 railSpacing: Self.railSpacing
             ) {
@@ -127,14 +123,6 @@ struct YouTubeWatchView: View {
                 }
             }
         }
-        .onAppear {
-            self.theaterKeyMonitor.install {
-                guard !self.viewModel.ask.isExpanded else { return }
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    self.youtubePlayer.isTheaterMode.toggle()
-                }
-            }
-        }
         .disabled(self.viewModel.ask.isExpanded)
         // PROTOTYPE: full-bleed ambient color behind the page. `.ignoresSafeArea`
         // (inside the host) lets it bleed under the bottom player-bar inset,
@@ -149,16 +137,6 @@ struct YouTubeWatchView: View {
         // Let the ambient reach under the nav bar, like the other accent pages.
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        self.youtubePlayer.isTheaterMode.toggle()
-                    }
-                } label: {
-                    Image(systemName: self.youtubePlayer.isTheaterMode ? "rectangle.inset.filled" : "rectangle")
-                }
-                .help(self.youtubePlayer.isTheaterMode ? String(localized: "Default view (T)") : String(localized: "Theater mode (T)"))
-            }
             if self.viewModel.ask.isAvailable {
                 ToolbarItem(placement: .primaryAction) {
                     YouTubeAskToolbarButton(viewModel: self.viewModel.ask)
@@ -187,7 +165,7 @@ struct YouTubeWatchView: View {
                     videoTitle: self.viewModel.data.videoTitle ?? self.video.title
                 )
             }
-            .task {
+            .task(id: self.video.videoId) {
                 self.startOrAdoptPlayback()
             }
             .task(id: self.askAccountScope) {
@@ -202,11 +180,12 @@ struct YouTubeWatchView: View {
                 }
             }
             .onDisappear {
-                self.theaterKeyMonitor.uninstall()
                 self.viewModel.cancel()
                 self.youtubePlayer.inlineSurfaceWillDisappear(videoId: self.video.videoId)
                 self.overlayHideTask?.cancel()
-                self.youtubePlayer.inlineVideoOnScreen = false
+                if self.youtubePlayer.currentVideo?.videoId == self.video.videoId {
+                    self.youtubePlayer.inlineVideoOnScreen = false
+                }
                 self.viewModel.stopLiveChat()
             }
     }
@@ -355,9 +334,7 @@ struct YouTubeWatchView: View {
     private var videoSurface: some View {
         Color.black
             .aspectRatio(16 / 9, contentMode: .fit)
-            .frame(maxHeight: (self.youtubePlayer.isTheaterMode && self.isWideLayout) ? 760 : nil)
             .frame(maxWidth: .infinity)
-            .background(Color.black)
             .overlay {
                 if self.presentsLiveSurface {
                     // Clean video surface. Controls live either in the docked bar or,
@@ -2844,11 +2821,9 @@ private enum CompactSectionTab: String, CaseIterable {
 // MARK: - WatchPageLayout
 
 /// Arranges the video surface, primary column below it, and optional right-hand rail
-/// without changing `videoSurface`'s structural identity across window resizes or
-/// Theater Mode toggles.
+/// without changing `videoSurface`'s structural identity across window resizes.
 private struct WatchPageLayout: Layout {
     let isWide: Bool
-    let isTheater: Bool
     let railWidth: CGFloat
     let railSpacing: CGFloat
 
@@ -2860,16 +2835,7 @@ private struct WatchPageLayout: Layout {
         guard !subviews.isEmpty else { return .zero }
         let totalWidth = max(320, proposal.width ?? 1000)
 
-        if self.isWide, self.isTheater, subviews.count >= 2 {
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
-            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            let railSize = subviews.count > 2
-                ? subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
-                : .zero
-            let height = videoSize.height + 20 + max(belowSize.height, railSize.height)
-            return CGSize(width: totalWidth, height: height)
-        } else if self.isWide, subviews.count >= 2 {
+        if self.isWide, subviews.count >= 2 {
             let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
             let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
             let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
@@ -2897,27 +2863,7 @@ private struct WatchPageLayout: Layout {
         guard !subviews.isEmpty else { return }
         let totalWidth = bounds.width
 
-        if self.isWide, self.isTheater, subviews.count >= 2 {
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-            subviews[0].place(
-                at: CGPoint(x: bounds.minX, y: bounds.minY),
-                proposal: ProposedViewSize(width: totalWidth, height: videoSize.height)
-            )
-            let belowY = bounds.minY + videoSize.height + 20
-            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
-            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            subviews[1].place(
-                at: CGPoint(x: bounds.minX, y: belowY),
-                proposal: ProposedViewSize(width: leftWidth, height: belowSize.height)
-            )
-            if subviews.count > 2 {
-                let railSize = subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
-                subviews[2].place(
-                    at: CGPoint(x: bounds.minX + leftWidth + self.railSpacing, y: belowY),
-                    proposal: ProposedViewSize(width: self.railWidth, height: railSize.height)
-                )
-            }
-        } else if self.isWide, subviews.count >= 2 {
+        if self.isWide, subviews.count >= 2 {
             let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
             let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
             subviews[0].place(
@@ -2950,36 +2896,5 @@ private struct WatchPageLayout: Layout {
                 )
             }
         }
-    }
-}
-
-// MARK: - WatchTheaterKeyMonitor
-
-@MainActor
-private final class WatchTheaterKeyMonitor {
-    private var monitor: Any?
-
-    func install(onToggle: @escaping @MainActor () -> Void) {
-        guard self.monitor == nil else { return }
-        self.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard event.window?.isKeyWindow == true,
-                  event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
-                  event.charactersIgnoringModifiers?.lowercased() == "t"
-            else {
-                return event
-            }
-            let responder = event.window?.firstResponder
-            if responder is NSTextView || responder is NSTextField {
-                return event
-            }
-            onToggle()
-            return nil
-        }
-    }
-
-    func uninstall() {
-        guard let monitor = self.monitor else { return }
-        NSEvent.removeMonitor(monitor)
-        self.monitor = nil
     }
 }
