@@ -587,6 +587,7 @@ struct YouTubePlayerBar: View {
 
     private func youtubeOptionsSection(tier: OptionsTier) -> some View {
         HStack(spacing: 6) {
+            self.theaterModeButton
             self.fullViewButton
 
             switch tier {
@@ -611,6 +612,32 @@ struct YouTubePlayerBar: View {
         }
         .padding(.trailing, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+    }
+
+    private var theaterModeButton: some View {
+        PlayerBarIconButton(
+            action: {
+                HapticService.toggle()
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    self.youtubePlayer.isTheaterMode.toggle()
+                }
+            },
+            isSelected: self.youtubePlayer.isTheaterMode,
+            accessibilityID: "watchTheaterMode",
+            accessibilityLabel: self.youtubePlayer.isTheaterMode
+                ? String(localized: "Default view (T)")
+                : String(localized: "Theater mode (T)"),
+            icon: {
+                Image(systemName: self.youtubePlayer.isTheaterMode ? "rectangle.inset.filled" : "rectangle")
+                    .font(.system(size: 15, weight: .regular))
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(self.youtubePlayer.isTheaterMode ? Self.brandAccent : .primary)
+            }
+        )
+        .disabled(self.youtubePlayer.currentVideo == nil || self.youtubePlayer.surfaceLocation != .inline)
+        .help(self.youtubePlayer.isTheaterMode
+            ? String(localized: "Default view (T)")
+            : String(localized: "Theater mode (T)"))
     }
 
     private var fullViewButton: some View {
@@ -981,10 +1008,10 @@ struct YouTubePlayerBar: View {
 
     private func youtubeOptionsWidth(tier: OptionsTier) -> CGFloat {
         switch tier {
-        // Widened to fit the Download button that lives in this group.
-        case .full: 246
-        // Full-view + overflow "•••" + PiP: three 28pt buttons, spacing, trailing pad.
-        case .reduced: 112
+        // Widened to fit the Download and Theater Mode buttons that live in this group.
+        case .full: 280
+        // Full-view + overflow "•••" + Theater Mode + PiP.
+        case .reduced: 146
         }
     }
 

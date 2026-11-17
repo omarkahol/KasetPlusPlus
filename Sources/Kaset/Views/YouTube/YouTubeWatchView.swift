@@ -54,6 +54,12 @@ struct YouTubeWatchView: View {
     /// Whether the "Collaborators" picker (for multi-channel uploads) is showing.
     @State private var showsCollaborators = false
 
+    /// Active tab below the video in compact/narrow windows (Comments vs Suggested).
+    @State private var compactTab: CompactSectionTab = .comments
+
+    /// Local key-down monitor for toggling Theater Mode with the `T` key.
+    @State private var theaterKeyMonitor = WatchTheaterKeyMonitor()
+
     // AI video summary (on-device, macOS 26+). Stored as plain values so the
     // view doesn't reference the macOS-26-only VideoSummary type outside a guard.
     @State private var showsSummary = false
@@ -89,35 +95,25 @@ struct YouTubeWatchView: View {
         )
     }
 
-    @AppStorage("youtubeWatchTheaterMode") private var isTheaterMode = false
-
     private var isWideLayout: Bool {
-        self.pageWidth >= 1060 && !self.settings.distractionFreeEnabled
+        self.pageWidth >= 1000 && !self.settings.distractionFreeEnabled
     }
 
     var body: some View {
         ScrollView {
-            Group {
-                if self.isTheaterMode && self.isWideLayout {
-                    // Theater Mode (Wide window): full-width video at top, metadata + related below
-                    VStack(alignment: .leading, spacing: 20) {
-                        self.videoSurface
-                            .contextMenu { self.videoContextMenu }
+            WatchPageLayout(
+                isWide: self.isWideLayout,
+                isTheater: self.youtubePlayer.isTheaterMode,
+                railWidth: Self.railWidth,
+                railSpacing: Self.railSpacing
+            ) {
+                self.videoSurface
+                    .contextMenu { self.videoContextMenu }
 
-                        HStack(alignment: .top, spacing: Self.railSpacing) {
-                            self.metadataAndCommentsColumn
-                            self.secondaryContentColumn
-                        }
-                    }
-                } else if self.isWideLayout {
-                    // Default Mode (Wide window): video + metadata on left, related on right
-                    HStack(alignment: .top, spacing: Self.railSpacing) {
-                        self.mainContentColumn
-                        self.secondaryContentColumn
-                    }
-                } else {
-                    // Compact Mode (Narrow window or distraction free): single unified column
-                    self.compactContentColumn
+                self.primaryBelowVideoColumn
+
+                if self.isWideLayout {
+                    self.secondaryContentColumn
                 }
             }
             .padding(.horizontal, 24)
@@ -128,6 +124,14 @@ struct YouTubeWatchView: View {
             } action: { newWidth in
                 if abs(newWidth - self.pageWidth) > 2 {
                     self.pageWidth = newWidth
+                }
+            }
+        }
+        .onAppear {
+            self.theaterKeyMonitor.install {
+                guard !self.viewModel.ask.isExpanded else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    self.youtubePlayer.isTheaterMode.toggle()
                 }
             }
         }
@@ -145,18 +149,15 @@ struct YouTubeWatchView: View {
         // Let the ambient reach under the nav bar, like the other accent pages.
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .toolbar {
-            if self.isWideLayout {
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            self.isTheaterMode.toggle()
-                        }
-                    } label: {
-                        Image(systemName: self.isTheaterMode ? "rectangle.inset.filled" : "rectangle.dashed")
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        self.youtubePlayer.isTheaterMode.toggle()
                     }
-                    .help(self.isTheaterMode ? String(localized: "Default view (T)") : String(localized: "Theater mode (T)"))
-                    .keyboardShortcut("t", modifiers: [])
+                } label: {
+                    Image(systemName: self.youtubePlayer.isTheaterMode ? "rectangle.inset.filled" : "rectangle")
                 }
+                .help(self.youtubePlayer.isTheaterMode ? String(localized: "Default view (T)") : String(localized: "Theater mode (T)"))
             }
             if self.viewModel.ask.isAvailable {
                 ToolbarItem(placement: .primaryAction) {
@@ -201,6 +202,7 @@ struct YouTubeWatchView: View {
                 }
             }
             .onDisappear {
+                self.theaterKeyMonitor.uninstall()
                 self.viewModel.cancel()
                 self.youtubePlayer.inlineSurfaceWillDisappear(videoId: self.video.videoId)
                 self.overlayHideTask?.cancel()
@@ -253,12 +255,10 @@ struct YouTubeWatchView: View {
     /// Horizontal gap between the primary and secondary columns.
     static let railSpacing: CGFloat = 24
 
-    /// Primary column for wide windows (video player + metadata + comments).
-    private var mainContentColumn: some View {
+    /// Primary column below the video (metadata, description, chapters, and either
+    /// comments in wide mode or a Comments / Suggested toggle in compact mode).
+    private var primaryBelowVideoColumn: some View {
         VStack(alignment: .leading, spacing: 16) {
-            self.videoSurface
-                .contextMenu { self.videoContextMenu }
-
             self.metadataSection
 
             if let description = self.descriptionText {
@@ -284,9 +284,16 @@ struct YouTubeWatchView: View {
                 )
             }
 
-            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
-                Divider()
-                self.commentsSection
+            if !self.settings.distractionFreeEnabled {
+                if self.isWideLayout {
+                    if !self.viewModel.hasLiveChat {
+                        Divider()
+                        self.commentsSection
+                    }
+                } else {
+                    Divider()
+                    self.compactSectionSwitcher
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -303,90 +310,31 @@ struct YouTubeWatchView: View {
         .frame(width: Self.railWidth)
     }
 
-    /// Left column in Theater Mode (metadata, description, chapters, comments).
-    private var metadataAndCommentsColumn: some View {
+    /// Segmented toggle in compact/small windows so users can switch immediately
+    /// between Comments (or Live Chat) and Suggested videos without scrolling.
+    private var compactSectionSwitcher: some View {
         VStack(alignment: .leading, spacing: 16) {
-            self.metadataSection
-
-            if let description = self.descriptionText {
-                self.descriptionSection(description)
+            Picker("", selection: self.$compactTab) {
+                Text(self.viewModel.hasLiveChat ? String(localized: "Live Chat") : String(localized: "Comments"))
+                    .tag(CompactSectionTab.comments)
+                Text(String(localized: "Suggested"))
+                    .tag(CompactSectionTab.suggested)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityLabel(String(localized: "Switch between comments and suggested videos"))
 
-            if self.showsSummary, !self.isLiveStream {
-                Divider()
-                self.summarySection
-            }
-
-            if self.youtubePlayer.showsLyrics, !self.isLiveStream {
-                Divider()
-                self.lyricsSection
-            }
-
-            if !self.viewModel.data.chapters.isEmpty {
-                Divider()
-                WatchChaptersSection(
-                    chapters: self.viewModel.data.chapters,
-                    videoId: self.video.videoId,
-                    onSeek: self.seekToChapter
-                )
-            }
-
-            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
-                Divider()
-                self.commentsSection
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// Single unified column for compact / narrow windows or distraction-free mode.
-    private var compactContentColumn: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            self.videoSurface
-                .contextMenu { self.videoContextMenu }
-
-            self.metadataSection
-
-            if let description = self.descriptionText {
-                self.descriptionSection(description)
-            }
-
-            if self.showsSummary, !self.isLiveStream {
-                Divider()
-                self.summarySection
-            }
-
-            if self.youtubePlayer.showsLyrics, !self.isLiveStream {
-                Divider()
-                self.lyricsSection
-            }
-
-            if !self.viewModel.data.chapters.isEmpty {
-                Divider()
-                WatchChaptersSection(
-                    chapters: self.viewModel.data.chapters,
-                    videoId: self.video.videoId,
-                    onSeek: self.seekToChapter
-                )
-            }
-
-            // In small windows, comments sit directly below the video & description
-            // so users can immediately view and write comments without scrolling past dozens of suggested videos!
-            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
-                Divider()
-                self.commentsSection
-            }
-
-            if !self.settings.distractionFreeEnabled {
+            switch self.compactTab {
+            case .comments:
                 if self.viewModel.hasLiveChat {
                     self.liveChatSection(height: 440)
+                } else {
+                    self.commentsSection
                 }
-
-                Divider()
+            case .suggested:
                 self.relatedColumn
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Video Surface
@@ -407,7 +355,9 @@ struct YouTubeWatchView: View {
     private var videoSurface: some View {
         Color.black
             .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(maxHeight: (self.youtubePlayer.isTheaterMode && self.isWideLayout) ? 760 : nil)
             .frame(maxWidth: .infinity)
+            .background(Color.black)
             .overlay {
                 if self.presentsLiveSurface {
                     // Clean video surface. Controls live either in the docked bar or,
@@ -2881,5 +2831,155 @@ private struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
+    }
+}
+
+// MARK: - CompactSectionTab
+
+private enum CompactSectionTab: String, CaseIterable {
+    case comments
+    case suggested
+}
+
+// MARK: - WatchPageLayout
+
+/// Arranges the video surface, primary column below it, and optional right-hand rail
+/// without changing `videoSurface`'s structural identity across window resizes or
+/// Theater Mode toggles.
+private struct WatchPageLayout: Layout {
+    let isWide: Bool
+    let isTheater: Bool
+    let railWidth: CGFloat
+    let railSpacing: CGFloat
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache _: inout ()
+    ) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let totalWidth = max(320, proposal.width ?? 1000)
+
+        if self.isWide, self.isTheater, subviews.count >= 2 {
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
+            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            let railSize = subviews.count > 2
+                ? subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
+                : .zero
+            let height = videoSize.height + 20 + max(belowSize.height, railSize.height)
+            return CGSize(width: totalWidth, height: height)
+        } else if self.isWide, subviews.count >= 2 {
+            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            let railSize = subviews.count > 2
+                ? subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
+                : .zero
+            let leftHeight = videoSize.height + 16 + belowSize.height
+            return CGSize(width: totalWidth, height: max(leftHeight, railSize.height))
+        } else {
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+            let belowSize = subviews.count > 1
+                ? subviews[1].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+                : .zero
+            let height = subviews.count > 1 ? videoSize.height + 16 + belowSize.height : videoSize.height
+            return CGSize(width: totalWidth, height: height)
+        }
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal _: ProposedViewSize,
+        subviews: Subviews,
+        cache _: inout ()
+    ) {
+        guard !subviews.isEmpty else { return }
+        let totalWidth = bounds.width
+
+        if self.isWide, self.isTheater, subviews.count >= 2 {
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+            subviews[0].place(
+                at: CGPoint(x: bounds.minX, y: bounds.minY),
+                proposal: ProposedViewSize(width: totalWidth, height: videoSize.height)
+            )
+            let belowY = bounds.minY + videoSize.height + 20
+            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
+            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            subviews[1].place(
+                at: CGPoint(x: bounds.minX, y: belowY),
+                proposal: ProposedViewSize(width: leftWidth, height: belowSize.height)
+            )
+            if subviews.count > 2 {
+                let railSize = subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
+                subviews[2].place(
+                    at: CGPoint(x: bounds.minX + leftWidth + self.railSpacing, y: belowY),
+                    proposal: ProposedViewSize(width: self.railWidth, height: railSize.height)
+                )
+            }
+        } else if self.isWide, subviews.count >= 2 {
+            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            subviews[0].place(
+                at: CGPoint(x: bounds.minX, y: bounds.minY),
+                proposal: ProposedViewSize(width: leftWidth, height: videoSize.height)
+            )
+            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
+            subviews[1].place(
+                at: CGPoint(x: bounds.minX, y: bounds.minY + videoSize.height + 16),
+                proposal: ProposedViewSize(width: leftWidth, height: belowSize.height)
+            )
+            if subviews.count > 2 {
+                let railSize = subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
+                subviews[2].place(
+                    at: CGPoint(x: bounds.minX + leftWidth + self.railSpacing, y: bounds.minY),
+                    proposal: ProposedViewSize(width: self.railWidth, height: railSize.height)
+                )
+            }
+        } else {
+            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+            subviews[0].place(
+                at: CGPoint(x: bounds.minX, y: bounds.minY),
+                proposal: ProposedViewSize(width: totalWidth, height: videoSize.height)
+            )
+            if subviews.count > 1 {
+                let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
+                subviews[1].place(
+                    at: CGPoint(x: bounds.minX, y: bounds.minY + videoSize.height + 16),
+                    proposal: ProposedViewSize(width: totalWidth, height: belowSize.height)
+                )
+            }
+        }
+    }
+}
+
+// MARK: - WatchTheaterKeyMonitor
+
+@MainActor
+private final class WatchTheaterKeyMonitor {
+    private var monitor: Any?
+
+    func install(onToggle: @escaping @MainActor () -> Void) {
+        guard self.monitor == nil else { return }
+        self.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.window?.isKeyWindow == true,
+                  event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty,
+                  event.charactersIgnoringModifiers?.lowercased() == "t"
+            else {
+                return event
+            }
+            let responder = event.window?.firstResponder
+            if responder is NSTextView || responder is NSTextField {
+                return event
+            }
+            onToggle()
+            return nil
+        }
+    }
+
+    func uninstall() {
+        guard let monitor = self.monitor else { return }
+        NSEvent.removeMonitor(monitor)
+        self.monitor = nil
     }
 }

@@ -123,6 +123,13 @@ final class YouTubePlayerService {
     /// Whether the current video is playing via the hardware-accelerated native AVPlayer engine.
     private(set) var isPlayingNativeVideo = false
 
+    /// Whether Theater Mode is active on wide watch displays.
+    var isTheaterMode: Bool = UserDefaults.standard.bool(forKey: "youtubeWatchTheaterMode") {
+        didSet {
+            UserDefaults.standard.set(self.isTheaterMode, forKey: "youtubeWatchTheaterMode")
+        }
+    }
+
     /// The page has reported ready media in a paused state. This distinguishes a
     /// settled autoplay failure from the pre-media loading gap.
     @ObservationIgnored private var hasObservedPausedMedia = false

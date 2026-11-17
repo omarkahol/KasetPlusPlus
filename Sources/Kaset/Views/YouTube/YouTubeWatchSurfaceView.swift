@@ -52,7 +52,10 @@ struct YouTubeWatchLegacySurfaceView: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView _: YouTubeWatchContainerView, context _: Context) -> CGSize? {
-        if let width = proposal.width, width > 0 {
+        if let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite {
+            return CGSize(width: width, height: height)
+        }
+        if let width = proposal.width, width > 0, width.isFinite {
             return CGSize(width: width, height: width * 9 / 16)
         }
         return nil
@@ -96,8 +99,17 @@ final class YouTubeWatchContainerView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        self.syncWebViewFrame()
+    }
+
     override func layout() {
         super.layout()
+        self.syncWebViewFrame()
+    }
+
+    private func syncWebViewFrame() {
         // Overscan the WebView slightly: fractional-point rounding between
         // SwiftUI's aspect-fitted frame and the page's 100vw video leaves
         // hairline black slivers at the edges otherwise. The container's

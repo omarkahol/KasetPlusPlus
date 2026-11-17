@@ -18,7 +18,10 @@ struct NativeVideoSurfaceView: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView _: NativeVideoContainerView, context _: Context) -> CGSize? {
-        if let width = proposal.width, width > 0 {
+        if let width = proposal.width, let height = proposal.height, width.isFinite, height.isFinite {
+            return CGSize(width: width, height: height)
+        }
+        if let width = proposal.width, width > 0, width.isFinite {
             return CGSize(width: width, height: width * 9 / 16)
         }
         return nil
@@ -29,17 +32,17 @@ struct NativeVideoSurfaceView: NSViewRepresentable {
 
 /// Custom AppKit container hosting the `AVPlayerLayer`.
 final class NativeVideoContainerView: NSView {
-    private var playerLayer: AVPlayerLayer?
+    private let playerLayer = AVPlayerLayer()
     private var pipController: AVPictureInPictureController?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         self.wantsLayer = true
-        let layer = AVPlayerLayer()
-        layer.videoGravity = .resizeAspect
-        layer.backgroundColor = NSColor.black.cgColor
-        self.layer = layer
-        self.playerLayer = layer
+        self.layer?.backgroundColor = NSColor.black.cgColor
+        self.layer?.masksToBounds = true
+        self.playerLayer.videoGravity = .resizeAspect
+        self.playerLayer.backgroundColor = NSColor.black.cgColor
+        self.layer?.addSublayer(self.playerLayer)
         self.setupPiP()
         self.attach(player: NativeVideoPlayer.shared.player)
 
@@ -49,6 +52,10 @@ final class NativeVideoContainerView: NSView {
             name: .nativeVideoPlayerChanged,
             object: nil
         )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     @objc private func handlePlayerNotification(_ notification: Notification) {
@@ -62,18 +69,17 @@ final class NativeVideoContainerView: NSView {
     }
 
     func attach(player: AVPlayer?) {
-        guard self.playerLayer?.player !== player else { return }
-        self.playerLayer?.player = player
+        guard self.playerLayer.player !== player else { return }
+        self.playerLayer.player = player
         self.setupPiP()
     }
 
     private func setupPiP() {
         guard AVPictureInPictureController.isPictureInPictureSupported(),
-              let playerLayer = self.playerLayer,
               self.pipController == nil
         else { return }
 
-        self.pipController = AVPictureInPictureController(playerLayer: playerLayer)
+        self.pipController = AVPictureInPictureController(playerLayer: self.playerLayer)
     }
 
     func togglePictureInPicture() {
@@ -85,19 +91,19 @@ final class NativeVideoContainerView: NSView {
         }
     }
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        self.playerLayer.frame = self.bounds
+        CATransaction.commit()
+    }
+
     override func layout() {
         super.layout()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        self.playerLayer?.frame = self.bounds
-        CATransaction.commit()
-    }
-
-    override func resizeSubviews(withOldSize oldSize: NSSize) {
-        super.resizeSubviews(withOldSize: oldSize)
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        self.playerLayer?.frame = self.bounds
+        self.playerLayer.frame = self.bounds
         CATransaction.commit()
     }
 }
