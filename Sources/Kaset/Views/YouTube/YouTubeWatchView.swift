@@ -89,6 +89,8 @@ struct YouTubeWatchView: View {
         )
     }
 
+    @AppStorage("youtubeWatchTheaterMode") private var isTheaterMode = false
+
     private var isWideLayout: Bool {
         self.pageWidth >= 1060 && !self.settings.distractionFreeEnabled
     }
@@ -96,16 +98,28 @@ struct YouTubeWatchView: View {
     var body: some View {
         ScrollView {
             Group {
-                if self.isWideLayout {
+                if self.isTheaterMode && self.isWideLayout {
+                    // Theater Mode (Wide window): full-width video at top, metadata + related below
+                    VStack(alignment: .leading, spacing: 20) {
+                        self.videoSurface
+                            .contextMenu { self.videoContextMenu }
+
+                        HStack(alignment: .top, spacing: Self.railSpacing) {
+                            self.metadataAndCommentsColumn
+                            self.secondaryContentColumn
+                        }
+                    }
+                } else if self.isWideLayout {
+                    // Default Mode (Wide window): video + metadata on left, related on right
                     HStack(alignment: .top, spacing: Self.railSpacing) {
                         self.mainContentColumn
                         self.secondaryContentColumn
                     }
                 } else {
+                    // Compact Mode (Narrow window or distraction free): single unified column
                     self.compactContentColumn
                 }
             }
-            .frame(maxWidth: 1680)
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .frame(maxWidth: .infinity)
@@ -131,6 +145,19 @@ struct YouTubeWatchView: View {
         // Let the ambient reach under the nav bar, like the other accent pages.
         .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .toolbar {
+            if self.isWideLayout {
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            self.isTheaterMode.toggle()
+                        }
+                    } label: {
+                        Image(systemName: self.isTheaterMode ? "rectangle.inset.filled" : "rectangle.dashed")
+                    }
+                    .help(self.isTheaterMode ? String(localized: "Default view (T)") : String(localized: "Theater mode (T)"))
+                    .keyboardShortcut("t", modifiers: [])
+                }
+            }
             if self.viewModel.ask.isAvailable {
                 ToolbarItem(placement: .primaryAction) {
                     YouTubeAskToolbarButton(viewModel: self.viewModel.ask)
@@ -276,6 +303,42 @@ struct YouTubeWatchView: View {
         .frame(width: Self.railWidth)
     }
 
+    /// Left column in Theater Mode (metadata, description, chapters, comments).
+    private var metadataAndCommentsColumn: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            self.metadataSection
+
+            if let description = self.descriptionText {
+                self.descriptionSection(description)
+            }
+
+            if self.showsSummary, !self.isLiveStream {
+                Divider()
+                self.summarySection
+            }
+
+            if self.youtubePlayer.showsLyrics, !self.isLiveStream {
+                Divider()
+                self.lyricsSection
+            }
+
+            if !self.viewModel.data.chapters.isEmpty {
+                Divider()
+                WatchChaptersSection(
+                    chapters: self.viewModel.data.chapters,
+                    videoId: self.video.videoId,
+                    onSeek: self.seekToChapter
+                )
+            }
+
+            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
+                Divider()
+                self.commentsSection
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     /// Single unified column for compact / narrow windows or distraction-free mode.
     private var compactContentColumn: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -307,6 +370,13 @@ struct YouTubeWatchView: View {
                 )
             }
 
+            // In small windows, comments sit directly below the video & description
+            // so users can immediately view and write comments without scrolling past dozens of suggested videos!
+            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
+                Divider()
+                self.commentsSection
+            }
+
             if !self.settings.distractionFreeEnabled {
                 if self.viewModel.hasLiveChat {
                     self.liveChatSection(height: 440)
@@ -314,11 +384,6 @@ struct YouTubeWatchView: View {
 
                 Divider()
                 self.relatedColumn
-            }
-
-            if !self.settings.distractionFreeEnabled, !self.viewModel.hasLiveChat {
-                Divider()
-                self.commentsSection
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -340,124 +405,91 @@ struct YouTubeWatchView: View {
 
     @ViewBuilder
     private var videoSurface: some View {
-        if self.presentsLiveSurface {
-            // Clean video surface. Controls live either in the docked bar or,
-            // when "controls on video" is enabled, overlaid on the video here
-            // (reusing the exact same YouTubePlayerBar in `.videoOverlay` mode).
-            YouTubeWatchSurfaceView()
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay(alignment: .bottom) {
-                    if self.settings.controlsOnVideoEnabled, self.overlayControlsVisible {
-                        YouTubePlayerBar(mode: .videoOverlay)
-                            .transition(.opacity)
-                    }
-                }
-                // Loading state: the WebView surface is black until the stream
-                // is ready, so show a spinner over it instead of a blank frame.
-                // For a members-only video the user can't play, no stream ever
-                // arrives — show YouTube's real gate notice instead of spinning.
-                .overlay {
-                    if let gate = self.viewModel.membersGate {
-                        self.membersGateCard(gate)
-                            .transition(.opacity)
-                    } else if self.youtubePlayer.isPlaybackLoading {
-                        ZStack {
-                            Rectangle().fill(.black)
-                            ProgressView()
-                                .controlSize(.large)
-                                .tint(.white)
+        Color.black
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                if self.presentsLiveSurface {
+                    // Clean video surface. Controls live either in the docked bar or,
+                    // when "controls on video" is enabled, overlaid on the video here
+                    // (reusing the exact same YouTubePlayerBar in `.videoOverlay` mode).
+                    YouTubeWatchSurfaceView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .overlay(alignment: .bottom) {
+                            if self.settings.controlsOnVideoEnabled, self.overlayControlsVisible {
+                                YouTubePlayerBar(mode: .videoOverlay)
+                                    .transition(.opacity)
+                            }
                         }
-                        .transition(.opacity)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.25), value: self.youtubePlayer.isPlaybackLoading)
-                .animation(.easeInOut(duration: 0.25), value: self.viewModel.membersGate == nil)
-                // YouTube-style "up next" countdown card when a finished video is
-                // about to autoplay the next one.
-                .overlay {
-                    YouTubeAutoplayCountdownOverlay()
-                }
-                .animation(.easeInOut(duration: 0.25), value: self.youtubePlayer.autoplayPendingVideo == nil)
-                // "Ad" badge: a server-side (SSAI) ad can still slip past the
-                // blocker; label it so it's clear this isn't the content.
-                .overlay(alignment: .topLeading) {
-                    if self.youtubePlayer.isShowingAd {
-                        Text("Ad", comment: "Badge shown while a YouTube ad is playing")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.black)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.yellow, in: .rect(cornerRadius: 3))
-                            .padding(10)
-                            .transition(.opacity)
-                    }
-                }
-                .animation(.easeInOut(duration: 0.2), value: self.youtubePlayer.isShowingAd)
-                // Native "Skip Ad" button — DISABLED for now. Every skip path we
-                // tried (synthetic Skip click, loadVideoById, playbackRate, seek)
-                // either left the content stuck black or was reset by YouTube.
-                // Ads are shown (muted) with the "Ad" badge until we land a skip
-                // that reliably hands off to the content. `isAdSkippable` is
-                // still plumbed so re-enabling is a one-line change.
-                //
-                // .overlay(alignment: .bottomTrailing) {
-                //     if self.youtubePlayer.isShowingAd, self.youtubePlayer.isAdSkippable {
-                //         Button {
-                //             self.youtubePlayer.skipAd()
-                //             HapticService.toggle()
-                //         } label: {
-                //             HStack(spacing: 6) {
-                //                 Text("Skip Ad", comment: "Button to skip a YouTube ad")
-                //                     .font(.system(size: 13, weight: .semibold))
-                //                 Image(systemName: "forward.end.fill")
-                //                     .font(.system(size: 11))
-                //             }
-                //             .foregroundStyle(.white)
-                //             .padding(.horizontal, 14)
-                //             .padding(.vertical, 8)
-                //             .background(.black.opacity(0.55), in: .capsule)
-                //             .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
-                //         }
-                //         .buttonStyle(.plain)
-                //         .padding(.trailing, 16)
-                //         .padding(.bottom, 76)
-                //         .transition(.opacity)
-                //     }
-                // }
-                .overlay(alignment: .topTrailing) {
-                    SponsorBlockSkipNoticeOverlay()
-                        .padding(16)
-                }
-                .clipShape(.rect(cornerRadius: 12))
-                .onContinuousHover { phase in
-                    guard self.settings.controlsOnVideoEnabled else { return }
-                    switch phase {
-                    case .active:
-                        // Any pointer movement reveals the controls and restarts
-                        // the idle countdown.
-                        self.revealOverlayControls()
-                    case .ended:
-                        guard !self.youtubePlayer.isControlOverlayPinned else { return }
-                        self.overlayHideTask?.cancel()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            self.overlayControlsVisible = false
+                        // Loading state: the WebView surface is black until the stream
+                        // is ready, so show a spinner over it instead of a blank frame.
+                        // For a members-only video the user can't play, no stream ever
+                        // arrives — show YouTube's real gate notice instead of spinning.
+                        .overlay {
+                            if let gate = self.viewModel.membersGate {
+                                self.membersGateCard(gate)
+                                    .transition(.opacity)
+                            } else if self.youtubePlayer.isPlaybackLoading {
+                                ZStack {
+                                    Rectangle().fill(.black)
+                                    ProgressView()
+                                        .controlSize(.large)
+                                        .tint(.white)
+                                }
+                                .transition(.opacity)
+                            }
                         }
-                    }
-                }
-                // When the video scrolls out of the watch page, bring the docked
-                // bar back so playback stays controllable.
-                .onAppear { self.youtubePlayer.inlineVideoOnScreen = true }
-                .onScrollVisibilityChange(threshold: 0.35) { visible in
-                    self.youtubePlayer.inlineVideoOnScreen = visible
-                }
-                .accessibilityIdentifier(AccessibilityID.YouTubeContent.watchSurface)
-        } else if self.playsInFloatingWindow {
-            // Native PiP-style placeholder while the video plays in the
-            // pop-out window.
-            Rectangle()
-                .fill(.black)
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
+                        .animation(.easeInOut(duration: 0.25), value: self.youtubePlayer.isPlaybackLoading)
+                        .animation(.easeInOut(duration: 0.25), value: self.viewModel.membersGate == nil)
+                        // YouTube-style "up next" countdown card when a finished video is
+                        // about to autoplay the next one.
+                        .overlay {
+                            YouTubeAutoplayCountdownOverlay()
+                        }
+                        .animation(.easeInOut(duration: 0.25), value: self.youtubePlayer.autoplayPendingVideo == nil)
+                        // "Ad" badge: a server-side (SSAI) ad can still slip past the
+                        // blocker; label it so it's clear this isn't the content.
+                        .overlay(alignment: .topLeading) {
+                            if self.youtubePlayer.isShowingAd {
+                                Text("Ad", comment: "Badge shown while a YouTube ad is playing")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.yellow, in: .rect(cornerRadius: 3))
+                                    .padding(10)
+                                    .transition(.opacity)
+                            }
+                        }
+                        .animation(.easeInOut(duration: 0.2), value: self.youtubePlayer.isShowingAd)
+                        .overlay(alignment: .topTrailing) {
+                            SponsorBlockSkipNoticeOverlay()
+                                .padding(16)
+                        }
+                        .onContinuousHover { phase in
+                            guard self.settings.controlsOnVideoEnabled else { return }
+                            switch phase {
+                            case .active:
+                                // Any pointer movement reveals the controls and restarts
+                                // the idle countdown.
+                                self.revealOverlayControls()
+                            case .ended:
+                                guard !self.youtubePlayer.isControlOverlayPinned else { return }
+                                self.overlayHideTask?.cancel()
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    self.overlayControlsVisible = false
+                                }
+                            }
+                        }
+                        // When the video scrolls out of the watch page, bring the docked
+                        // bar back so playback stays controllable.
+                        .onAppear { self.youtubePlayer.inlineVideoOnScreen = true }
+                        .onScrollVisibilityChange(threshold: 0.35) { visible in
+                            self.youtubePlayer.inlineVideoOnScreen = visible
+                        }
+                } else if self.playsInFloatingWindow {
+                    // Native PiP-style placeholder while the video plays in the
+                    // pop-out window.
                     VStack(spacing: 12) {
                         Image(systemName: "pip.exit")
                             .font(.system(size: 40))
@@ -476,37 +508,33 @@ struct YouTubeWatchView: View {
                         .tint(.white)
                         .accessibilityIdentifier(AccessibilityID.YouTubeContent.watchMoveHere)
                     }
+                } else {
+                    Button {
+                        self.startOrAdoptPlayback()
+                    } label: {
+                        CachedAsyncImage(
+                            url: self.video.thumbnailURL,
+                            targetSize: CGSize(width: 1280, height: 720)
+                        ) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Rectangle().fill(.black)
+                        }
+                        .overlay {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 56))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .shadow(radius: 8)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "Play video"))
                 }
-                .clipShape(.rect(cornerRadius: 12))
-                .accessibilityIdentifier(AccessibilityID.YouTubeContent.watchSurface)
-        } else {
-            Button {
-                self.startOrAdoptPlayback()
-            } label: {
-                CachedAsyncImage(
-                    url: self.video.thumbnailURL,
-                    targetSize: CGSize(width: 1280, height: 720)
-                ) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Rectangle().fill(.black)
-                }
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .overlay {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 56))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .shadow(radius: 8)
-                }
-                .clipShape(.rect(cornerRadius: 12))
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(String(localized: "Play video"))
+            .clipShape(.rect(cornerRadius: 12))
             .accessibilityIdentifier(AccessibilityID.YouTubeContent.watchSurface)
-        }
     }
 
     /// Starts playback of this view's video, or adopts the surface if this

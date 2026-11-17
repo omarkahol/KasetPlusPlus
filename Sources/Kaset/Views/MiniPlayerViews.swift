@@ -22,10 +22,15 @@ struct PersistentPlayerView: NSViewRepresentable {
         let container = NSView(frame: .zero)
         container.wantsLayer = true
 
+        let shouldAutoload = self.videoId != nil
+            && self.playerService.shouldAutoloadPendingVideo
+            && SingletonPlayerWebView.shared.currentVideoId != self.videoId
+
         let webView = SingletonPlayerWebView.shared.getWebView(
             webKitManager: self.webKitManager,
             playerService: self.playerService,
-            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore
+            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore,
+            suppressesHomePreload: shouldAutoload
         )
 
         webView.removeFromSuperview()
@@ -34,10 +39,7 @@ struct PersistentPlayerView: NSViewRepresentable {
         container.addSubview(webView)
 
         // Restored sessions keep the hidden WebView inert until the user explicitly resumes.
-        if let videoId = self.videoId,
-           self.playerService.shouldAutoloadPendingVideo,
-           SingletonPlayerWebView.shared.currentVideoId != videoId
-        {
+        if shouldAutoload, let videoId = self.videoId {
             self.logger.info("Initial hidden load for videoId: \(videoId)")
             SingletonPlayerWebView.shared.loadVideo(videoId: videoId)
         }
@@ -46,10 +48,15 @@ struct PersistentPlayerView: NSViewRepresentable {
     }
 
     func updateNSView(_ container: NSView, context _: Context) {
+        let shouldAutoload = self.videoId != nil
+            && self.playerService.shouldAutoloadPendingVideo
+            && SingletonPlayerWebView.shared.currentVideoId != self.videoId
+
         let webView = SingletonPlayerWebView.shared.getWebView(
             webKitManager: self.webKitManager,
             playerService: self.playerService,
-            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore
+            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore,
+            suppressesHomePreload: shouldAutoload
         )
 
         if webView.superview !== container {
@@ -62,10 +69,7 @@ struct PersistentPlayerView: NSViewRepresentable {
 
         webView.frame = container.bounds
 
-        if let videoId = self.videoId,
-           self.playerService.shouldAutoloadPendingVideo,
-           SingletonPlayerWebView.shared.currentVideoId != videoId
-        {
+        if shouldAutoload, let videoId = self.videoId {
             SingletonPlayerWebView.shared.loadVideo(videoId: videoId)
         }
     }

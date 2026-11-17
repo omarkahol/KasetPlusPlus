@@ -13,7 +13,6 @@ final class NativeAudioPlayer: NSObject {
     private var timeObserverToken: Any?
     private var playerItemEndObserver: (any NSObjectProtocol)?
     private var durationObserver: NSKeyValueObservation?
-    private var statusObserver: NSKeyValueObservation?
 
     /// Preloaded next item to provide gapless transitions.
     private(set) var preloadedItem: AVPlayerItem?
@@ -50,6 +49,7 @@ final class NativeAudioPlayer: NSObject {
     var onPlaybackEnded: (@MainActor () -> Void)?
     var onStateChange: (@MainActor (Bool) -> Void)?
     var onNearEnd: (@MainActor (TimeInterval) -> Void)?
+    var onPlaybackFailed: (@MainActor (String?, (any Error)?) -> Void)?
 
     private var hasFiredNearEnd = false
 
@@ -117,9 +117,20 @@ final class NativeAudioPlayer: NSObject {
     }
 
     private func setupItemObservers(for playerItem: AVPlayerItem, in player: AVPlayer) {
-        // Observe duration when ready
+        // Observe status (duration readiness and playback failure)
         self.durationObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-            guard item.status == .readyToPlay else { return }
+            let status = item.status
+            if status == .failed {
+                let error = item.error
+                Task { @MainActor [weak self] in
+                    guard let self, self.player?.currentItem === item else { return }
+                    let failedVideoId = self.currentVideoId
+                    self.stop()
+                    self.onPlaybackFailed?(failedVideoId, error)
+                }
+                return
+            }
+            guard status == .readyToPlay else { return }
             let duration = item.duration.seconds
             guard duration.isFinite, duration > 0 else { return }
             Task { @MainActor [weak self] in
@@ -208,8 +219,6 @@ final class NativeAudioPlayer: NSObject {
 
         self.durationObserver?.invalidate()
         self.durationObserver = nil
-        self.statusObserver?.invalidate()
-        self.statusObserver = nil
 
         self.player?.pause()
         self.player = nil

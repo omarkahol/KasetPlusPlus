@@ -192,24 +192,14 @@ final class NowPlayingManager {
             return .handsOff
         }
 
-        if isPlayingOffline {
-            guard let track else { return .release }
-            switch state {
-            case .playing:
-                return .claim(title: track.title, artist: track.artist, playbackState: .playing)
-            case .buffering, .loading:
-                return .claim(title: track.title, artist: track.artist, playbackState: .playing)
-            case .idle, .paused, .ended, .error:
-                return .claim(title: track.title, artist: track.artist, playbackState: .paused)
-            }
-        }
-
-        if hasConfirmedWebPlayback || state == .playing || state == .buffering || state == .loading {
-            return .handsOff
-        }
-
         guard let track else { return .release }
-        return .claim(title: track.title, artist: track.artist, playbackState: .paused)
+
+        switch state {
+        case .playing, .buffering, .loading:
+            return .claim(title: track.title, artist: track.artist, playbackState: .playing)
+        case .idle, .paused, .ended, .error:
+            return .claim(title: track.title, artist: track.artist, playbackState: .paused)
+        }
     }
 
     private func syncArtwork(for song: Song?) {
@@ -267,8 +257,7 @@ final class NowPlayingManager {
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false
             guard Self.isNativeClaim(center.nowPlayingInfo) else { return }
-            center.playbackState = .stopped
-            center.nowPlayingInfo = nil
+            center.playbackState = .playing
         case .release:
             guard self.isAssertingNativeClaim else { return }
             self.isAssertingNativeClaim = false

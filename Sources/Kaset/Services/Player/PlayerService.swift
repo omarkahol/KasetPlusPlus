@@ -695,7 +695,11 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         // state already needs enrichment and a client is available.
         self.startQueueEnrichmentService()
 
-        // Wire up NativeAudioPlayer callbacks for offline playback
+        // Wire up NativeAudioPlayer callbacks for offline and direct-stream playback
+        self.configureNativeAudioPlayerCallbacks()
+    }
+
+    private func configureNativeAudioPlayerCallbacks() {
         NativeAudioPlayer.shared.onProgressUpdate = { [weak self] seconds in
             guard let self, self.isPlayingOfflineTrack else { return }
             self.progress = seconds
@@ -735,6 +739,36 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
             Task {
                 await self.preloadNextQueueTrack()
             }
+        }
+        NativeAudioPlayer.shared.onPlaybackFailed = { [weak self] failedVideoId, error in
+            self?.handleNativePlaybackFailure(videoId: failedVideoId, error: error)
+        }
+    }
+
+    private func handleNativePlaybackFailure(videoId failedVideoId: String?, error: (any Error)?) {
+        guard self.isPlayingOfflineTrack else { return }
+        let targetVideoId = failedVideoId ?? self.currentTrack?.videoId
+        self.logger.warning(
+            "NativeAudioPlayer failed for \(targetVideoId ?? "unknown"): \(error?.localizedDescription ?? "unknown error")"
+        )
+        if let targetVideoId {
+            DirectStreamResolver.shared.invalidate(videoId: targetVideoId)
+        }
+        self.isPlayingOfflineTrack = false
+        let isOnline = !SettingsManager.shared.isOfflineModeEnabled && NetworkMonitor.shared.isConnected
+        if isOnline, let targetVideoId, self.currentTrack?.videoId == targetVideoId {
+            self.beginNativeMusicPlaybackOccurrence(videoId: targetVideoId)
+            self.state = .loading
+            self.shouldResumeAfterInterruption = true
+            self.isAwaitingPlaybackConfirmation = true
+            self.isExplicitPauseIntentActive = false
+            self.isKasetInitiatedPlayback = true
+            self.pendingPlayVideoId = targetVideoId
+            if SingletonPlayerWebView.shared.webView != nil {
+                SingletonPlayerWebView.shared.loadVideo(videoId: targetVideoId)
+            }
+        } else {
+            self.state = .error(error?.localizedDescription ?? String(localized: "Playback failed."))
         }
     }
 

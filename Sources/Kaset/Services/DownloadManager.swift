@@ -207,7 +207,19 @@ final class DownloadManager {
             return custom
         }
 
-        // 1. App bundle resource
+        // 1. Common Homebrew and system paths (avoids ~20s PyInstaller single-file unpack overhead)
+        for path in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+
+        // 2. System PATH lookup
+        if let resolved = Self.resolveBinaryInPath("yt-dlp") {
+            return resolved
+        }
+
+        // 3. App bundle resource fallback
         if let resourcePath = Bundle.main.resourcePath {
             let bundled = (resourcePath as NSString).appendingPathComponent("yt-dlp")
             if FileManager.default.isExecutableFile(atPath: bundled) {
@@ -215,15 +227,7 @@ final class DownloadManager {
             }
         }
 
-        // 2. Common Homebrew and system paths
-        for path in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        }
-
-        // 3. System PATH lookup
-        return Self.resolveBinaryInPath("yt-dlp")
+        return nil
     }
 
     /// Resolved executable path for `ffmpeg`.

@@ -496,15 +496,43 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             .prefix(displayedIndex)
             .count(where: { $0.videoId == song.videoId })
         Task {
+            if self.viewModel.allSongs == nil,
+               self.viewModel.artistDetail?.songsBrowseId != nil,
+               let initialSongs = self.viewModel.artistDetail?.songs,
+               !initialSongs.isEmpty
+            {
+                let initialStartIndex = Self.songIndex(
+                    for: song,
+                    displayedIndex: displayedIndex,
+                    exactOrdinal: exactOrdinal,
+                    videoOrdinal: videoOrdinal,
+                    in: initialSongs
+                )
+                let loadGeneration = await self.playerService.playQueue(
+                    initialSongs,
+                    startingAt: initialStartIndex,
+                    deferringSmartShuffleFill: true,
+                    intent: intent
+                )
+                let allSongs = await self.viewModel.getAllSongs()
+                guard let loadGeneration, self.playerService.isCurrentQueueLoad(loadGeneration) else { return }
+                let remaining = PlaylistPlaybackActions.remainingTracks(after: initialSongs, in: allSongs)
+                if !remaining.isEmpty {
+                    self.playerService.appendOriginalTracks(remaining)
+                }
+                await self.playerService.endQueueLoading(loadGeneration)
+                return
+            }
+
             let allSongs = await self.viewModel.getAllSongs()
             guard self.playerService.acceptsMusicPlaybackIntent(intent) else { return }
-            let exactMatches = allSongs.indices.filter {
-                allSongs[$0].id == song.id && allSongs[$0].videoId == song.videoId
-            }
-            let videoMatches = allSongs.indices.filter { allSongs[$0].videoId == song.videoId }
-            let startIndex = exactMatches[safe: exactOrdinal]
-                ?? videoMatches[safe: videoOrdinal]
-                ?? (allSongs.indices.contains(displayedIndex) ? displayedIndex : 0)
+            let startIndex = Self.songIndex(
+                for: song,
+                displayedIndex: displayedIndex,
+                exactOrdinal: exactOrdinal,
+                videoOrdinal: videoOrdinal,
+                in: allSongs
+            )
             await self.playerService.playQueue(
                 allSongs,
                 startingAt: startIndex,
@@ -512,6 +540,22 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                 intent: intent
             )
         }
+    }
+
+    private static func songIndex(
+        for song: Song,
+        displayedIndex: Int,
+        exactOrdinal: Int,
+        videoOrdinal: Int,
+        in songs: [Song]
+    ) -> Int {
+        let exactMatches = songs.indices.filter {
+            songs[$0].id == song.id && songs[$0].videoId == song.videoId
+        }
+        let videoMatches = songs.indices.filter { songs[$0].videoId == song.videoId }
+        return exactMatches[safe: exactOrdinal]
+            ?? videoMatches[safe: videoOrdinal]
+            ?? (songs.indices.contains(displayedIndex) ? displayedIndex : 0)
     }
 
     private func albumsSection(

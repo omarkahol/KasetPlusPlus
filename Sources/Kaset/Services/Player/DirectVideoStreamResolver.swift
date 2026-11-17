@@ -72,7 +72,7 @@ final class DirectVideoStreamResolver {
                 "-f", "best[protocol^=m3u8]/22/18/best[ext=mp4]/b/best",
                 "--no-playlist",
                 "--no-warnings",
-                "--extractor-args", "youtube:player_client=android,web",
+                "--extractor-args", "youtube:player_client=android_vr;player_skip=webpage,configs",
                 "--socket-timeout", "6",
                 "https://www.youtube.com/watch?v=\(videoId)",
             ]
@@ -137,6 +137,11 @@ final class DirectVideoStreamResolver {
         Task {
             _ = await self.resolveStreamURL(videoId: videoId, timeoutSeconds: 5.0)
         }
+    }
+
+    /// Invalidates a cached stream URL for a video ID.
+    func invalidate(videoId: String) {
+        self.cache.removeValue(forKey: videoId)
     }
 
     /// Clears any cached stream URLs.

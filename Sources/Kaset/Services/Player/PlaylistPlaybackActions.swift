@@ -27,77 +27,137 @@ enum PlaylistPlaybackActions {
                     DiagnosticsLogger.ui.info("Discarding stale playlist playback request after newer playback intent")
                     return
                 }
-                var songs = response.detail.tracks
+                let songs = response.detail.tracks
 
                 if self.isRadioPlaylist(playlist.id) {
-                    do {
-                        let allTracks = try await client.getPlaylistAllTracks(playlistId: playlist.id)
-                        guard playerService.acceptsMusicPlaybackIntent(intent) else {
-                            DiagnosticsLogger.ui.info("Discarding stale playlist all-tracks request after newer playback intent")
-                            return
-                        }
-                        if allTracks.count >= songs.count, !allTracks.isEmpty {
-                            songs = self.tracksForPlaylistPlayback(
-                                browseTracks: response.detail.tracks,
-                                queueTracks: allTracks
-                            )
-                        }
-                    } catch {
-                        DiagnosticsLogger.ui.debug("Falling back to browse playlist tracks: \(error.localizedDescription)")
-                    }
-                    guard playerService.acceptsMusicPlaybackIntent(intent) else {
-                        DiagnosticsLogger.ui.info("Discarding stale radio playlist fallback after newer playback intent")
-                        return
-                    }
-                } else {
-                    let playableSongs = self.playableSongsWithPlaylistArtwork(songs, playlist: playlist)
-                    guard !playableSongs.isEmpty else { return }
-
-                    // Defer Smart Shuffle suggestions until the whole playlist is in the queue, so
-                    // they dedup against the full set; re-shuffle the complete set on finish. The
-                    // load generation is established before playback's first suspension so the premature
-                    // fill cannot slip through.
-                    let willDeferLoad = response.continuationToken != nil
-                    let loadGeneration = await playerService.playQueue(
-                        playableSongs,
-                        startingAt: 0,
-                        deferringSmartShuffleFill: willDeferLoad,
+                    await self.playRadioPlaylist(
+                        playlist,
+                        browseTracks: songs,
+                        client: client,
+                        playerService: playerService,
                         intent: intent
                     )
-                    DiagnosticsLogger.ui.info("Playing playlist '\(playlist.title)' (\(playableSongs.count) initial songs)")
-
-                    guard let loadGeneration else { return }
-
-                    await self.appendContinuations(
-                        ContinuationContext(
-                            continuationToken: response.continuationToken,
-                            loadGeneration: loadGeneration,
-                            playlist: playlist,
-                            requiresAuth: response.detail.requiresPersonalAccountForContinuations,
-                            client: client,
-                            playerService: playerService
-                        )
-                    )
-                    // Stand down if a different playback superseded this load while it paged.
-                    guard playerService.isCurrentQueueLoad(loadGeneration) else { return }
-                    await playerService.endQueueLoading(loadGeneration)
                     return
                 }
 
                 let playableSongs = self.playableSongsWithPlaylistArtwork(songs, playlist: playlist)
                 guard !playableSongs.isEmpty else { return }
 
-                await playerService.playQueue(
+                // Defer Smart Shuffle suggestions until the whole playlist is in the queue, so
+                // they dedup against the full set; re-shuffle the complete set on finish. The
+                // load generation is established before playback's first suspension so the premature
+                // fill cannot slip through.
+                let willDeferLoad = response.continuationToken != nil
+                let loadGeneration = await playerService.playQueue(
                     playableSongs,
                     startingAt: 0,
-                    deferringSmartShuffleFill: false,
+                    deferringSmartShuffleFill: willDeferLoad,
                     intent: intent
                 )
-                DiagnosticsLogger.ui.info("Playing playlist '\(playlist.title)' (\(playableSongs.count) songs)")
+                DiagnosticsLogger.ui.info("Playing playlist '\(playlist.title)' (\(playableSongs.count) initial songs)")
+
+                guard let loadGeneration else { return }
+
+                await self.appendContinuations(
+                    ContinuationContext(
+                        continuationToken: response.continuationToken,
+                        loadGeneration: loadGeneration,
+                        playlist: playlist,
+                        requiresAuth: response.detail.requiresPersonalAccountForContinuations,
+                        client: client,
+                        playerService: playerService
+                    )
+                )
+                // Stand down if a different playback superseded this load while it paged.
+                guard playerService.isCurrentQueueLoad(loadGeneration) else { return }
+                await playerService.endQueueLoading(loadGeneration)
             } catch {
                 DiagnosticsLogger.ui.error("Failed to play playlist: \(error.localizedDescription)")
             }
         }
+    }
+
+    private static func playRadioPlaylist(
+        _ playlist: Playlist,
+        browseTracks: [Song],
+        client: any YTMusicClientProtocol,
+        playerService: PlayerService,
+        intent: MusicPlaybackIntent
+    ) async {
+        let initialPlayable = self.playableSongsWithPlaylistArtwork(browseTracks, playlist: playlist)
+        if !initialPlayable.isEmpty {
+            let loadGeneration = await playerService.playQueue(
+                initialPlayable,
+                startingAt: 0,
+                deferringSmartShuffleFill: true,
+                intent: intent
+            )
+            DiagnosticsLogger.ui.info(
+                "Playing radio playlist '\(playlist.title)' (\(initialPlayable.count) initial songs)"
+            )
+            guard let loadGeneration else { return }
+
+            do {
+                let allTracks = try await client.getPlaylistAllTracks(playlistId: playlist.id)
+                guard playerService.isCurrentQueueLoad(loadGeneration) else {
+                    DiagnosticsLogger.ui.info(
+                        "Discarding stale playlist all-tracks request after newer playback intent"
+                    )
+                    return
+                }
+                if !allTracks.isEmpty {
+                    let mergedTracks = self.tracksForPlaylistPlayback(
+                        browseTracks: browseTracks,
+                        queueTracks: allTracks
+                    )
+                    let fullPlayable = self.playableSongsWithPlaylistArtwork(mergedTracks, playlist: playlist)
+                    let remaining = self.remainingTracks(after: initialPlayable, in: fullPlayable)
+                    if !remaining.isEmpty {
+                        playerService.appendOriginalTracks(remaining)
+                    }
+                }
+            } catch {
+                DiagnosticsLogger.ui.debug(
+                    "Falling back to browse playlist tracks: \(error.localizedDescription)"
+                )
+            }
+
+            guard playerService.isCurrentQueueLoad(loadGeneration) else { return }
+            await playerService.endQueueLoading(loadGeneration)
+            return
+        }
+
+        var fallbackTracks = browseTracks
+        do {
+            let allTracks = try await client.getPlaylistAllTracks(playlistId: playlist.id)
+            guard playerService.acceptsMusicPlaybackIntent(intent) else {
+                DiagnosticsLogger.ui.info("Discarding stale playlist all-tracks request after newer playback intent")
+                return
+            }
+            if allTracks.count >= fallbackTracks.count, !allTracks.isEmpty {
+                fallbackTracks = self.tracksForPlaylistPlayback(
+                    browseTracks: browseTracks,
+                    queueTracks: allTracks
+                )
+            }
+        } catch {
+            DiagnosticsLogger.ui.debug("Falling back to browse playlist tracks: \(error.localizedDescription)")
+        }
+        guard playerService.acceptsMusicPlaybackIntent(intent) else {
+            DiagnosticsLogger.ui.info("Discarding stale radio playlist fallback after newer playback intent")
+            return
+        }
+
+        let playableSongs = self.playableSongsWithPlaylistArtwork(fallbackTracks, playlist: playlist)
+        guard !playableSongs.isEmpty else { return }
+
+        await playerService.playQueue(
+            playableSongs,
+            startingAt: 0,
+            deferringSmartShuffleFill: false,
+            intent: intent
+        )
+        DiagnosticsLogger.ui.info("Playing playlist '\(playlist.title)' (\(playableSongs.count) songs)")
     }
 
     static func isRadioPlaylist(_ playlistId: String) -> Bool {

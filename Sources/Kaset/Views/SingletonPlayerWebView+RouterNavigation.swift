@@ -11,9 +11,54 @@ extension SingletonPlayerWebView {
             const previousRetry = window.__kasetAirPlayNavigationRetry;
             previousRetry?.cancel();
             const app = document.querySelector('ytmusic-app');
-            if (!app || typeof app.resolveCommand !== 'function') return false;
-
             const videoId = \(videoIdLiteral);
+
+            function findQueuePlayButton() {
+                if (typeof document.querySelectorAll !== 'function') return null;
+                const queueItems = Array.from(document.querySelectorAll(
+                    'ytmusic-player-queue-item, ytmusic-player-queue-item-renderer'
+                ));
+                if (queueItems.length === 0) return null;
+                function itemVideoId(item) {
+                    const data = item && (item.data || item.__data);
+                    if (!data) return '';
+                    return data.videoId
+                        || (data.playlistItemData && data.playlistItemData.videoId)
+                        || '';
+                }
+                function itemIsSelected(item) {
+                    return Boolean(
+                        item && typeof item.hasAttribute === 'function'
+                            && (item.hasAttribute('selected')
+                                || item.hasAttribute('is-playlist-panel-video-renderer-selected'))
+                    );
+                }
+                const selectedIndex = queueItems.findIndex(itemIsSelected);
+                const preferredNext = selectedIndex >= 0 ? queueItems[selectedIndex + 1] : null;
+                const matchingItem = (preferredNext && itemVideoId(preferredNext) === videoId)
+                    ? preferredNext
+                    : queueItems.find(item => itemVideoId(item) === videoId);
+                if (!matchingItem || typeof matchingItem.querySelector !== 'function') return null;
+                const playBtn = matchingItem.querySelector('ytmusic-play-button-renderer');
+                return (playBtn && typeof playBtn.click === 'function') ? playBtn : null;
+            }
+
+            function dispatchRouterCommand() {
+                if (app && typeof app.resolveCommand === 'function') {
+                    app.resolveCommand({ watchEndpoint: { videoId: videoId } });
+                    return true;
+                }
+                const playBtn = findQueuePlayButton();
+                if (playBtn) {
+                    playBtn.click();
+                    return true;
+                }
+                return false;
+            }
+
+            const hasLegacyRouter = Boolean(app && typeof app.resolveCommand === 'function');
+            const hasQueueTarget = Boolean(findQueuePlayButton());
+            if (!hasLegacyRouter && !hasQueueTarget) return false;
             const video = document.querySelector('video');
             const player = document.querySelector('ytmusic-player');
             const api = player && player.playerApi || document.getElementById('movie_player');
@@ -99,7 +144,9 @@ extension SingletonPlayerWebView {
                         // Keep ownership until media confirmation so a rapid skip
                         // can inherit the handoff while the wireless flag is false.
                         try {
-                            app.resolveCommand({ watchEndpoint: { videoId: videoId } });
+                            if (!dispatchRouterCommand()) {
+                                cancelRetry();
+                            }
                         } catch (_) {
                             cancelRetry();
                         }
@@ -130,7 +177,10 @@ extension SingletonPlayerWebView {
             }
 
             try {
-                app.resolveCommand({ watchEndpoint: { videoId: videoId } });
+                if (!dispatchRouterCommand()) {
+                    cancelRetry();
+                    return false;
+                }
                 return true;
             } catch (_) {
                 cancelRetry();

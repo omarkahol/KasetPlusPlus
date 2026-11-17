@@ -253,6 +253,11 @@ extension SingletonPlayerWebView {
             }
 
             function findPlayNextItem(menuItems) {
+                const iconTypeItem = Array.from(menuItems).find(item => {
+                    const data = item && (item.data || item.__data);
+                    return data && data.icon && data.icon.iconType === 'QUEUE_PLAY_NEXT';
+                });
+                if (iconTypeItem) return iconTypeItem;
                 const playNextPathData = "M6 2.86V5H3a1 1 0 00-1 1v12a1 1 0 102 0V7h2v2.137a.5.5 0 00.748.434L13 5.998 6.748 2.426A.5.5 0 006 2.86ZM21 5h-5a1 1 0 100 2h5a1 1 0 100-2Zm0 6H9a1 1 0 000 2h12a1 1 0 000-2Zm0 6H9a1 1 0 000 2h12a1 1 0 000-2Z";
                 const iconItem = Array.from(menuItems).find(item =>
                     typeof item.querySelector === 'function'
@@ -351,6 +356,15 @@ extension SingletonPlayerWebView {
 
                 try {
                     targetItem.click();
+                    const pc = targetItem.polymerController || targetItem.inst;
+                    if (pc && typeof pc.handleQueueAddEndpoint === 'function' && serviceEndpoint) {
+                        const clonedEndpoint = JSON.parse(JSON.stringify(serviceEndpoint));
+                        if (clonedEndpoint.queueAddEndpoint && clonedEndpoint.queueAddEndpoint.queueTarget) {
+                            clonedEndpoint.queueAddEndpoint.queueTarget.videoId = targetVideoId;
+                            clonedEndpoint.queueAddEndpoint.queueInsertPosition = 'INSERT_AFTER_CURRENT_VIDEO';
+                        }
+                        pc.handleQueueAddEndpoint(clonedEndpoint);
+                    }
                 } catch (_) {
                     restoreEndpoint();
                     report(false, 'play-next-click-threw');
@@ -394,6 +408,9 @@ extension SingletonPlayerWebView {
                     '.middle-controls-buttons.ytmusic-player-bar ytmusic-menu-renderer button'
                 );
                 if (menuRendererButton) return menuRendererButton;
+
+                const playerBarMenuButton = document.querySelector('ytmusic-player-bar ytmusic-menu-renderer button');
+                if (playerBarMenuButton) return playerBarMenuButton;
 
                 // Compatibility fallback for the newer player-bar button shape.
                 return Array.from(document.querySelectorAll('ytmusic-player-bar button')).find(button =>

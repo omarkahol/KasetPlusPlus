@@ -60,10 +60,11 @@ final class DirectStreamResolver {
         let task: Task<URL?, Never> = Task.detached {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: ytdlpPath)
-            // Extract the direct audio URL quickly without playlist, embed, or full metadata download
+            // Extract an AVPlayer-compatible audio stream URL quickly without full metadata download
             process.arguments = [
                 "-g",
-                "-f", "bestaudio/best",
+                "-f", "bestaudio[ext=m4a]/bestaudio[acodec^=mp4a]/best[ext=mp4]",
+                "--extractor-args", "youtube:player_client=android_vr;player_skip=webpage,configs",
                 "--no-playlist",
                 "--no-warnings",
                 "--socket-timeout", "3",
@@ -122,6 +123,11 @@ final class DirectStreamResolver {
         }
 
         return resolvedURL
+    }
+
+    /// Invalidates a cached stream URL for a video ID (e.g., if AVPlayer fails to open it).
+    func invalidate(videoId: String) {
+        self.cache.removeValue(forKey: videoId)
     }
 
     /// Clears any cached stream URLs.

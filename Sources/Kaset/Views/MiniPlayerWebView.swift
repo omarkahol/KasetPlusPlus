@@ -265,7 +265,8 @@ struct MiniPlayerWebView: NSViewRepresentable {
         let webView = SingletonPlayerWebView.shared.getWebView(
             webKitManager: self.webKitManager,
             playerService: self.playerService,
-            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore
+            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore,
+            suppressesHomePreload: true
         )
 
         // Remove existing handler if present to avoid duplicates, then add fresh one
@@ -698,11 +699,14 @@ final class SingletonPlayerWebView {
     func getWebView(
         webKitManager: WebKitManager,
         playerService: PlayerService,
-        usesCookieFreeDataStore: Bool = false
+        usesCookieFreeDataStore: Bool = false,
+        suppressesHomePreload: Bool = false
     ) -> WKWebView {
         self.releaseDeferredHomePreloadSuppressionIfNeeded(playerService: playerService)
         if let existing = webView, self.usesCookieFreeDataStore == usesCookieFreeDataStore {
-            self.preloadHomePageIfNeeded()
+            if !suppressesHomePreload {
+                self.preloadHomePageIfNeeded()
+            }
             return existing
         }
         let previousContainer = self.currentContainer
@@ -756,7 +760,9 @@ final class SingletonPlayerWebView {
         if let previousContainer {
             self.ensureInHierarchy(container: previousContainer)
         }
-        self.preloadHomePageIfNeeded()
+        if !suppressesHomePreload {
+            self.preloadHomePageIfNeeded()
+        }
         return newWebView
     }
 

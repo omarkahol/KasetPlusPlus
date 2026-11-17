@@ -391,6 +391,39 @@ struct AirPlayNavigationScriptTests {
         #expect(context.evaluateScript("window.__kasetAirPlayNavigationRetry === null")?.toBool() == true)
     }
 
+    @Test("Router navigation clicks matching queue play button when app.resolveCommand is unavailable")
+    func queuePlayButtonFallbackNavigatesWithoutResolveCommand() throws {
+        let context = try Self.makeContext(setup: """
+        app.resolveCommand = undefined;
+        var queueClickedVideoIds = [];
+        document.querySelectorAll = selector => {
+            if (selector.indexOf('ytmusic-player-queue-item') === -1) return [];
+            const otherItem = {
+                data: { videoId: 'other' },
+                hasAttribute: name => name === 'selected',
+                querySelector: () => ({ click: () => queueClickedVideoIds.push('other') })
+            };
+            const targetItem = {
+                data: { videoId: 'target' },
+                hasAttribute: () => false,
+                querySelector: sel => sel === 'ytmusic-play-button-renderer'
+                    ? { click: () => {
+                        currentVideoId = 'target';
+                        queueClickedVideoIds.push('target');
+                        requests.push('target');
+                    } }
+                    : null
+            };
+            return [otherItem, targetItem];
+        };
+        """)
+        let result = context.evaluateScript(SingletonPlayerWebView.routerNavigationScript(videoId: "target", generation: 1))
+
+        #expect(result?.toBool() == true)
+        #expect(context.exception == nil)
+        #expect(context.evaluateScript("queueClickedVideoIds")?.toArray() as? [String] == ["target"])
+    }
+
     private static func makeContext(setup: String = "") throws -> JSContext {
         let context = try #require(JSContext())
         Self.evaluate("""

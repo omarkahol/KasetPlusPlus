@@ -5,24 +5,17 @@ import Testing
 
 @Suite("Now playing claim", .serialized, .tags(.service))
 struct NowPlayingClaimTests {
-    @Test("Actively playing or starting yields hands-off (WebKit owns the card)")
-    func activePlaybackIsHandsOff() {
+    @Test("Actively playing or starting claims native playing state for music")
+    func activePlaybackClaimsPlaying() {
         let track = (title: "Song", artist: "Artist")
-        #expect(NowPlayingManager.desiredClaim(state: .playing, track: track, activeVideo: nil) == .handsOff)
-        #expect(NowPlayingManager.desiredClaim(state: .buffering, track: track, activeVideo: nil) == .handsOff)
-        #expect(NowPlayingManager.desiredClaim(state: .loading, track: track, activeVideo: nil) == .handsOff)
-    }
-
-    @Test("Confirmed web playback stays hands-off when paused")
-    func confirmedWebPlaybackStaysHandsOffWhenPaused() {
-        let track = (title: "Song", artist: "Artist")
-        #expect(NowPlayingManager.desiredClaim(
-            state: .paused,
-            track: track,
-            activeVideo: nil,
-            isPlayingOffline: false,
-            hasConfirmedWebPlayback: true
-        ) == .handsOff)
+        let expected = NowPlayingManager.NowPlayingClaim.claim(
+            title: "Song",
+            artist: "Artist",
+            playbackState: .playing
+        )
+        #expect(NowPlayingManager.desiredClaim(state: .playing, track: track, activeVideo: nil) == expected)
+        #expect(NowPlayingManager.desiredClaim(state: .buffering, track: track, activeVideo: nil) == expected)
+        #expect(NowPlayingManager.desiredClaim(state: .loading, track: track, activeVideo: nil) == expected)
     }
 
     @Test("Not playing with a track yields a minimal claim")

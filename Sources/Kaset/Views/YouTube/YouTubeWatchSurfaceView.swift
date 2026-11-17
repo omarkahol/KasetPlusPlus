@@ -50,6 +50,13 @@ struct YouTubeWatchLegacySurfaceView: NSViewRepresentable {
             selectedVideoId: self.youtubePlayer.currentVideo?.videoId
         )
     }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView _: YouTubeWatchContainerView, context _: Context) -> CGSize? {
+        if let width = proposal.width, width > 0 {
+            return CGSize(width: width, height: width * 9 / 16)
+        }
+        return nil
+    }
 }
 
 // MARK: - YouTubeWatchSurfaceAttachment

@@ -887,7 +887,7 @@ extension SingletonPlayerWebView.Coordinator {
         validatesBridgeContext: Bool,
         shouldContinue: @escaping @MainActor () -> Bool = { true }
     ) async {
-        guard shouldContinue() else { return }
+        guard shouldContinue(), !self.playerService.isPlayingOfflineTrack else { return }
 
         let isPlaying = body["isPlaying"] as? Bool ?? false
         let progress = SingletonPlayerWebView.finitePlaybackBridgeDouble(from: body["progress"]) ?? 0

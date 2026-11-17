@@ -142,6 +142,7 @@ extension PlayerService {
     /// Injection is deferred until playback is stable or the navigation delegate reports
     /// that the replacement document has finished loading.
     func syncWebQueue() {
+        guard !self.isPlayingOfflineTrack else { return }
         // Never manipulate the player-bar menu while its document is being replaced.
         guard self.state == .playing || self.state == .paused else { return }
         guard !SingletonPlayerWebView.shared.isDocumentNavigationInProgress else { return }

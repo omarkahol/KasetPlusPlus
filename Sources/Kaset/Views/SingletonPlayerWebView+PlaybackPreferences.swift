@@ -55,6 +55,32 @@ extension SingletonPlayerWebView {
                     localStorage.setItem('kasetUseNextPrev', '\(jsBoolean)');
                 } catch (e) {}
                 window.__kasetUseNextPrev = \(jsBoolean);
+
+                // Neutralize WebKit MediaSession metadata so only Kaset's native MPNowPlayingInfoCenter
+                // publishes the macOS Now Playing widget, preventing duplicate rows and ensuring high-res artwork.
+                try {
+                    var ms = navigator.mediaSession;
+                    if (ms) {
+                        try {
+                            Object.defineProperty(ms, 'metadata', {
+                                get: function() { return null; },
+                                set: function(_) {},
+                                configurable: true
+                            });
+                        } catch (e) {}
+                        try {
+                            Object.defineProperty(ms, 'playbackState', {
+                                get: function() { return 'none'; },
+                                set: function(_) {},
+                                configurable: true
+                            });
+                        } catch (e) {}
+                        if (typeof ms.setPositionState === 'function') {
+                            ms.setPositionState = function() {};
+                        }
+                    }
+                } catch (e) {}
+
                 // Wrap setActionHandler at document start so YouTube registrations cannot
                 // steal remote-command ownership. Seek handlers always stay native-owned;
                 // next/previous stay Kaset-owned in nextPrev mode unless Kaset is installing

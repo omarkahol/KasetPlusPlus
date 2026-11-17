@@ -364,6 +364,28 @@ struct QueueInjectionScriptTests {
         #expect(context.evaluateScript("queueVideoIds[1]")?.toString() == "target-video")
     }
 
+    @Test("Queue injection matches localized Play Next items via iconType")
+    func matchesLocalizedPlayNextViaIconType() throws {
+        let context = try #require(self.makeContext(
+            menuAvailableAfterLookup: 1,
+            itemLabel: "Riproduci dopo",
+            playNextIconType: "QUEUE_PLAY_NEXT"
+        ))
+
+        self.evaluate(
+            SingletonPlayerWebView.queueInjectionScript(
+                videoId: "target-video",
+                afterVideoId: "source-video"
+            ),
+            in: context
+        )
+        self.runTimersUntilMessage(in: context)
+
+        #expect(context.evaluateScript("lastMessage.success")?.toBool() == true)
+        #expect(context.evaluateScript("lastMessage.reason")?.toString() == "queue-readback-confirmed")
+        #expect(context.evaluateScript("clickedVideoId")?.toString() == "target-video")
+    }
+
     @Test("Queue injection dismisses the player menu on pre-dispatch failure")
     func dismissesMenuOnMissingPlayNextItem() throws {
         let context = try #require(self.makeContext(
@@ -473,6 +495,7 @@ struct QueueInjectionScriptTests {
         menuAvailableAfterLookup: Int,
         clickMode: String = "insertTarget",
         itemLabel: String = "Play next",
+        playNextIconType: String? = nil,
         originalVideoId: String = "source-video",
         currentVideoId: String? = nil,
         refreshMenuSourceOnTimer: Bool = false,
@@ -484,6 +507,7 @@ struct QueueInjectionScriptTests {
         guard let context = JSContext() else { return nil }
         let clickModeLiteral = SingletonPlayerWebView.javaScriptStringLiteral(clickMode)
         let itemLabelLiteral = SingletonPlayerWebView.javaScriptStringLiteral(itemLabel)
+        let playNextIconTypeLiteral = playNextIconType.map(SingletonPlayerWebView.javaScriptStringLiteral) ?? "null"
         let originalVideoIdLiteral = SingletonPlayerWebView.javaScriptStringLiteral(originalVideoId)
         let currentVideoIdLiteral = SingletonPlayerWebView.javaScriptStringLiteral(currentVideoId ?? originalVideoId)
         let initialQueueVideoIds = initialQueueVideoIds ?? [originalVideoId, "autoplay-video"]
@@ -582,6 +606,7 @@ struct QueueInjectionScriptTests {
                 getAttribute: function() { return ''; },
                 querySelector: function() { return null; },
                 data: {
+                    icon: \(playNextIconTypeLiteral) ? { iconType: \(playNextIconTypeLiteral) } : null,
                     serviceEndpoint: {
                         clickTrackingParams: 'tracking',
                         queueAddEndpoint: {

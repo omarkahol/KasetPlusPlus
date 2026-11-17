@@ -301,8 +301,8 @@ extension PlayerService {
             return
         }
 
-        // 2. Resolve stream URL ahead of time in the background so upcoming tracks start immediately
-        guard !UITestConfig.isRunningUnitTests else { return }
+        // 2. Resolve stream URL ahead of time in the background only when Fast Native Streaming is enabled
+        guard SettingsManager.shared.isFastNativeStreamingEnabled, !UITestConfig.isRunningUnitTests else { return }
         if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(videoId: nextSong.videoId, timeoutSeconds: 15.0) {
             NativeAudioPlayer.shared.preloadNext(url: streamURL, videoId: nextSong.videoId)
             self.logger.info("Preloaded next stream URL for gapless playback: \(nextSong.title)")
@@ -376,7 +376,9 @@ extension PlayerService {
 
         // Fast Native Streaming: play immediately if stream URL is already cached, otherwise
         // route straight to WebKit with zero delay and pre-resolve upcoming tracks in the background.
-        if let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId) {
+        if SettingsManager.shared.isFastNativeStreamingEnabled,
+           let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId)
+        {
             self.playOfflineTrack(
                 song: song,
                 fileURL: streamURL,
@@ -390,8 +392,10 @@ extension PlayerService {
             return
         }
 
-        self.directStreamTask = Task { [weak self] in
-            await self?.preloadNextQueueTrack()
+        if SettingsManager.shared.isFastNativeStreamingEnabled {
+            self.directStreamTask = Task { [weak self] in
+                await self?.preloadNextQueueTrack()
+            }
         }
 
         if self.isPlayingOfflineTrack {

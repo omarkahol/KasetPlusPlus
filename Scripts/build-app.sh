@@ -256,7 +256,7 @@ echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 # ── yt-dlp (bundled) ──────────────────────────────────────────────────────────
 
 YTDLP_BIN="$ROOT/.build/yt-dlp"
-YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
 if [[ ! -f "$YTDLP_BIN" ]]; then
   echo "⬇️  Downloading yt-dlp..."
   curl -sSL "$YTDLP_URL" -o "$YTDLP_BIN"
