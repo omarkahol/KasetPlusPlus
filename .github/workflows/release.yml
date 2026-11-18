@@ -434,8 +434,19 @@ jobs:
               $PRERELEASE_FLAG
           fi
 
+      - name: Check Homebrew token
+        id: homebrew_token
+        env:
+          HOMEBREW_REPO_TOKEN: ${{ secrets.HOMEBREW_REPO_TOKEN }}
+        run: |
+          if [ -n "$HOMEBREW_REPO_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout Homebrew tap repo
-        if: ${{ secrets.HOMEBREW_REPO_TOKEN != '' }}
+        if: steps.homebrew_token.outputs.enabled == 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           repository: sozercan/homebrew-repo
@@ -444,7 +455,7 @@ jobs:
           fetch-depth: 0
 
       - name: Update Homebrew Cask
-        if: ${{ secrets.HOMEBREW_REPO_TOKEN != '' }}
+        if: steps.homebrew_token.outputs.enabled == 'true'
         run: |
           TAG="${{ steps.artifact.outputs.tag }}"
           VERSION="${TAG#v}"
