@@ -59,7 +59,7 @@ jobs:
         run: rm -rf ~/Library/Caches/org.swift.swiftpm/artifacts
 
       - name: Run unit tests
-        run: swift test -q --skip KasetUITests
+        run: swift test -q --no-parallel --skip KasetUITests
 
       - name: Determine version from tag
         id: version
@@ -195,7 +195,7 @@ jobs:
           if [ "${{ steps.import_cert.outputs.signing_mode }}" = "developer-id" ]; then
             VERIFY_ARGS+=(--require-developer-id)
           fi
-          Scripts/verify-release-app.sh "${VERIFY_ARGS[@]}" .build/app/Kaset.app
+          Scripts/verify-release-app.sh "${VERIFY_ARGS[@]}" .build/app/KasetPlusPlus.app
 
       - name: Cache Homebrew
         id: cache-homebrew
@@ -211,15 +211,15 @@ jobs:
 
       - name: Create DMG
         run: |
-          APP_PATH=".build/app/Kaset.app"
+          APP_PATH=".build/app/KasetPlusPlus.app"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "Error: Could not find Kaset.app"
+            echo "Error: Could not find KasetPlusPlus.app"
             exit 1
           fi
 
           echo "Found app at: $APP_PATH"
-          rm -f kaset.dmg || true
+          rm -f KasetPlusPlus.dmg || true
 
           # Verify app version matches expected version
           PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")
@@ -232,8 +232,8 @@ jobs:
           fi
 
           # Verify Universal Binary (Intel + Apple Silicon)
-          if [ -f "$APP_PATH/Contents/MacOS/Kaset" ]; then
-            ARCHS=$(lipo -archs "$APP_PATH/Contents/MacOS/Kaset" 2>/dev/null || echo "unknown")
+          if [ -f "$APP_PATH/Contents/MacOS/KasetPlusPlus" ]; then
+            ARCHS=$(lipo -archs "$APP_PATH/Contents/MacOS/KasetPlusPlus" 2>/dev/null || echo "unknown")
           else
             ARCHS="unknown"
           fi
@@ -245,15 +245,15 @@ jobs:
 
           # Create styled DMG with Applications symlink
           create-dmg \
-            --volname "Kaset" \
+            --volname "KasetPlusPlus" \
             --window-pos 200 120 \
             --window-size 660 400 \
             --icon-size 100 \
-            --icon "Kaset.app" 180 190 \
+            --icon "KasetPlusPlus.app" 180 190 \
             --app-drop-link 480 190 \
-            --hide-extension "Kaset.app" \
+            --hide-extension "KasetPlusPlus.app" \
             --no-internet-enable \
-            kaset.dmg \
+            KasetPlusPlus.dmg \
             "$APP_PATH"
 
       - name: Determine artifact name
@@ -272,10 +272,10 @@ jobs:
           fi
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "filename=kaset-$TAG.dmg" >> "$GITHUB_OUTPUT"
+          echo "filename=KasetPlusPlus-$TAG.dmg" >> "$GITHUB_OUTPUT"
 
       - name: Rename DMG
-        run: mv kaset.dmg "${{ steps.artifact.outputs.filename }}"
+        run: mv KasetPlusPlus.dmg "${{ steps.artifact.outputs.filename }}"
 
       - name: Sign and notarize DMG
         env:
@@ -435,6 +435,7 @@ jobs:
           fi
 
       - name: Checkout Homebrew tap repo
+        if: ${{ secrets.HOMEBREW_REPO_TOKEN != '' }}
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
         with:
           repository: sozercan/homebrew-repo
@@ -443,6 +444,7 @@ jobs:
           fetch-depth: 0
 
       - name: Update Homebrew Cask
+        if: ${{ secrets.HOMEBREW_REPO_TOKEN != '' }}
         run: |
           TAG="${{ steps.artifact.outputs.tag }}"
           VERSION="${TAG#v}"
@@ -521,9 +523,9 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
               <channel>
-                  <title>Kaset Updates</title>
+                  <title>KasetPlusPlus Updates</title>
                   <link>https://github.com/${{ github.repository }}/releases</link>
-                  <description>Most recent updates for Kaset, a native macOS YouTube Music client.</description>
+                  <description>Most recent updates for KasetPlusPlus, a native macOS YouTube Music and YouTube client.</description>
                   <language>en</language>
 
                   <item>

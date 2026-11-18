@@ -374,28 +374,50 @@ extension PlayerService {
             return
         }
 
-        // Fast Native Streaming: play immediately if stream URL is already cached, otherwise
-        // route straight to WebKit with zero delay and pre-resolve upcoming tracks in the background.
-        if SettingsManager.shared.isFastNativeStreamingEnabled,
-           let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId)
-        {
-            self.playOfflineTrack(
-                song: song,
-                fileURL: streamURL,
-                queueEntryID: queueEntryID,
-                startsPaused: startsPaused,
-                restoreClock: restoreClock
-            )
-            self.directStreamTask = Task { [weak self] in
-                await self?.preloadNextQueueTrack()
+        // Fast Native Streaming: play immediately if stream URL is already cached, or resolve
+        // via InnerTube when Fast Native Streaming is enabled before falling back to WebKit.
+        if SettingsManager.shared.isFastNativeStreamingEnabled, !UITestConfig.isRunningUnitTests {
+            if let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId) {
+                self.playOfflineTrack(
+                    song: song,
+                    fileURL: streamURL,
+                    queueEntryID: queueEntryID,
+                    startsPaused: startsPaused,
+                    restoreClock: restoreClock
+                )
+                self.directStreamTask = Task { [weak self] in
+                    await self?.preloadNextQueueTrack()
+                }
+                return
             }
-            return
-        }
 
-        if SettingsManager.shared.isFastNativeStreamingEnabled {
-            self.directStreamTask = Task { [weak self] in
-                await self?.preloadNextQueueTrack()
+            self.currentTrack = song
+            self.activePlaybackQueueEntryID = queueEntryID
+            self.currentEpisode = episode
+            self.duration = song.duration ?? 0
+            self.progress = restoreClock?.progress ?? 0
+            self.currentTimeMs = Int(self.progress * 1000)
+            self.state = startsPaused ? .paused : .loading
+            self.applyInitialTrackStatus(from: song)
+
+            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(
+                videoId: song.videoId,
+                timeoutSeconds: 2.5
+            ) {
+                guard !Task.isCancelled, self.acceptsMusicPlaybackIntent(intent) else { return }
+                self.playOfflineTrack(
+                    song: song,
+                    fileURL: streamURL,
+                    queueEntryID: queueEntryID,
+                    startsPaused: startsPaused,
+                    restoreClock: restoreClock
+                )
+                self.directStreamTask = Task { [weak self] in
+                    await self?.preloadNextQueueTrack()
+                }
+                return
             }
+            guard !Task.isCancelled, self.acceptsMusicPlaybackIntent(intent) else { return }
         }
 
         if self.isPlayingOfflineTrack {

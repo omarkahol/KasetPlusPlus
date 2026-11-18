@@ -95,12 +95,13 @@ extension SingletonPlayerWebView {
             function scheduleRetry() {
                 if (typeof setTimeout !== 'function' || window.__kasetAutoplayRetryScheduled) return;
                 window.__kasetAutoplayRetryScheduled = true;
+                const retryDelayMs = 250 * Math.pow(2, attempts);
                 setTimeout(() => {
                     window.__kasetAutoplayRetryScheduled = false;
                     const currentVideo = document.querySelector('video');
                     if (!window.__kasetAutoplayPending || !currentVideo || !currentVideo.paused) return;
                     __kasetAttemptAutoplayRecovery(currentVideo, null);
-                }, 250);
+                }, retryDelayMs);
             }
 
             if (playBtn) {
@@ -414,7 +415,12 @@ extension SingletonPlayerWebView {
                         enforceVolumeNow();
                         sendUpdate(true);
                     });
-                    video.addEventListener('loadeddata', () => enforceVolumeNow());
+                    video.addEventListener('loadeddata', () => {
+                        enforceVolumeNow();
+                        if (window.__kasetAutoplayPending && !window.__kasetPlaybackSuppressed && video.paused) {
+                            recoverAutoplayIfNeeded();
+                        }
+                    });
                     function recoverAutoplayIfNeeded() {
                         bindMediaIdentity(video, false, false);
                         enforceVolumeNow();
@@ -424,16 +430,20 @@ extension SingletonPlayerWebView {
                         }
                         // Autoplay recovery: YTM sometimes leaves the video paused
                         // after navigation even with the WebKit autoplay allowance.
-                        const btn = document.querySelector('ytmusic-player-bar #play-pause-button')
-                            || document.querySelector('#play-pause-button')
-                            || document.querySelector('.play-pause-button.ytmusic-player-bar')
-                            || document.querySelector('.play-pause-button')
-                            || document.querySelector('tp-yt-paper-icon-button#play-pause-button')
-                            || document.querySelector('button[aria-label="Play"]');
-                        __kasetAttemptAutoplayRecovery(video, btn);
+                        // Pass null so recovery uses idempotent moviePlayer.playVideo()/video.play()
+                        // instead of clicking the play/pause toggle button (which can pause an
+                        // already-starting track when canplay and canplaythrough fire back-to-back).
+                        __kasetAttemptAutoplayRecovery(video, null);
                     }
 
                     video.addEventListener('canplay', recoverAutoplayIfNeeded);
+                    video.addEventListener('canplaythrough', () => {
+                        if (window.__kasetAutoplayPending && !window.__kasetPlaybackSuppressed && video.paused) {
+                            window.__kasetAutoplayAttempts = 0;
+                            window.__kasetAutoplayRetryScheduled = false;
+                        }
+                        recoverAutoplayIfNeeded();
+                    });
 
                     // Apply target volume immediately when video element is first detected
                     enforceVolumeNow();

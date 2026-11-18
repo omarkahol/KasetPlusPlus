@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>Kaset++</string>
+	<string>KasetPlusPlus</string>
 	<key>CFBundleName</key>
-	<string>Kaset++</string>
+	<string>KasetPlusPlus</string>
 
 	<!-- URL Scheme Registration -->
 	<key>CFBundleURLTypes</key>
@@ -24,7 +24,7 @@
 
 	<!-- Sparkle Auto-Update Configuration -->
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/Yoddikko/kasetPlus/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/omarkahol/KasetPlusPlus/main/appcast.xml</string>
 
 	<key>SUPublicEDKey</key>
 	<string>ev8BOn34ZbVJn2FonYjxi2tAtNDJmgCET3NcklUJl9o=</string>
@@ -51,11 +51,11 @@
 	<!-- Process tap on macOS 14.2+ is gated by Screen Recording / System Audio Recording TCC, -->
 	<!-- not microphone TCC, despite what the dialog button text might suggest. -->
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Kaset++ processes its own music output through a built-in equalizer. This permission only covers Kaset++'s own playback — no other app's audio is captured.</string>
+	<string>KasetPlusPlus processes its own music output through a built-in equalizer. This permission only covers KasetPlusPlus's own playback — no other app's audio is captured.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>Kaset++ taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
+	<string>KasetPlusPlus taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
 
-	<!-- Kaset++ support (Ko-fi) — Cloudflare Worker that records supporters and answers /kofi/verify -->
+	<!-- KasetPlusPlus support (Ko-fi) — Cloudflare Worker that records supporters and answers /kofi/verify -->
 	<key>SupportWorkerURL</key>
 	<string>https://kaset-lastfm.alessioiodiceuni.workers.dev</string>
 </dict>

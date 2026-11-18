@@ -692,3 +692,26 @@
 "1 Hour" = "1 Saat";
 "When Current Song Ends" = "Mevcut Şarkı Bittiğinde";
 "Turn Off Sleep Timer" = "Uyku Zamanlayıcısını Kapat";
+
+/* Synced missing keys from Localizable.xcstrings */
+"" = "";
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
+"Application ID" = "Application ID";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Connected to Discord." = "Connected to Discord.";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
+"Default" = "Default";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
+"Float on Top" = "Float on Top";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
+"Paused" = "Paused";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
+"Return to video" = "Return to video";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

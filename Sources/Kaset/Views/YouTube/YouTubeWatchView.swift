@@ -33,29 +33,17 @@ struct YouTubeWatchView: View {
     @State private var showsDownloadSheet = false
     @State private var showsSavePopover = false
 
-    /// Current width of the watch page content, used to decide whether the live
-    /// chat can sit beside the video (side-by-side) or must stack below it.
-    @State private var pageWidth: CGFloat = 0
-
-    /// Measured height of the video surface, so the side live-chat column can
-    /// match the video's height (like the official YouTube app).
-    @State private var videoSurfaceHeight: CGFloat = 0
-
-    /// Whether the on-video controls overlay is currently visible (shown while
-    /// the cursor is over the video, when "controls on video" is enabled).
-    @State private var overlayControlsVisible = false
-
-    /// Idle countdown that hides the on-video overlay after the pointer stops
-    /// moving for a few seconds (restarted on every movement).
-    @State private var overlayHideTask: Task<Void, Never>?
     @State private var commentSearchQuery = ""
     @State private var liveChatDraft = ""
 
     /// Whether the "Collaborators" picker (for multi-channel uploads) is showing.
     @State private var showsCollaborators = false
 
-    /// Active tab below the video in compact/narrow windows (Comments vs Suggested).
-    @State private var compactTab: CompactSectionTab = .comments
+    /// Whether the trailing inspector (Suggested / Comments / Live Chat) is open.
+    @AppStorage("youtubeWatchInspectorOpen") private var showsInspector = false
+
+    /// Active tab inside the trailing inspector.
+    @State private var inspectorTab: WatchInspectorTab = .suggested
 
     // AI video summary (on-device, macOS 26+). Stored as plain values so the
     // view doesn't reference the macOS-26-only VideoSummary type outside a guard.
@@ -92,35 +80,26 @@ struct YouTubeWatchView: View {
         )
     }
 
-    private var isWideLayout: Bool {
-        self.pageWidth >= 1000 && !self.settings.distractionFreeEnabled
+    private var isInspectorPresented: Binding<Bool> {
+        Binding(
+            get: { self.showsInspector && !self.settings.distractionFreeEnabled },
+            set: { self.showsInspector = $0 }
+        )
     }
 
     var body: some View {
-        ScrollView {
-            WatchPageLayout(
-                isWide: self.isWideLayout,
-                railWidth: Self.railWidth,
-                railSpacing: Self.railSpacing
-            ) {
-                self.videoSurface
-                    .contextMenu { self.videoContextMenu }
+        Group {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    self.videoSurface
+                        .contextMenu { self.videoContextMenu }
 
-                self.primaryBelowVideoColumn
-
-                if self.isWideLayout {
-                    self.secondaryContentColumn
+                    self.primaryBelowVideoColumn
                 }
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity)
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.size.width
-            } action: { newWidth in
-                if abs(newWidth - self.pageWidth) > 2 {
-                    self.pageWidth = newWidth
-                }
+                .frame(maxWidth: Self.maxVideoStageWidth, alignment: .leading)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity)
             }
         }
         .disabled(self.viewModel.ask.isExpanded)
@@ -142,6 +121,24 @@ struct YouTubeWatchView: View {
                     YouTubeAskToolbarButton(viewModel: self.viewModel.ask)
                 }
             }
+            if !self.settings.distractionFreeEnabled {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        self.showsInspector.toggle()
+                    } label: {
+                        Label(
+                            String(localized: "Suggested"),
+                            systemImage: "sidebar.right"
+                        )
+                    }
+                    .help(String(localized: "Suggested"))
+                    .keyboardShortcut("i", modifiers: [.command, .option])
+                }
+            }
+        }
+        .inspector(isPresented: self.isInspectorPresented) {
+            self.watchInspectorContent
+                .inspectorColumnWidth(min: 300, ideal: 360, max: 440)
         }
         .overlay {
             WatchAskFloatingOverlayHost(
@@ -182,26 +179,11 @@ struct YouTubeWatchView: View {
             .onDisappear {
                 self.viewModel.cancel()
                 self.youtubePlayer.inlineSurfaceWillDisappear(videoId: self.video.videoId)
-                self.overlayHideTask?.cancel()
                 if self.youtubePlayer.currentVideo?.videoId == self.video.videoId {
                     self.youtubePlayer.inlineVideoOnScreen = false
                 }
                 self.viewModel.stopLiveChat()
             }
-    }
-
-    /// Shows the on-video controls and (re)starts the idle countdown that hides
-    /// them ~5s after the pointer last moved.
-    private func revealOverlayControls() {
-        if !self.overlayControlsVisible {
-            withAnimation(.easeInOut(duration: 0.2)) { self.overlayControlsVisible = true }
-        }
-        self.overlayHideTask?.cancel()
-        self.overlayHideTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(5))
-            guard !Task.isCancelled, !self.youtubePlayer.isControlOverlayPinned else { return }
-            withAnimation(.easeInOut(duration: 0.2)) { self.overlayControlsVisible = false }
-        }
     }
 
     // MARK: - Ambient Style Picker
@@ -228,14 +210,9 @@ struct YouTubeWatchView: View {
 
     // MARK: - Responsive Layout Columns
 
-    /// Width of the right-hand related rail on wide displays.
-    static let railWidth: CGFloat = 380
+    private static let maxVideoStageWidth: CGFloat = 1120
 
-    /// Horizontal gap between the primary and secondary columns.
-    static let railSpacing: CGFloat = 24
-
-    /// Primary column below the video (metadata, description, chapters, and either
-    /// comments in wide mode or a Comments / Suggested toggle in compact mode).
+    /// Primary column below the video (metadata, description, summary, lyrics, chapters).
     private var primaryBelowVideoColumn: some View {
         VStack(alignment: .leading, spacing: 16) {
             self.metadataSection
@@ -262,58 +239,48 @@ struct YouTubeWatchView: View {
                     onSeek: self.seekToChapter
                 )
             }
-
-            if !self.settings.distractionFreeEnabled {
-                if self.isWideLayout {
-                    if !self.viewModel.hasLiveChat {
-                        Divider()
-                        self.commentsSection
-                    }
-                } else {
-                    Divider()
-                    self.compactSectionSwitcher
-                }
-            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Secondary column for wide windows (live chat + related videos).
-    private var secondaryContentColumn: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if self.viewModel.hasLiveChat {
-                self.liveChatSection(height: 480)
-            }
-            self.relatedColumn
-        }
-        .frame(width: Self.railWidth)
-    }
-
-    /// Segmented toggle in compact/small windows so users can switch immediately
-    /// between Comments (or Live Chat) and Suggested videos without scrolling.
-    private var compactSectionSwitcher: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Picker("", selection: self.$compactTab) {
-                Text(self.viewModel.hasLiveChat ? String(localized: "Live Chat") : String(localized: "Comments"))
-                    .tag(CompactSectionTab.comments)
+    /// Trailing macOS inspector hosting Suggested videos and Comments / Live Chat.
+    private var watchInspectorContent: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: self.$inspectorTab) {
                 Text(String(localized: "Suggested"))
-                    .tag(CompactSectionTab.suggested)
+                    .tag(WatchInspectorTab.suggested)
+                Text(self.viewModel.hasLiveChat ? String(localized: "Live Chat") : String(localized: "Comments"))
+                    .tag(WatchInspectorTab.comments)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
             .accessibilityLabel(String(localized: "Switch between comments and suggested videos"))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
 
-            switch self.compactTab {
+            Divider()
+
+            switch self.inspectorTab {
+            case .suggested:
+                ScrollView {
+                    self.relatedColumn
+                        .padding(16)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .comments:
                 if self.viewModel.hasLiveChat {
-                    self.liveChatSection(height: 440)
+                    self.liveChatSection(height: nil)
+                        .padding(16)
                 } else {
-                    self.commentsSection
+                    ScrollView {
+                        self.commentsSection
+                            .padding(16)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            case .suggested:
-                self.relatedColumn
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Video Surface
@@ -335,6 +302,7 @@ struct YouTubeWatchView: View {
         Color.black
             .aspectRatio(16 / 9, contentMode: .fit)
             .frame(maxWidth: .infinity)
+            .clipped()
             .overlay {
                 if self.presentsLiveSurface {
                     // Clean video surface. Controls live either in the docked bar or,
@@ -342,11 +310,8 @@ struct YouTubeWatchView: View {
                     // (reusing the exact same YouTubePlayerBar in `.videoOverlay` mode).
                     YouTubeWatchSurfaceView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay(alignment: .bottom) {
-                            if self.settings.controlsOnVideoEnabled, self.overlayControlsVisible {
-                                YouTubePlayerBar(mode: .videoOverlay)
-                                    .transition(.opacity)
-                            }
+                        .overlay {
+                            VideoHoverControlsOverlay()
                         }
                         // Loading state: the WebView surface is black until the stream
                         // is ready, so show a spinner over it instead of a blank frame.
@@ -392,21 +357,6 @@ struct YouTubeWatchView: View {
                         .overlay(alignment: .topTrailing) {
                             SponsorBlockSkipNoticeOverlay()
                                 .padding(16)
-                        }
-                        .onContinuousHover { phase in
-                            guard self.settings.controlsOnVideoEnabled else { return }
-                            switch phase {
-                            case .active:
-                                // Any pointer movement reveals the controls and restarts
-                                // the idle countdown.
-                                self.revealOverlayControls()
-                            case .ended:
-                                guard !self.youtubePlayer.isControlOverlayPinned else { return }
-                                self.overlayHideTask?.cancel()
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    self.overlayControlsVisible = false
-                                }
-                            }
                         }
                         // When the video scrolls out of the watch page, bring the docked
                         // bar back so playback stays controllable.
@@ -552,8 +502,8 @@ struct YouTubeWatchView: View {
                 FlowLayout(spacing: 8, lineSpacing: 8) { self.engagementButtons }
             }
 
-            // KasetPlus tools (Summary, Lyrics). Hidden for live streams.
-            if !self.isLiveStream {
+            // KasetPlus tools (Summary, Lyrics) and Inspector toggles (Suggested, Comments / Live Chat).
+            if !self.isLiveStream || !self.settings.distractionFreeEnabled {
                 FlowLayout(spacing: 8, lineSpacing: 8) { self.toolsButtons }
             }
 
@@ -611,9 +561,9 @@ struct YouTubeWatchView: View {
         .buttonStyle(.plain)
     }
 
-    /// KasetPlus-only tools: on-device AI summary and lyrics toggles.
+    /// KasetPlus-only tools: on-device AI summary, lyrics, and inspector toggles.
     @ViewBuilder private var toolsButtons: some View {
-        if self.aiSummaryAvailable {
+        if !self.isLiveStream, self.aiSummaryAvailable {
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     self.showsSummary.toggle()
@@ -622,37 +572,71 @@ struct YouTubeWatchView: View {
                     self.generateSummary()
                 }
             } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13))
-                    Text("Summary", comment: "Toggle AI video summary in YouTube watch view")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .padding(.horizontal, 13)
-                .frame(height: 34)
-                .compatGlass(interactive: true, tint: self.showsSummary ? Self.brandAccent : nil, in: Capsule())
+                self.togglePillLabel(
+                    systemImage: "sparkles",
+                    label: Text("Summary", comment: "Toggle AI video summary in YouTube watch view"),
+                    isActive: self.showsSummary
+                )
             }
             .buttonStyle(.plain)
-            .foregroundStyle(self.showsSummary ? Color.accentColor : .secondary)
         }
 
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                self.youtubePlayer.showsLyrics.toggle()
+        if !self.isLiveStream {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.youtubePlayer.showsLyrics.toggle()
+                }
+            } label: {
+                self.togglePillLabel(
+                    systemImage: self.youtubePlayer.showsLyrics ? "music.quarternote.3" : "music.note.list",
+                    label: Text("Lyrics", comment: "Toggle lyrics section in YouTube watch view"),
+                    isActive: self.youtubePlayer.showsLyrics
+                )
+            }
+            .buttonStyle(.plain)
+        }
+
+        if !self.settings.distractionFreeEnabled {
+            self.inspectorPillButton(
+                tab: .suggested,
+                systemImage: "play.square.stack",
+                label: Text(String(localized: "Suggested"))
+            )
+            self.inspectorPillButton(
+                tab: .comments,
+                systemImage: self.viewModel.hasLiveChat ? "bubble.left.and.bubble.right" : "text.bubble",
+                label: Text(self.viewModel.hasLiveChat ? String(localized: "Live Chat") : String(localized: "Comments"))
+            )
+        }
+    }
+
+    private func inspectorPillButton(tab: WatchInspectorTab, systemImage: String, label: Text) -> some View {
+        let isActive = self.showsInspector && self.inspectorTab == tab
+        return Button {
+            if self.showsInspector, self.inspectorTab == tab {
+                self.showsInspector = false
+            } else {
+                self.inspectorTab = tab
+                self.showsInspector = true
             }
         } label: {
-            HStack(spacing: 5) {
-                Image(systemName: self.youtubePlayer.showsLyrics ? "music.quarternote.3" : "music.note.list")
-                    .font(.system(size: 13))
-                Text("Lyrics", comment: "Toggle lyrics section in YouTube watch view")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .padding(.horizontal, 13)
-            .frame(height: 34)
-            .compatGlass(interactive: true, tint: self.youtubePlayer.showsLyrics ? Self.brandAccent : nil, in: Capsule())
+            self.togglePillLabel(systemImage: systemImage, label: label, isActive: isActive)
         }
         .buttonStyle(.plain)
-        .foregroundStyle(self.youtubePlayer.showsLyrics ? Color.accentColor : .secondary)
+    }
+
+    private func togglePillLabel(systemImage: String, label: Text, isActive: Bool) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13))
+                .foregroundStyle(isActive ? Self.brandAccent : .secondary)
+            label
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(isActive ? .primary : .secondary)
+        }
+        .padding(.horizontal, 13)
+        .frame(height: 34)
+        .compatGlass(interactive: true, in: Capsule())
     }
 
     private var watchURL: URL? {
@@ -1736,7 +1720,7 @@ struct YouTubeWatchView: View {
     /// at the top, the composer at the bottom, and the message list fills the
     /// space between — so beside the video the whole card matches the video
     /// height exactly instead of overshooting it.
-    private func liveChatSection(height: CGFloat) -> some View {
+    private func liveChatSection(height: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Circle()
@@ -1798,7 +1782,7 @@ struct YouTubeWatchView: View {
                 self.liveChatComposer
             }
         }
-        .frame(height: height, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: height == nil ? .infinity : height, alignment: .top)
     }
 
     private var liveChatComposer: some View {
@@ -2811,90 +2795,60 @@ private struct FlowLayout: Layout {
     }
 }
 
-// MARK: - CompactSectionTab
+// MARK: - VideoHoverControlsOverlay
 
-private enum CompactSectionTab: String, CaseIterable {
-    case comments
-    case suggested
+/// Isolated hover-reveal overlay for `YouTubePlayerBar(mode: .videoOverlay)` so
+/// pointer movement over the video never re-evaluates `YouTubeWatchView` or its inspector.
+private struct VideoHoverControlsOverlay: View {
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+    @State private var settings = SettingsManager.shared
+    @State private var overlayControlsVisible = false
+    @State private var overlayHideTask: Task<Void, Never>?
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            Color.clear
+                .contentShape(Rectangle())
+            if self.settings.controlsOnVideoEnabled, self.overlayControlsVisible {
+                YouTubePlayerBar(mode: .videoOverlay)
+                    .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onContinuousHover { phase in
+            guard self.settings.controlsOnVideoEnabled else { return }
+            switch phase {
+            case .active:
+                self.revealOverlayControls()
+            case .ended:
+                guard !self.youtubePlayer.isControlOverlayPinned else { return }
+                self.overlayHideTask?.cancel()
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.overlayControlsVisible = false
+                }
+            }
+        }
+        .onDisappear {
+            self.overlayHideTask?.cancel()
+        }
+    }
+
+    private func revealOverlayControls() {
+        if !self.overlayControlsVisible {
+            withAnimation(.easeInOut(duration: 0.2)) { self.overlayControlsVisible = true }
+        }
+        self.overlayHideTask?.cancel()
+        self.overlayHideTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(5))
+            guard !Task.isCancelled, !self.youtubePlayer.isControlOverlayPinned else { return }
+            withAnimation(.easeInOut(duration: 0.2)) { self.overlayControlsVisible = false }
+        }
+    }
 }
 
-// MARK: - WatchPageLayout
+// MARK: - WatchInspectorTab
 
-/// Arranges the video surface, primary column below it, and optional right-hand rail
-/// without changing `videoSurface`'s structural identity across window resizes.
-private struct WatchPageLayout: Layout {
-    let isWide: Bool
-    let railWidth: CGFloat
-    let railSpacing: CGFloat
-
-    func sizeThatFits(
-        proposal: ProposedViewSize,
-        subviews: Subviews,
-        cache _: inout ()
-    ) -> CGSize {
-        guard !subviews.isEmpty else { return .zero }
-        let totalWidth = max(320, proposal.width ?? 1000)
-
-        if self.isWide, subviews.count >= 2 {
-            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            let railSize = subviews.count > 2
-                ? subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
-                : .zero
-            let leftHeight = videoSize.height + 16 + belowSize.height
-            return CGSize(width: totalWidth, height: max(leftHeight, railSize.height))
-        } else {
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-            let belowSize = subviews.count > 1
-                ? subviews[1].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-                : .zero
-            let height = subviews.count > 1 ? videoSize.height + 16 + belowSize.height : videoSize.height
-            return CGSize(width: totalWidth, height: height)
-        }
-    }
-
-    func placeSubviews(
-        in bounds: CGRect,
-        proposal _: ProposedViewSize,
-        subviews: Subviews,
-        cache _: inout ()
-    ) {
-        guard !subviews.isEmpty else { return }
-        let totalWidth = bounds.width
-
-        if self.isWide, subviews.count >= 2 {
-            let leftWidth = max(320, totalWidth - self.railWidth - self.railSpacing)
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            subviews[0].place(
-                at: CGPoint(x: bounds.minX, y: bounds.minY),
-                proposal: ProposedViewSize(width: leftWidth, height: videoSize.height)
-            )
-            let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: leftWidth, height: nil))
-            subviews[1].place(
-                at: CGPoint(x: bounds.minX, y: bounds.minY + videoSize.height + 16),
-                proposal: ProposedViewSize(width: leftWidth, height: belowSize.height)
-            )
-            if subviews.count > 2 {
-                let railSize = subviews[2].sizeThatFits(ProposedViewSize(width: self.railWidth, height: nil))
-                subviews[2].place(
-                    at: CGPoint(x: bounds.minX + leftWidth + self.railSpacing, y: bounds.minY),
-                    proposal: ProposedViewSize(width: self.railWidth, height: railSize.height)
-                )
-            }
-        } else {
-            let videoSize = subviews[0].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-            subviews[0].place(
-                at: CGPoint(x: bounds.minX, y: bounds.minY),
-                proposal: ProposedViewSize(width: totalWidth, height: videoSize.height)
-            )
-            if subviews.count > 1 {
-                let belowSize = subviews[1].sizeThatFits(ProposedViewSize(width: totalWidth, height: nil))
-                subviews[1].place(
-                    at: CGPoint(x: bounds.minX, y: bounds.minY + videoSize.height + 16),
-                    proposal: ProposedViewSize(width: totalWidth, height: belowSize.height)
-                )
-            }
-        }
-    }
+private enum WatchInspectorTab: String, CaseIterable {
+    case suggested
+    case comments
 }

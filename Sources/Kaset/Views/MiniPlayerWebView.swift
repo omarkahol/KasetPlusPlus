@@ -2004,6 +2004,12 @@ extension SingletonPlayerWebView {
             if (window.__kasetAutoplayPending) {
                 window.__kasetAutoplayAttempts = 0;
                 window.__kasetAutoplayRetryScheduled = false;
+                const v = typeof document !== 'undefined' && typeof document.querySelector === 'function'
+                    ? document.querySelector('video')
+                    : null;
+                if (v && v.readyState >= 3 && v.paused && typeof window.__kasetAttemptAutoplayRecovery === 'function') {
+                    window.__kasetAttemptAutoplayRecovery(v, null);
+                }
             }
             if (!window.__kasetAutoplayPending) { document.querySelector('video')?.pause(); }
             return 'synced';

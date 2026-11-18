@@ -102,6 +102,35 @@ final class DownloadManager {
     private init() {
         self.loadIndex()
         self.cleanupLegacyVideosDirectory()
+        _ = Self.cleanupOrphanedPartialFiles(in: [self.musicDirectory, self.videosDirectory])
+        SpotlightIndexService.shared.reindexAll(self.downloadedSongs, baseDirectory: self.downloadsDirectory)
+    }
+
+    /// Removes orphaned `.part`, `.ytdl`, and `.temp` partial-download files left behind by interrupted runs.
+    @discardableResult
+    static func cleanupOrphanedPartialFiles(
+        in directories: [URL],
+        fileManager: FileManager = .default
+    ) -> Int {
+        let partialExtensions: Set<String> = ["part", "ytdl", "temp"]
+        var removedCount = 0
+        for directory in directories {
+            guard let contents = try? fileManager.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) else { continue }
+            for fileURL in contents {
+                let ext = fileURL.pathExtension.lowercased()
+                let name = fileURL.lastPathComponent.lowercased()
+                if partialExtensions.contains(ext) || name.contains(".part-frag") {
+                    if (try? fileManager.removeItem(at: fileURL)) != nil {
+                        removedCount += 1
+                    }
+                }
+            }
+        }
+        return removedCount
     }
 
     // MARK: - Directories
@@ -207,43 +236,12 @@ final class DownloadManager {
             return custom
         }
 
-        // 1. Common Homebrew and system paths (avoids ~20s PyInstaller single-file unpack overhead)
-        for path in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        }
-
-        // 2. System PATH lookup
-        if let resolved = Self.resolveBinaryInPath("yt-dlp") {
-            return resolved
-        }
-
-        // 3. App bundle resource fallback
-        if let resourcePath = Bundle.main.resourcePath {
-            let bundled = (resourcePath as NSString).appendingPathComponent("yt-dlp")
-            if FileManager.default.isExecutableFile(atPath: bundled) {
-                return bundled
-            }
-        }
-
-        return nil
+        return YTDLPBinaryLocator.shared.ytdlpPath()
     }
 
     /// Resolved executable path for `ffmpeg`.
     var ffmpegPath: String? {
-        let custom = SettingsManager.shared.customFfmpegPath.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !custom.isEmpty, FileManager.default.isExecutableFile(atPath: custom) {
-            return custom
-        }
-
-        for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"] {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        }
-
-        return Self.resolveBinaryInPath("ffmpeg")
+        YTDLPBinaryLocator.shared.ffmpegPath(customPath: SettingsManager.shared.customFfmpegPath)
     }
 
     var isYtdlpAvailable: Bool {
@@ -252,25 +250,6 @@ final class DownloadManager {
 
     var isFfmpegAvailable: Bool {
         self.ffmpegPath != nil
-    }
-
-    private static func resolveBinaryInPath(_ name: String) -> String? {
-        let which = Process()
-        which.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        which.arguments = ["which", name]
-        let pipe = Pipe()
-        which.standardOutput = pipe
-        which.standardError = FileHandle.nullDevice
-        do {
-            try which.run()
-            which.waitUntilExit()
-            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        } catch {}
-        return nil
     }
 
     // MARK: - Query Status
@@ -425,6 +404,7 @@ final class DownloadManager {
 
             self.downloadedSongs.remove(at: index)
             self.saveIndex()
+            SpotlightIndexService.shared.remove(videoId: videoId)
         }
 
         self.activeDownloads.removeValue(forKey: videoId)
@@ -506,9 +486,9 @@ final class DownloadManager {
         args.append("https://www.youtube.com/watch?v=\(videoId)")
         proc.arguments = args
 
-        // Configure environment with standard Homebrew paths so yt-dlp can locate external tools
+        // Configure environment with standard Homebrew and deno paths so yt-dlp can locate external tools
         var env = ProcessInfo.processInfo.environment
-        let extraPaths = "/opt/homebrew/bin:/usr/local/bin"
+        let extraPaths = "/opt/homebrew/bin:/usr/local/bin:\(NSHomeDirectory())/.deno/bin"
         if let currentPath = env["PATH"] {
             env["PATH"] = "\(extraPaths):\(currentPath)"
         } else {
@@ -803,6 +783,7 @@ final class DownloadManager {
         self.downloadedSongs.removeAll { $0.videoId == videoId }
         self.downloadedSongs.insert(downloaded, at: 0)
         self.saveIndex()
+        SpotlightIndexService.shared.index(downloaded, baseDirectory: self.downloadsDirectory)
     }
 
     /// Migrates any files from the legacy `Videos` subfolder into `videosDirectory` and removes the folder.

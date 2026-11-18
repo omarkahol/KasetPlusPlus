@@ -1,4 +1,5 @@
 import AppKit
+import os
 import SwiftUI
 
 // MARK: - PersistentPlayerView
@@ -223,9 +224,10 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
     }
 
     private var hoverChrome: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 8) {
             self.trafficLights
-            Spacer()
+                .fixedSize()
+            Spacer(minLength: 8)
             self.hoverCommandPill
                 .opacity(self.showsCommandPill ? 1 : 0)
                 .blur(radius: self.showsCommandPill ? 0 : 5)
@@ -233,7 +235,7 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                 .animation(AppAnimation.snappy, value: self.showsCommandPill)
         }
         .padding(.top, Self.Layout.chromeTopInset)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
     }
 
     private var compactBody: some View {
@@ -249,7 +251,7 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                         .font(.system(size: 10, weight: .medium))
                         .opacity(0.8)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .overlay { WindowDragHandle() }
 
                 self.hoverOnly {
@@ -284,8 +286,8 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                             .font(.system(size: 10, weight: .medium))
                             .opacity(0.76)
                     }
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .overlay { WindowDragHandle() }
-                    Spacer()
                     self.hoverOnly {
                         self.trackActionButtons
                     }
@@ -316,7 +318,7 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                             .font(.system(size: 10, weight: .medium))
                             .opacity(0.8)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     .overlay { WindowDragHandle() }
 
                     self.hoverOnly {
@@ -367,7 +369,19 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
     }
 
     private var hoverCommandPill: some View {
-        HStack(spacing: 11) {
+        ViewThatFits(in: .horizontal) {
+            self.hoverCommandPillContent(spacing: 9, horizontalPadding: 9, collapsesSecondaryActions: false)
+            self.hoverCommandPillContent(spacing: 6, horizontalPadding: 7, collapsesSecondaryActions: false)
+            self.hoverCommandPillContent(spacing: 6, horizontalPadding: 7, collapsesSecondaryActions: true)
+        }
+    }
+
+    private func hoverCommandPillContent(
+        spacing: CGFloat,
+        horizontalPadding: CGFloat,
+        collapsesSecondaryActions: Bool
+    ) -> some View {
+        HStack(spacing: spacing) {
             self.hoverIconButton(
                 systemName: "macwindow",
                 accessibilityID: AccessibilityID.MiniPlayer.returnToKasetButton,
@@ -413,18 +427,47 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
                 }
             }
 
-            self.airPlayButton
+            if collapsesSecondaryActions {
+                self.hoverIconButton(systemName: self.volumeIcon, accessibilityID: AccessibilityID.MiniPlayer.volumeButton, label: String(localized: "Volume"), isActive: self.playerService.isMuted) {
+                    Task { await self.playerService.toggleMute() }
+                }
 
-            self.hoverIconButton(systemName: self.volumeIcon, accessibilityID: AccessibilityID.MiniPlayer.volumeButton, label: String(localized: "Volume"), isActive: self.playerService.isMuted) {
-                Task { await self.playerService.toggleMute() }
+                Menu {
+                    Button(self.playerService.isAirPlayConnected ? String(localized: "AirPlay Connected") : String(localized: "AirPlay")) {
+                        HapticService.toggle()
+                        self.playerService.showAirPlayPicker(at: self.airPlayAnchor.screenPoint)
+                    }
+                    if let currentTrack = self.playerService.currentTrack,
+                       !self.downloadManager.isDownloaded(videoId: currentTrack.videoId)
+                    {
+                        Button(String(localized: "Download for Offline Playback")) {
+                            self.downloadManager.download(song: currentTrack)
+                        }
+                    }
+                } label: {
+                    MiniPlayerGlassIconLabel(systemName: "ellipsis", isActive: false, size: 22)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 22, height: 22)
+                .compatGlass(interactive: true, in: .circle)
+                .shadow(color: .black.opacity(0.46), radius: 7, y: 2)
+                .accessibilityLabel(String(localized: "More options"))
+            } else {
+                self.airPlayButton
+
+                self.hoverIconButton(systemName: self.volumeIcon, accessibilityID: AccessibilityID.MiniPlayer.volumeButton, label: String(localized: "Volume"), isActive: self.playerService.isMuted) {
+                    Task { await self.playerService.toggleMute() }
+                }
+
+                self.downloadButton
             }
-
-            self.downloadButton
         }
         .font(.system(size: 14, weight: .semibold))
         .foregroundStyle(.white.opacity(0.94))
-        .padding(.horizontal, 10)
+        .padding(.horizontal, horizontalPadding)
         .frame(height: 30)
+        .fixedSize(horizontal: true, vertical: false)
         .background(.black.opacity(0.18), in: .capsule)
         .compatGlass(interactive: true, in: .capsule)
         .overlay {
@@ -755,6 +798,7 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
             }
             .controlSize(.small)
             .tint(SettingsManager.shared.accentColor)
+            .layoutPriority(1)
             .disabled(
                 self.playerService.duration <= 0
                     || self.playerService.isCurrentItemLive
@@ -770,7 +814,6 @@ struct MiniPlayerWindow: View { // swiftlint:disable:this type_body_length
             .monospacedDigit()
             .foregroundStyle(.white.opacity(0.76))
             .shadow(color: .black.opacity(0.56), radius: 2, y: 1)
-            .overlay { WindowDragHandle() }
         }
     }
 

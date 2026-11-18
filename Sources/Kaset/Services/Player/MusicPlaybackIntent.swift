@@ -11,6 +11,54 @@ struct MusicPlaybackIntent: Equatable {
     let generation: UInt64
 }
 
+// MARK: - MusicPlaybackIntentPhase
+
+/// Typed state-machine representation of the music player's intent across
+/// loading, buffering, user pause, and interruption transitions.
+enum MusicPlaybackIntentPhase: Equatable, Sendable {
+    case idle
+    case loading(awaitingConfirmation: Bool)
+    case playing
+    case pausedByUser
+    case pausedByInterruption
+    case ended
+
+    var isAwaitingConfirmation: Bool {
+        self == .loading(awaitingConfirmation: true)
+    }
+
+    var shouldResumeAfterInterruption: Bool {
+        switch self {
+        case .loading, .playing, .pausedByInterruption:
+            true
+        case .idle, .pausedByUser, .ended:
+            false
+        }
+    }
+
+    var isExplicitPauseIntentActive: Bool {
+        self == .pausedByUser
+    }
+
+    func applyingObservedPlayback(
+        isPlaying: Bool,
+        currentState: PlayerService.PlaybackState
+    ) -> MusicPlaybackIntentPhase {
+        if isPlaying {
+            return self == .pausedByUser ? .pausedByUser : .playing
+        }
+        switch self {
+        case .loading(awaitingConfirmation: true):
+            // Preserve loading/buffering intent while awaiting initial playback confirmation.
+            return self
+        case .playing, .loading(awaitingConfirmation: false):
+            return currentState == .ended ? .ended : .pausedByInterruption
+        case .idle, .pausedByUser, .pausedByInterruption, .ended:
+            return self
+        }
+    }
+}
+
 // MARK: - MusicRemoteTransportCommand
 
 enum MusicRemoteTransportCommand: Equatable {

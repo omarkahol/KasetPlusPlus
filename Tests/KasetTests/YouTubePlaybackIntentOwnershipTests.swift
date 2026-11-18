@@ -7,7 +7,10 @@ struct YouTubePlaybackIntentOwnershipTests {
     @Test("SPA drift uses bridge event time for remote-command admission")
     func driftUsesBridgeEventTimeForRemoteCommandAdmission() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
         service.youtubePlaybackIntentIssuedAtMilliseconds = 1000
 
@@ -91,7 +94,10 @@ struct YouTubePlaybackIntentOwnershipTests {
     @Test("A native intent resets a future-poisoned remote-command boundary")
     func nativeIntentResetsFutureBoundary() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.youtubePlaybackIntentIssuedAtMilliseconds = 9_000_000_000_000_000
 
         service.beginYouTubePlaybackIntent()
@@ -107,7 +113,10 @@ struct YouTubePlaybackIntentOwnershipTests {
     @Test("An equal-timestamp native intent clears remote-command ownership")
     func equalTimestampNativeIntentClearsRemoteOwnership() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.youtubePlaybackIntentIssuedAtMilliseconds = 1000
         service.handleRemotePause(issuedAtMilliseconds: 2000)
 
@@ -121,7 +130,10 @@ struct YouTubePlaybackIntentOwnershipTests {
     @Test("An older bridge intent preserves newer remote-command ownership")
     func olderBridgeIntentPreservesRemoteOwnership() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.youtubePlaybackIntentIssuedAtMilliseconds = 1000
         service.handleRemotePause(issuedAtMilliseconds: 2000)
 

@@ -19,41 +19,7 @@ final class YouTubeDownloadService {
     /// Bundled yt-dlp binary (included in app Resources by build script).
     /// Falls back to system-installed yt-dlp and common paths.
     private var ytdlpPath: String? {
-        // 1. Direct resource path (more reliable than path(forResource:) for extensionless files)
-        if let resourcePath = Bundle.main.resourcePath {
-            let bundledPath = (resourcePath as NSString).appendingPathComponent("yt-dlp")
-            if FileManager.default.isExecutableFile(atPath: bundledPath) {
-                return bundledPath
-            }
-        }
-        // 2. path(forResource:) as fallback
-        if let path = Bundle.main.path(forResource: "yt-dlp", ofType: nil),
-           FileManager.default.isExecutableFile(atPath: path) {
-            return path
-        }
-        // 3. System-installed yt-dlp (Homebrew, etc.)
-        for sysPath in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
-            if FileManager.default.isExecutableFile(atPath: sysPath) {
-                return sysPath
-            }
-        }
-        // 4. PATH lookup
-        let which = Process()
-        which.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        which.arguments = ["which", "yt-dlp"]
-        let pipe = Pipe()
-        which.standardOutput = pipe
-        which.standardError = FileHandle.nullDevice
-        do {
-            try which.run()
-            which.waitUntilExit()
-            let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !path.isEmpty, FileManager.default.isExecutableFile(atPath: path) {
-                return path
-            }
-        } catch {}
-        return nil
+        YTDLPBinaryLocator.shared.ytdlpPath()
     }
 
     /// Whether yt-dlp is reachable (bundled or system).
@@ -97,41 +63,31 @@ final class YouTubeDownloadService {
 
     /// Fetches available download formats for a YouTube video.
     func fetchFormats(videoId: String) async -> [DownloadFormat] {
-        guard let ytdlpPath, let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)") else { return [] }
+        guard let ytdlpPath = await YTDLPBinaryLocator.shared.resolveYtdlpPath(),
+              let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)")
+        else { return [] }
         let env = Self.configuredEnvironment(customFfmpegPath: SettingsManager.shared.customFfmpegPath)
 
-        return await Task.detached(priority: .userInitiated) {
-            let proc = Process()
-            proc.executableURL = URL(fileURLWithPath: ytdlpPath)
-            proc.arguments = ["-J", "--no-playlist", "--socket-timeout", "20", url.absoluteString]
-            proc.environment = env
-            let outPipe = Pipe()
-            let errPipe = Pipe()
-            proc.standardOutput = outPipe
-            proc.standardError = errPipe
+        guard let output = await AsyncProcessRunner.run(
+            executableURL: URL(fileURLWithPath: ytdlpPath),
+            arguments: ["-J", "--no-playlist", "--socket-timeout", "20", url.absoluteString],
+            environment: env,
+            timeoutSeconds: 25.0,
+            maxOutputBytes: 8_388_608
+        ) else {
+            return []
+        }
 
-            var outData = Data()
-            do {
-                try proc.run()
-                // MUST read pipe BEFORE waitUntilExit — otherwise pipe buffer fills up and process deadlocks
-                outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-                proc.waitUntilExit()
-            } catch {
-                return [DownloadFormat]()
+        guard !output.stdout.isEmpty,
+              let json = try? JSONSerialization.jsonObject(with: output.stdout) as? [String: Any],
+              let formats = json["formats"] as? [[String: Any]]
+        else {
+            if let errStr = String(data: output.stderr, encoding: .utf8), !errStr.isEmpty {
+                DiagnosticsLogger.app.error("yt-dlp stderr: \(errStr)")
             }
-
-            guard !outData.isEmpty,
-                  let json = try? JSONSerialization.jsonObject(with: outData) as? [String: Any],
-                  let formats = json["formats"] as? [[String: Any]]
-            else {
-                let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
-                if let errStr = String(data: errData, encoding: .utf8), !errStr.isEmpty {
-                    DiagnosticsLogger.app.error("yt-dlp stderr: \(errStr)")
-                }
-                return [DownloadFormat]()
-            }
-            return Self.parseFormatsStatic(formats)
-        }.value
+            return []
+        }
+        return Self.parseFormatsStatic(formats)
     }
 
     private nonisolated static func parseFormatsStatic(_ formats: [[String: Any]]) -> [DownloadFormat] {

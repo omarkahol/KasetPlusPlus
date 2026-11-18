@@ -7,6 +7,7 @@ import SwiftUI
 /// Main application window with sidebar navigation and player bar.
 struct MainWindow: View { // swiftlint:disable:this type_body_length
     private static let accountResolutionGateTimeout: Duration = .seconds(2)
+    private static let playlistDeletionActionID = UUID()
 
     private struct PresentedWhatsNew: Identifiable {
         let whatsNew: WhatsNew
@@ -980,10 +981,10 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
                     .navigationDestinations(client: client)
                 }
                 .environment(\.libraryViewModel, self.libraryViewModel)
-                .environment(\.onPlaylistDeleted) {
+                .environment(\.onPlaylistDeleted, PlaylistDeletionAction(id: Self.playlistDeletionActionID) {
                     self.selectedSidebarPinnedItem = nil
                     self.navigationSelection = .home
-                }
+                })
             }
         }
     }

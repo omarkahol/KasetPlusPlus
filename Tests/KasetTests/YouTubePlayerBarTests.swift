@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import SwiftUI
 import Testing
 @testable import KasetPlus
 
@@ -90,6 +92,80 @@ struct YouTubePlayerBarTests {
         #expect(segments[1].rangeText == "1:20 – 3:00")
         #expect(abs(segments[2].start - (180.0 / 300.0)) < 0.000_001)
         #expect(segments[2].end == 1)
+    }
+
+    @Test("Options width accommodates all buttons in full and reduced tiers")
+    func optionsWidthAccommodatesReducedButtons() {
+        let reducedWidth = YouTubePlayerBar.youtubeOptionsWidth(tier: .reduced)
+        // Four 28pt buttons + three 6pt gaps + 12pt trailing padding = 142pt minimum.
+        #expect(reducedWidth >= 142)
+        #expect(reducedWidth == 144)
+        #expect(YouTubePlayerBar.youtubeOptionsWidth(tier: .full) == 246)
+        // Eight buttons (with alternate audio track): 8*28 + 7*6 + 12 = 278pt.
+        #expect(
+            YouTubePlayerBar.youtubeOptionsWidth(
+                tier: .full,
+                hasPersonalAccount: true,
+                isLive: false,
+                hasAlternateAudio: true
+            ) == 278
+        )
+    }
+
+    @Test("Bar layout metrics keep scrubber uncrowded and prevent overflow across supported widths")
+    func barLayoutMetricsPreventOverflowAcrossWidths() {
+        let widths: [CGFloat] = [480, 512, 608, 680, 728, 737, 840, 1024]
+        for width in widths {
+            let metrics = YouTubePlayerBar.layoutMetrics(
+                forBarWidth: width,
+                hasPersonalAccount: true,
+                isLive: false,
+                hasAlternateAudio: true
+            )
+            let spacing: CGFloat = metrics.showsDetails ? 20 : 10
+            let expectedLeadingPadding: CGFloat = metrics.showsDetails ? 0 : 14
+            #expect(metrics.leadingPadding == expectedLeadingPadding)
+            #expect(
+                metrics.leadingPadding + metrics.detailsWidth + metrics.optionsWidth + spacing + metrics.progressWidth == width
+            )
+            #expect(metrics.progressWidth >= 248)
+        }
+    }
+
+    @Test("Minimum detached video bar preserves 14pt leading inset and fits H:MM:SS timestamps")
+    func minimumDetachedBarPreservesLeadingInset() {
+        // Detached video window minimum content width = 512pt; outer horizontal padding = 32pt -> 480pt bar.
+        let metrics = YouTubePlayerBar.layoutMetrics(
+            forBarWidth: 480,
+            hasPersonalAccount: true,
+            isLive: false,
+            hasAlternateAudio: true
+        )
+        #expect(!metrics.showsDetails)
+        #expect(metrics.leadingPadding == 14)
+        #expect(metrics.progressWidth == 312)
+
+        let lane = PlayerBarProgressLane(
+            fraction: 0.4,
+            accent: .red,
+            elapsedText: "1:23:45",
+            remainingText: "-1:23:45",
+            isLive: false,
+            canSeek: true,
+            isLoading: false,
+            onScrub: { _ in },
+            onCommit: {},
+            inlineTimestamps: true
+        )
+        .padding(.leading, metrics.leadingPadding)
+        .frame(width: metrics.leadingPadding + metrics.progressWidth, height: 52)
+
+        let host = NSHostingView(rootView: lane)
+        host.frame = NSRect(x: 0, y: 0, width: metrics.leadingPadding + metrics.progressWidth, height: 52)
+        host.layoutSubtreeIfNeeded()
+
+        #expect(host.fittingSize.width <= metrics.leadingPadding + metrics.progressWidth)
+        #expect(host.frame.minX >= 0)
     }
 
     private func chapter(

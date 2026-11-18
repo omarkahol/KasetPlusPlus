@@ -1,4 +1,5 @@
 import FoundationModels
+import os
 import SwiftUI
 
 /// Right sidebar panel displaying lyrics for the current track.

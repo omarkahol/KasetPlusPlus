@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build script to create KasetPlus.app bundle
+# Build script to create KasetPlusPlus.app bundle
 
 set -euo pipefail
 
@@ -13,7 +13,8 @@ source "$ROOT/version.env"
 CONF=${1:-release}
 SIGNING_MODE=${KASET_SIGNING:-dev}
 SKIP_MAIN_ASSETS=${KASET_SKIP_MAIN_ASSETS:-0}
-APP_NAME="KasetPlus"
+PRODUCT_NAME="KasetPlus"
+APP_NAME="KasetPlusPlus"
 BUNDLE_ID="com.sertacozercan.KasetPlus"
 DEVELOPMENT_LOCALIZATION="en"
 BUILD_DIR="$ROOT/.build/app"
@@ -233,8 +234,8 @@ mkdir -p "$BUILD_DIR"
 # some SwiftPM layouts reuse one products directory for every --arch build.
 for ARCH in "${ARCH_LIST[@]}"; do
   echo "  → Building for $ARCH..."
-  swift build -c "$CONF" --arch "$ARCH" --product "$APP_NAME"
-  stage_arch_product "$APP_NAME" "$ARCH"
+  swift build -c "$CONF" --arch "$ARCH" --product "$PRODUCT_NAME"
+  stage_arch_product "$PRODUCT_NAME" "$ARCH"
 done
 
 # Create app bundle structure
@@ -245,7 +246,7 @@ mkdir -p "$APP_BUNDLE/Contents/Frameworks"
 
 # ── Executable ───────────────────────────────────────────────────────────────
 
-install_binary "$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+install_binary "$PRODUCT_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -389,7 +390,7 @@ if [[ ${#SWIFTPM_BUNDLES[@]} -gt 0 ]]; then
     bundle_name=$(basename "$bundle")
     bundle_dest="$APP_BUNDLE/Contents/Resources/$bundle_name"
     LOCALIZATION_CATALOGS=()
-    if [[ "$bundle_name" == "${APP_NAME}_${APP_NAME}.bundle" && -f "$SOURCE_LOCALIZATION_CATALOG" ]]; then
+    if [[ "$bundle_name" == "${PRODUCT_NAME}_${PRODUCT_NAME}.bundle" && -f "$SOURCE_LOCALIZATION_CATALOG" ]]; then
       LOCALIZATION_CATALOGS+=("$SOURCE_LOCALIZATION_CATALOG")
     fi
     shopt -s nullglob
@@ -442,9 +443,9 @@ ${APP_LOCALIZATIONS_PLIST}
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Kaset++</string>
+    <string>KasetPlusPlus</string>
     <key>CFBundleDisplayName</key>
-    <string>Kaset++</string>
+    <string>KasetPlusPlus</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -479,7 +480,7 @@ ${APP_LOCALIZATIONS_PLIST}
 
     <!-- Sparkle Auto-Update Configuration -->
     <key>SUFeedURL</key>
-    <string>https://raw.githubusercontent.com/Yoddikko/kasetPlus/main/appcast.xml</string>
+    <string>https://raw.githubusercontent.com/omarkahol/KasetPlusPlus/main/appcast.xml</string>
     <key>SUPublicEDKey</key>
     <string>ev8BOn34ZbVJn2FonYjxi2tAtNDJmgCET3NcklUJl9o=</string>
     <key>SUEnableAutomaticChecks</key>
@@ -499,11 +500,11 @@ ${APP_LOCALIZATIONS_PLIST}
 
     <!-- Core Audio process tap (Equalizer) - macOS 14.2+ TCC requires these -->
     <key>NSAudioCaptureUsageDescription</key>
-    <string>KasetPlus processes its own music output through a built-in equalizer. This permission only covers KasetPlus's own playback — no other app's audio is captured.</string>
+    <string>KasetPlusPlus processes its own music output through a built-in equalizer. This permission only covers KasetPlusPlus's own playback — no other app's audio is captured.</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>KasetPlus taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
+    <string>KasetPlusPlus taps its own audio output (not the screen) so the built-in equalizer can apply effects to your music. No screen content is recorded.</string>
 
-    <!-- KasetPlus support (Ko-fi) — Cloudflare Worker for supporter verification -->
+    <!-- KasetPlusPlus support (Ko-fi) — Cloudflare Worker for supporter verification -->
     <key>SupportWorkerURL</key>
     <string>https://kaset-lastfm.alessioiodiceuni.workers.dev</string>
 

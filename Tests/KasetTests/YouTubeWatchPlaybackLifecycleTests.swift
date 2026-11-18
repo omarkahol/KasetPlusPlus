@@ -9,7 +9,8 @@ struct YouTubeWatchPlaybackLifecycleTests {
         let controller = MockYouTubeWatchPlaybackController()
         let player = YouTubePlayerService(
             playbackController: controller,
-            shouldPopOutOnNavigateAway: { true }
+            shouldPopOutOnNavigateAway: { true },
+            prefersNativeVideoStreaming: false
         )
         let video = MockYouTubeClient.makeVideo(videoId: "video-a")
 
@@ -31,7 +32,8 @@ struct YouTubeWatchPlaybackLifecycleTests {
         let controller = MockYouTubeWatchPlaybackController()
         let player = YouTubePlayerService(
             playbackController: controller,
-            shouldPopOutOnNavigateAway: { true }
+            shouldPopOutOnNavigateAway: { true },
+            prefersNativeVideoStreaming: false
         )
         let video = MockYouTubeClient.makeVideo(videoId: "video-a")
         player.play(video: video)
@@ -54,7 +56,8 @@ struct YouTubeWatchPlaybackLifecycleTests {
         let controller = MockYouTubeWatchPlaybackController()
         let player = YouTubePlayerService(
             playbackController: controller,
-            shouldPopOutOnNavigateAway: { true }
+            shouldPopOutOnNavigateAway: { true },
+            prefersNativeVideoStreaming: false
         )
         let video = MockYouTubeClient.makeVideo(videoId: "video-a")
         let related = MockYouTubeClient.makeVideo(videoId: "video-b")
@@ -95,7 +98,8 @@ struct YouTubeWatchPlaybackLifecycleTests {
         let controller = MockYouTubeWatchPlaybackController()
         let player = YouTubePlayerService(
             playbackController: controller,
-            shouldPopOutOnNavigateAway: { true }
+            shouldPopOutOnNavigateAway: { true },
+            prefersNativeVideoStreaming: false
         )
         let currentVideo = MockYouTubeClient.makeVideo(videoId: "video-a")
         let existingRelated = MockYouTubeClient.makeVideo(videoId: "video-b")

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Reset KasetPlus: kill running instances, build, package, relaunch, verify.
+# Reset KasetPlusPlus: kill running instances, build, package, relaunch, verify.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="${ROOT_DIR}/.build/app/KasetPlus.app"
-APP_PROCESS_PATTERN="KasetPlus.app/Contents/MacOS/KasetPlus"
+APP_BUNDLE="${ROOT_DIR}/.build/app/KasetPlusPlus.app"
+APP_PROCESS_PATTERN="KasetPlusPlus.app/Contents/MacOS/KasetPlusPlus"
 DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/KasetPlus"
 RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/KasetPlus"
 LOCK_KEY="$(printf '%s' "${ROOT_DIR}" | shasum -a 256 | cut -c1-8)"
@@ -68,6 +68,7 @@ kill_all_kaset() {
     pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${DEBUG_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${RELEASE_PROCESS_PATTERN}" >/dev/null 2>&1 \
+      || pgrep -x "KasetPlusPlus" >/dev/null 2>&1
       || pgrep -x "KasetPlus" >/dev/null 2>&1
   }
 
@@ -76,6 +77,7 @@ kill_all_kaset() {
     pkill -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
     pkill -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
     pkill -f "${RELEASE_PROCESS_PATTERN}" 2>/dev/null || true
+    pkill -x "KasetPlusPlus" 2>/dev/null || true
     pkill -x "KasetPlus" 2>/dev/null || true
     if ! is_running; then
       return 0
@@ -87,6 +89,7 @@ kill_all_kaset() {
   pkill -9 -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
   pkill -9 -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
   pkill -9 -f "${RELEASE_PROCESS_PATTERN}" 2>/dev/null || true
+  pkill -9 -x "KasetPlusPlus" 2>/dev/null || true
   pkill -9 -x "KasetPlus" 2>/dev/null || true
 
   for _ in {1..25}; do
@@ -145,14 +148,14 @@ run_step "package app (${BUILD_CONFIG})" "${ROOT_DIR}/Scripts/build-app.sh" "${B
 log "==> Launching app"
 if ! open "${APP_BUNDLE}"; then
   log "WARN: launch app returned non-zero; falling back to direct binary launch."
-  "${APP_BUNDLE}/Contents/MacOS/KasetPlus" >/dev/null 2>&1 &
+  "${APP_BUNDLE}/Contents/MacOS/KasetPlusPlus" >/dev/null 2>&1 &
   disown
 fi
 
 # 7) Verify the app stays up for at least a moment.
 for _ in {1..10}; do
   if pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1; then
-    log "✅ KasetPlus is running."
+    log "✅ KasetPlusPlus is running."
     exit 0
   fi
   sleep 0.4

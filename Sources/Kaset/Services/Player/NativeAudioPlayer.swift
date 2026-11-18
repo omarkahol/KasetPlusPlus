@@ -10,10 +10,14 @@ final class NativeAudioPlayer: NSObject {
     static let shared = NativeAudioPlayer()
 
     private var player: AVPlayer?
+    private let samplePlayer = HLSAudioSamplePlayer()
+    private var isUsingSamplePlayer = false
+    private var storedVolume: Float = 1.0
     private var timeObserverToken: Any?
     private var playerItemEndObserver: (any NSObjectProtocol)?
     private var durationObserver: NSKeyValueObservation?
     private var timeControlStatusObserver: NSKeyValueObservation?
+    private var startupTimeoutTask: Task<Void, Never>?
     private var shouldBePlaying = false
 
     /// Preloaded next item to provide gapless transitions.
@@ -29,20 +33,31 @@ final class NativeAudioPlayer: NSObject {
     }
 
     var duration: TimeInterval {
+        if self.isUsingSamplePlayer {
+            return self.samplePlayer.duration
+        }
         guard let item = self.player?.currentItem else { return 0 }
         let duration = item.duration.seconds
         return duration.isFinite && duration > 0 ? duration : 0
     }
 
     var currentTime: TimeInterval {
+        if self.isUsingSamplePlayer {
+            return self.samplePlayer.currentTime
+        }
         guard let item = self.player?.currentItem else { return 0 }
         let time = item.currentTime().seconds
         return time.isFinite && time >= 0 ? time : 0
     }
 
     var volume: Float {
-        get { self.player?.volume ?? 1.0 }
-        set { self.player?.volume = max(0.0, min(1.0, newValue)) }
+        get { self.storedVolume }
+        set {
+            let clamped = max(0.0, min(1.0, newValue))
+            self.storedVolume = clamped
+            self.player?.volume = clamped
+            self.samplePlayer.volume = clamped
+        }
     }
 
     // Callbacks for PlayerService integration
@@ -57,6 +72,40 @@ final class NativeAudioPlayer: NSObject {
 
     private override init() {
         super.init()
+        self.setupSamplePlayerCallbacks()
+    }
+
+    private func setupSamplePlayerCallbacks() {
+        self.samplePlayer.onProgressUpdate = { [weak self] seconds in
+            guard let self, self.isUsingSamplePlayer else { return }
+            self.onProgressUpdate?(seconds)
+        }
+        self.samplePlayer.onDurationResolved = { [weak self] duration in
+            guard let self, self.isUsingSamplePlayer else { return }
+            self.onDurationResolved?(duration)
+        }
+        self.samplePlayer.onPlaybackEnded = { [weak self] in
+            guard let self, self.isUsingSamplePlayer else { return }
+            self.isPlaying = false
+            self.onPlaybackEnded?()
+        }
+        self.samplePlayer.onNearEnd = { [weak self] seconds in
+            guard let self, self.isUsingSamplePlayer else { return }
+            self.onNearEnd?(seconds)
+        }
+        self.samplePlayer.onPlaybackFailed = { [weak self] videoId, error in
+            guard let self, self.isUsingSamplePlayer else { return }
+            self.stop()
+            self.onPlaybackFailed?(videoId, error)
+        }
+        self.samplePlayer.onFallbackRequired = { [weak self] url, videoId in
+            guard let self, self.isUsingSamplePlayer else { return }
+            let keepPlaying = self.shouldBePlaying
+            self.playWithAVPlayer(url: url, videoId: videoId)
+            if !keepPlaying {
+                self.pause()
+            }
+        }
     }
 
     // MARK: - Controls
@@ -64,9 +113,25 @@ final class NativeAudioPlayer: NSObject {
     /// Starts playback of an audio URL (local file URL or direct remote stream URL).
     func play(url: URL, videoId: String? = nil) {
         self.stop()
+        if HLSAudioSamplePlayer.isHLSURL(url) {
+            self.currentURL = url
+            self.currentVideoId = videoId
+            self.isUsingSamplePlayer = true
+            self.shouldBePlaying = true
+            self.samplePlayer.volume = self.storedVolume
+            self.samplePlayer.play(url: url, videoId: videoId)
+            self.isPlaying = true
+            return
+        }
+        self.playWithAVPlayer(url: url, videoId: videoId)
+    }
+
+    private func playWithAVPlayer(url: URL, videoId: String?) {
+        self.stop()
         self.currentURL = url
         self.currentVideoId = videoId
         self.hasFiredNearEnd = false
+        self.isUsingSamplePlayer = false
 
         let playerItem: AVPlayerItem
         if let preloaded = self.preloadedItem,
@@ -82,15 +147,44 @@ final class NativeAudioPlayer: NSObject {
             playerItem = AVPlayerItem(url: url)
         }
 
-        // Configure player item for low latency: buffer the first 3 seconds so playback starts immediately
-        playerItem.preferredForwardBufferDuration = 3.0
+        // Configure player item for low latency: buffer 1.5s so playback starts immediately,
+        // and cap remote HLS bitrate so audio-only playback never stalls on high-resolution video segments.
+        playerItem.preferredForwardBufferDuration = 1.5
+        let scheme = url.scheme?.lowercased()
+        let isRemoteURL = scheme == "https" || scheme == "http"
+        if isRemoteURL {
+            playerItem.preferredPeakBitRate = 450_000
+        }
 
         let player = AVPlayer(playerItem: playerItem)
         player.automaticallyWaitsToMinimizeStalling = true
+        player.volume = self.storedVolume
         self.player = player
         self.shouldBePlaying = true
 
         self.setupItemObservers(for: playerItem, in: player)
+
+        if isRemoteURL {
+            self.startupTimeoutTask = Task { @MainActor [weak self, weak playerItem, weak player] in
+                do {
+                    try await Task.sleep(for: .seconds(6))
+                } catch {
+                    return
+                }
+                guard let self,
+                      let playerItem,
+                      let player,
+                      self.player === player,
+                      self.player?.currentItem === playerItem,
+                      self.shouldBePlaying,
+                      playerItem.status != .readyToPlay,
+                      player.timeControlStatus != .playing
+                else { return }
+                let failedVideoId = self.currentVideoId
+                self.stop()
+                self.onPlaybackFailed?(failedVideoId, URLError(.timedOut))
+            }
+        }
 
         player.play()
         self.isPlaying = true
@@ -110,10 +204,20 @@ final class NativeAudioPlayer: NSObject {
 
     /// Preloads the next track into memory for gapless track transitions.
     func preloadNext(url: URL, videoId: String) {
+        if HLSAudioSamplePlayer.isHLSURL(url) {
+            Task {
+                await HLSManifestCache.shared.prewarm(masterURL: url)
+            }
+            return
+        }
         guard self.preloadedVideoId != videoId else { return }
         self.preloadedVideoId = videoId
         let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 3.0
+        item.preferredForwardBufferDuration = 1.5
+        let scheme = url.scheme?.lowercased()
+        if scheme == "https" || scheme == "http" {
+            item.preferredPeakBitRate = 450_000
+        }
         self.preloadedItem = item
     }
 
@@ -141,6 +245,8 @@ final class NativeAudioPlayer: NSObject {
             let duration = item.duration.seconds
             Task { @MainActor [weak self] in
                 guard let self, self.player?.currentItem === item else { return }
+                self.startupTimeoutTask?.cancel()
+                self.startupTimeoutTask = nil
                 if duration.isFinite, duration > 0 {
                     self.onDurationResolved?(duration)
                 }
@@ -155,6 +261,8 @@ final class NativeAudioPlayer: NSObject {
                 guard let self, self.player === player else { return }
                 switch player.timeControlStatus {
                 case .playing:
+                    self.startupTimeoutTask?.cancel()
+                    self.startupTimeoutTask = nil
                     self.isPlaying = true
                 case .waitingToPlayAtSpecifiedRate:
                     break
@@ -204,8 +312,13 @@ final class NativeAudioPlayer: NSObject {
 
     /// Resumes playback.
     func resume() {
-        guard let player = self.player else { return }
         self.shouldBePlaying = true
+        if self.isUsingSamplePlayer {
+            self.samplePlayer.resume()
+            self.isPlaying = true
+            return
+        }
+        guard let player = self.player else { return }
         player.play()
         self.isPlaying = true
     }
@@ -213,6 +326,11 @@ final class NativeAudioPlayer: NSObject {
     /// Pauses playback.
     func pause() {
         self.shouldBePlaying = false
+        if self.isUsingSamplePlayer {
+            self.samplePlayer.pause()
+            self.isPlaying = false
+            return
+        }
         guard let player = self.player else { return }
         player.pause()
         self.isPlaying = false
@@ -229,6 +347,10 @@ final class NativeAudioPlayer: NSObject {
 
     /// Seeks to the specified position in seconds.
     func seek(to seconds: TimeInterval) {
+        if self.isUsingSamplePlayer {
+            self.samplePlayer.seek(to: seconds)
+            return
+        }
         guard let player = self.player else { return }
         let targetTime = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
         player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -242,6 +364,12 @@ final class NativeAudioPlayer: NSObject {
     /// Stops playback and tears down observers.
     func stop() {
         self.shouldBePlaying = false
+        if self.isUsingSamplePlayer {
+            self.samplePlayer.stop()
+            self.isUsingSamplePlayer = false
+        }
+        self.startupTimeoutTask?.cancel()
+        self.startupTimeoutTask = nil
         if let token = self.timeObserverToken {
             self.player?.removeTimeObserver(token)
             self.timeObserverToken = nil

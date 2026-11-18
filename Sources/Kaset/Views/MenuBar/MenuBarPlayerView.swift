@@ -3,80 +3,59 @@ import SwiftUI
 
 // MARK: - MenuBarPlayerView
 
-/// Compact, elegant popover view for the macOS Menu Bar.
-/// Adheres to Kaset++'s Liquid Glass aesthetics.
+/// Compact, source-aware popover view for the macOS Menu Bar.
+/// Routes controls and metadata to either YouTube Music or YouTube Video
+/// based on `PlaybackArbiter`.
 struct MenuBarPlayerView: View {
     @Environment(PlayerService.self) private var playerService
-    @Environment(\.colorScheme) private var colorScheme
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+    @Environment(PlaybackArbiter.self) private var playbackArbiter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openWindow) private var openWindow
-
-    @State private var seekValue: Double = 0
-    @State private var isSeeking = false
-    @State private var seekHold = PlayerBarSeekHold()
 
     @State private var volumeValue: Double = 1.0
     @State private var isAdjustingVolume = false
     @State private var showsVolumeSlider = false
 
-    @State private var formattedProgress: String = "0:00"
-    @State private var formattedRemaining: String = "-0:00"
-    @State private var lastProgressSecond: Int = -1
+    private var isVideoActive: Bool {
+        self.playbackArbiter.routesMediaKeysToVideo
+    }
+
+    private var hasActiveItem: Bool {
+        self.isVideoActive ? self.youtubePlayer.currentVideo != nil : self.playerService.currentTrack != nil
+    }
+
+    private var activeIsPlaying: Bool {
+        self.isVideoActive ? self.youtubePlayer.isPlaying : self.playerService.isPlaying
+    }
+
+    private var activeVolume: Double {
+        self.isVideoActive ? self.youtubePlayer.volume : self.playerService.volume
+    }
 
     var body: some View {
         VStack(spacing: 12) {
-            // Track Info Row
             self.trackInfoRow
 
-            // Mini Scrubber Lane
-            self.scrubberRow
+            MenuBarProgressHost(isVideoActive: self.isVideoActive)
 
-            // Controls & Volume Row
             self.controlsRow
 
             Divider()
                 .opacity(0.3)
 
-            // Open Kaset++ Action
             self.openAppRow
         }
         .padding(14)
         .frame(width: 280)
         .compatGlass(interactive: true, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .onAppear {
-            self.volumeValue = self.playerService.volume
-            let current = self.displayProgress(observedProgress: self.playerService.progress)
-            if self.playerService.duration > 0 {
-                self.seekValue = current / self.playerService.duration
-            }
-            self.updateFormattedTimes(progress: current, duration: self.playerService.duration)
+            self.volumeValue = self.activeVolume
         }
-        .onChange(of: self.playerService.volume) { _, newVol in
+        .onChange(of: self.activeVolume) { _, newVol in
             if !self.isAdjustingVolume {
                 self.volumeValue = newVol
             }
-        }
-        .onChange(of: self.playerService.progress) { _, newValue in
-            self.seekHold.reconcile(observedProgress: newValue)
-            let displayProg = self.displayProgress(observedProgress: newValue)
-
-            if !self.isSeeking, !self.seekHold.isActive, self.playerService.duration > 0 {
-                self.seekValue = displayProg / self.playerService.duration
-            }
-
-            let currentSecond = Int(displayProg)
-            if currentSecond != self.lastProgressSecond {
-                self.lastProgressSecond = currentSecond
-                self.updateFormattedTimes(progress: displayProg, duration: self.playerService.duration)
-            }
-        }
-        .onChange(of: self.playerService.duration) { _, newValue in
-            self.seekHold.reconcile(observedProgress: self.playerService.progress)
-            let displayProg = self.displayProgress(observedProgress: self.playerService.progress)
-            if !self.isSeeking, !self.seekHold.isActive, newValue > 0 {
-                self.seekValue = displayProg / newValue
-            }
-            self.updateFormattedTimes(progress: displayProg, duration: newValue)
         }
     }
 
@@ -88,14 +67,14 @@ struct MenuBarPlayerView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 PlayerBarMarqueeText(
-                    text: self.playerService.currentTrack?.title ?? String(localized: "Not Playing"),
+                    text: self.displayTitle,
                     font: .system(size: 13, weight: .semibold),
                     color: .primary,
                     height: 15,
                     reduceMotion: self.reduceMotion
                 )
 
-                Text(self.artistName)
+                Text(self.subtitleText)
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -104,9 +83,27 @@ struct MenuBarPlayerView: View {
         }
     }
 
+    private var displayTitle: String {
+        if self.isVideoActive {
+            return self.youtubePlayer.currentVideo?.title ?? String(localized: "Not Playing")
+        }
+        return self.playerService.currentTrack?.title ?? String(localized: "Not Playing")
+    }
+
     @ViewBuilder
     private var thumbnailView: some View {
-        if let track = self.playerService.currentTrack {
+        if self.isVideoActive, let video = self.youtubePlayer.currentVideo {
+            CachedAsyncImage(url: video.thumbnailURL, targetSize: CGSize(width: 80, height: 80)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle().fill(.quaternary)
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(.rect(cornerRadius: 6))
+            .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+        } else if let track = self.playerService.currentTrack {
             SongThumbnailView(song: track, size: 40, cornerRadius: 6)
                 .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
         } else {
@@ -121,110 +118,63 @@ struct MenuBarPlayerView: View {
         }
     }
 
-    private var artistName: String {
+    private var subtitleText: String {
+        if self.isVideoActive {
+            return self.youtubePlayer.currentVideo?.channelName ?? "YouTube"
+        }
         guard let track = self.playerService.currentTrack else { return "—" }
         return track.artistsDisplay.isEmpty ? String(localized: "Unknown Artist") : track.artistsDisplay
-    }
-
-    // MARK: - Scrubber
-
-    private var scrubberRow: some View {
-        VStack(spacing: 4) {
-            GeometryReader { proxy in
-                let availableWidth = max(0, proxy.size.width)
-                ZStack(alignment: .leading) {
-                    // Track background
-                    Capsule()
-                        .fill(PlayerBarSliderVisuals.trackColor(colorScheme: self.colorScheme, isActive: false))
-                        .frame(height: 4)
-
-                    // Elapsed fill
-                    Capsule()
-                        .fill(SettingsManager.shared.accentColor)
-                        .frame(width: availableWidth * CGFloat(min(max(0, self.seekValue), 1)), height: 4)
-                }
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { gesture in
-                            guard self.playerService.duration > 0 else { return }
-                            self.isSeeking = true
-                            let progressFraction = min(max(0, gesture.location.x / availableWidth), 1)
-                            self.seekValue = progressFraction
-                            let previewTime = progressFraction * self.playerService.duration
-                            self.updateFormattedTimes(progress: previewTime, duration: self.playerService.duration)
-                        }
-                        .onEnded { _ in
-                            guard self.playerService.duration > 0 else { return }
-                            self.performSeek()
-                        }
-                )
-            }
-            .frame(height: 6)
-
-            HStack {
-                Text(self.formattedProgress)
-                    .font(.system(size: 9, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text(self.formattedRemaining)
-                    .font(.system(size: 9, weight: .regular, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-        }
     }
 
     // MARK: - Controls Row
 
     private var controlsRow: some View {
         HStack(spacing: 8) {
-            // Previous Track
             PlayerBarIconButton(
-                action: self.previousTrack,
-                accessibilityLabel: String(localized: "Previous track")
+                action: self.previousAction,
+                accessibilityLabel: self.isVideoActive
+                    ? String(localized: "Back 30 seconds")
+                    : String(localized: "Previous track")
             ) {
-                Image(systemName: "backward.fill")
+                Image(systemName: self.isVideoActive ? "gobackward.30" : "backward.fill")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.primary)
             }
-            .disabled(self.playerService.currentTrack == nil)
+            .disabled(!self.hasActiveItem)
 
-            // Play / Pause
             PlayerBarIconButton(
                 action: self.playPause,
-                accessibilityLabel: self.playerService.isPlaying ? String(localized: "Pause") : String(localized: "Play")
+                accessibilityLabel: self.activeIsPlaying ? String(localized: "Pause") : String(localized: "Play")
             ) {
-                Image(systemName: self.playerService.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: self.activeIsPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 18, weight: .regular))
                     .foregroundStyle(.primary)
                     .contentTransition(.symbolEffect(.replace))
             }
-            .disabled(self.playerService.currentTrack == nil)
+            .disabled(!self.hasActiveItem)
 
-            // Next Track
             PlayerBarIconButton(
-                action: self.nextTrack,
-                accessibilityLabel: String(localized: "Next track")
+                action: self.nextAction,
+                accessibilityLabel: self.isVideoActive
+                    ? String(localized: "Forward 30 seconds")
+                    : String(localized: "Next track")
             ) {
-                Image(systemName: "forward.fill")
+                Image(systemName: self.isVideoActive ? "goforward.30" : "forward.fill")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.primary)
             }
-            .disabled(self.playerService.currentTrack == nil)
+            .disabled(!self.hasActiveItem)
 
             Spacer()
 
-            // Volume Button & Expandable Mini Slider
             if self.showsVolumeSlider {
                 Slider(
                     value: self.$volumeValue,
-                    in: 0...1,
+                    in: 0 ... 1,
                     onEditingChanged: { editing in
                         self.isAdjustingVolume = editing
                         if !editing {
-                            self.playerService.setVolumeImmediately(self.volumeValue)
+                            self.applyVolume(self.volumeValue)
                         }
                     }
                 )
@@ -236,7 +186,7 @@ struct MenuBarPlayerView: View {
                 ))
                 .onChange(of: self.volumeValue) { _, newVol in
                     if self.isAdjustingVolume {
-                        self.playerService.setVolumeImmediately(newVol)
+                        self.applyVolume(newVol)
                     }
                 }
             }
@@ -244,7 +194,7 @@ struct MenuBarPlayerView: View {
             PlayerBarIconButton(
                 action: self.toggleVolumeSlider,
                 accessibilityLabel: String(localized: "Volume"),
-                accessibilityValue: "\(Int(self.playerService.volume * 100))%"
+                accessibilityValue: "\(Int(self.activeVolume * 100))%"
             ) {
                 Image(systemName: self.volumeIcon)
                     .font(.system(size: 13, weight: .regular))
@@ -276,22 +226,34 @@ struct MenuBarPlayerView: View {
 
     private func playPause() {
         HapticService.playback()
-        Task {
-            await self.playerService.playPause()
+        if self.isVideoActive {
+            self.youtubePlayer.playPause()
+        } else {
+            Task {
+                await self.playerService.playPause()
+            }
         }
     }
 
-    private func previousTrack() {
+    private func previousAction() {
         HapticService.playback()
-        Task {
-            await self.playerService.previous()
+        if self.isVideoActive {
+            self.youtubePlayer.seekBackward()
+        } else {
+            Task {
+                await self.playerService.previous()
+            }
         }
     }
 
-    private func nextTrack() {
+    private func nextAction() {
         HapticService.playback()
-        Task {
-            await self.playerService.next()
+        if self.isVideoActive {
+            self.youtubePlayer.seekForward()
+        } else {
+            Task {
+                await self.playerService.next()
+            }
         }
     }
 
@@ -302,12 +264,11 @@ struct MenuBarPlayerView: View {
         }
     }
 
-    private func performSeek() {
-        let targetProgress = self.seekValue * self.playerService.duration
-        self.seekHold.begin(target: targetProgress)
-        Task {
-            await self.playerService.seek(to: targetProgress)
-            self.isSeeking = false
+    private func applyVolume(_ value: Double) {
+        if self.isVideoActive {
+            self.youtubePlayer.volume = value
+        } else {
+            self.playerService.setVolumeImmediately(value)
         }
     }
 
@@ -316,13 +277,130 @@ struct MenuBarPlayerView: View {
         MainWindowOpener.bringMainWindowToFront(openWindow: self.openWindow)
     }
 
-    // MARK: - Progress & Volume Helpers
-
-    private func displayProgress(observedProgress: TimeInterval) -> TimeInterval {
-        if self.isSeeking {
-            return self.seekValue * self.playerService.duration
+    private var volumeIcon: String {
+        let vol = self.activeVolume
+        if vol == 0 {
+            return "speaker.slash.fill"
+        } else if vol < 0.33 {
+            return "speaker.wave.1.fill"
+        } else if vol < 0.66 {
+            return "speaker.wave.2.fill"
+        } else {
+            return "speaker.wave.3.fill"
         }
-        return self.seekHold.displayProgress(observedProgress: observedProgress)
+    }
+}
+
+// MARK: - MenuBarProgressHost
+
+/// Isolated progress leaf so 4–5 Hz `progress` updates only re-evaluate the
+/// scrubber and timestamps instead of the entire `MenuBarPlayerView`.
+private struct MenuBarProgressHost: View {
+    @Environment(PlayerService.self) private var playerService
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+    @Environment(\.colorScheme) private var colorScheme
+
+    let isVideoActive: Bool
+
+    @State private var seekValue: Double = 0
+    @State private var isSeeking = false
+    @State private var seekHold = PlayerBarSeekHold()
+    @State private var formattedProgress: String = "0:00"
+    @State private var formattedRemaining: String = "-0:00"
+    @State private var lastProgressSecond: Int = -1
+
+    private var observedProgress: TimeInterval {
+        self.isVideoActive ? self.youtubePlayer.progress : self.playerService.progress
+    }
+
+    private var observedDuration: TimeInterval {
+        self.isVideoActive ? self.youtubePlayer.duration : self.playerService.duration
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { proxy in
+                let availableWidth = max(0, proxy.size.width)
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(PlayerBarSliderVisuals.trackColor(colorScheme: self.colorScheme, isActive: false))
+                        .frame(height: 4)
+
+                    Capsule()
+                        .fill(SettingsManager.shared.accentColor)
+                        .frame(width: availableWidth * CGFloat(min(max(0, self.seekValue), 1)), height: 4)
+                }
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            guard self.observedDuration > 0 else { return }
+                            self.isSeeking = true
+                            let progressFraction = min(max(0, gesture.location.x / availableWidth), 1)
+                            self.seekValue = progressFraction
+                            let previewTime = progressFraction * self.observedDuration
+                            self.updateFormattedTimes(progress: previewTime, duration: self.observedDuration)
+                        }
+                        .onEnded { _ in
+                            guard self.observedDuration > 0 else { return }
+                            self.performSeek()
+                        }
+                )
+            }
+            .frame(height: 6)
+
+            HStack {
+                Text(self.formattedProgress)
+                    .font(.system(size: 9, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(self.formattedRemaining)
+                    .font(.system(size: 9, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            self.syncFromPlayer(progress: self.observedProgress, duration: self.observedDuration)
+        }
+        .onChange(of: self.observedProgress) { _, newValue in
+            self.syncFromPlayer(progress: newValue, duration: self.observedDuration)
+        }
+        .onChange(of: self.observedDuration) { _, newValue in
+            self.syncFromPlayer(progress: self.observedProgress, duration: newValue)
+        }
+    }
+
+    private func syncFromPlayer(progress: TimeInterval, duration: TimeInterval) {
+        self.seekHold.reconcile(observedProgress: progress)
+        let displayProg = self.isSeeking
+            ? self.seekValue * duration
+            : self.seekHold.displayProgress(observedProgress: progress)
+
+        if !self.isSeeking, !self.seekHold.isActive, duration > 0 {
+            self.seekValue = displayProg / duration
+        }
+
+        let currentSecond = Int(displayProg)
+        if currentSecond != self.lastProgressSecond || duration == 0 {
+            self.lastProgressSecond = currentSecond
+            self.updateFormattedTimes(progress: displayProg, duration: duration)
+        }
+    }
+
+    private func performSeek() {
+        let targetProgress = self.seekValue * self.observedDuration
+        self.seekHold.begin(target: targetProgress)
+        if self.isVideoActive {
+            self.youtubePlayer.seek(to: targetProgress)
+            self.isSeeking = false
+        } else {
+            Task {
+                await self.playerService.seek(to: targetProgress)
+                self.isSeeking = false
+            }
+        }
     }
 
     private func updateFormattedTimes(progress: TimeInterval, duration: TimeInterval) {
@@ -340,18 +418,5 @@ struct MenuBarPlayerView: View {
         let mins = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%d:%02d", mins, secs)
-    }
-
-    private var volumeIcon: String {
-        let vol = self.playerService.volume
-        if vol == 0 {
-            return "speaker.slash.fill"
-        } else if vol < 0.33 {
-            return "speaker.wave.1.fill"
-        } else if vol < 0.66 {
-            return "speaker.wave.2.fill"
-        } else {
-            return "speaker.wave.3.fill"
-        }
     }
 }

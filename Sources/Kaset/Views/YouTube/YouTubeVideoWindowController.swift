@@ -17,6 +17,7 @@ final class YouTubeVideoWindowController {
     private var hostingView: NSHostingView<AnyView>?
     private weak var youtubePlayerService: YouTubePlayerService?
     private var isClosing = false
+    private var escapeKeyMonitor: Any?
     private let frameAutosaveKey = "KasetYouTubeVideoWindow"
 
     /// Floor for the video content area. Below roughly this size the macOS 26
@@ -138,9 +139,12 @@ final class YouTubeVideoWindowController {
 
     @objc private func windowDidEnterFullScreen(_: Notification) {
         self.youtubePlayerService?.isWindowFullscreen = true
+        self.window?.makeKeyAndOrderFront(nil)
+        self.installEscapeKeyMonitorIfNeeded()
     }
 
     @objc private func windowDidExitFullScreen(_: Notification) {
+        self.removeEscapeKeyMonitor()
         self.youtubePlayerService?.isWindowFullscreen = false
         // Back from the fullscreen excursion — restore PiP behavior.
         if let window = self.window {
@@ -149,6 +153,30 @@ final class YouTubeVideoWindowController {
         if self.returnInlineOnExitFullscreen {
             self.returnInlineOnExitFullscreen = false
             self.youtubePlayerService?.requestPopIn()
+        }
+    }
+
+    private func installEscapeKeyMonitorIfNeeded() {
+        guard self.escapeKeyMonitor == nil else { return }
+        self.escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self,
+                  let window = self.window,
+                  window.styleMask.contains(.fullScreen),
+                  window.sheets.isEmpty,
+                  event.keyCode == 53,
+                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+            else {
+                return event
+            }
+            window.toggleFullScreen(nil)
+            return nil
+        }
+    }
+
+    private func removeEscapeKeyMonitor() {
+        if let monitor = self.escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            self.escapeKeyMonitor = nil
         }
     }
 
@@ -185,6 +213,7 @@ final class YouTubeVideoWindowController {
         // windowDidExitFullScreen restores the PiP posture.
         window.collectionBehavior = [.fullScreenPrimary]
         window.level = .normal
+        window.makeKeyAndOrderFront(nil)
         window.toggleFullScreen(nil)
     }
 
@@ -233,6 +262,7 @@ final class YouTubeVideoWindowController {
     }
 
     private func performCleanup() {
+        self.removeEscapeKeyMonitor()
         self.youtubePlayerService?.isWindowFullscreen = false
         self.returnInlineOnExitFullscreen = false
         // Remove the fullscreen observers registered in show() so they don't

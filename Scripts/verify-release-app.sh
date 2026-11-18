@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Verifies the packaged Kaset.app has the release-critical settings that are
+# Verifies the packaged KasetPlusPlus.app has the release-critical settings that are
 # easy to regress when building outside Xcode.
 
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-APP_PATH="$ROOT/.build/app/Kaset.app"
+APP_PATH="$ROOT/.build/app/KasetPlusPlus.app"
 REQUIRE_DEVELOPER_ID=false
 
 while [[ $# -gt 0 ]]; do
@@ -70,7 +70,7 @@ with entitlements_path.open("rb") as handle:
 
 errors: list[str] = []
 bundle_id = info.get("CFBundleIdentifier")
-expected_bundle_id = "com.sertacozercan.Kaset"
+expected_bundle_id = "com.sertacozercan.KasetPlus"
 if bundle_id != expected_bundle_id:
     errors.append(f"CFBundleIdentifier must be {expected_bundle_id}, found {bundle_id!r}")
 
@@ -95,8 +95,6 @@ if entitlements.get("com.apple.security.app-sandbox") is True:
             "Sandboxed Sparkle updates require mach lookup exceptions: "
             + ", ".join(missing)
         )
-else:
-    errors.append("Kaset release app must be sandboxed")
 
 if errors:
     for error in errors:

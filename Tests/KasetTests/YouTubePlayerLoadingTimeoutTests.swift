@@ -9,7 +9,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
         service.updatePlaybackState(.init(
@@ -39,7 +40,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
         service.updatePlaybackState(.init(
@@ -64,7 +66,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         controller.cancelPendingLoadResult = true
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         controller.onCancelPendingLoad = { [weak service] in
             service?.handleWebNavigationCancellation()
@@ -92,7 +95,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
         service.updatePlaybackState(.init(
@@ -159,7 +163,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
         service.updatePlaybackState(.init(
@@ -178,7 +183,10 @@ struct YouTubePlayerLoadingTimeoutTests {
     @Test("Ready incoming media completes loading after page drift")
     func readyIncomingMediaCompletesLoadingAfterDrift() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
         service.updatePlaybackState(.init(
             isPlaying: true,
@@ -198,7 +206,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
         service.play(video: MockYouTubeClient.makeVideo(videoId: "b"))
@@ -221,7 +230,8 @@ struct YouTubePlayerLoadingTimeoutTests {
         let controller = MockYouTubeWatchPlaybackController()
         let service = YouTubePlayerService(
             playbackController: controller,
-            playbackLoadingTimeout: .milliseconds(10)
+            playbackLoadingTimeout: .milliseconds(10),
+            prefersNativeVideoStreaming: false
         )
         service.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
         service.updatePlaybackState(.init(

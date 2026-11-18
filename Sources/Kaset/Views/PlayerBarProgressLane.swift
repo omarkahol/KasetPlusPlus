@@ -28,6 +28,11 @@ struct PlayerBarProgressLane: View {
     /// storyboard hover preview on the on-video overlay bar.
     var onHoverFractionChange: ((Double?) -> Void)?
 
+    /// Places elapsed and remaining time labels inline on either side of the
+    /// scrubber track instead of above it, preventing overlap with transport
+    /// buttons in narrow bars.
+    var inlineTimestamps: Bool = false
+
     /// Height of the heatmap band. Its baseline sits on the track (YouTube
     /// style) and the filled area rises upward from the bar — that rising shape
     /// is what reads as "above the bar". The centre and both ends are cleared by
@@ -89,7 +94,8 @@ struct PlayerBarProgressLane: View {
         onMarkerPreviewChange: @escaping (PlayerBarProgressMarker?) -> Void = { _ in },
         segmentMarkers: [PlayerBarSegmentMarker] = [],
         heatmap: [YouTubeHeatmapMarker] = [],
-        onHoverFractionChange: ((Double?) -> Void)? = nil
+        onHoverFractionChange: ((Double?) -> Void)? = nil,
+        inlineTimestamps: Bool = false
     ) {
         self.fraction = fraction
         self.accent = accent
@@ -106,27 +112,55 @@ struct PlayerBarProgressLane: View {
         self.segmentMarkers = segmentMarkers
         self.heatmap = heatmap
         self.onHoverFractionChange = onHoverFractionChange
+        self.inlineTimestamps = inlineTimestamps
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 8) {
-                Text(self.isLive ? String(localized: "LIVE") : self.elapsedText)
-                    .foregroundStyle(self.isLive ? .red : .secondary)
+        Group {
+            if self.inlineTimestamps {
+                HStack(spacing: 8) {
+                    Text(self.isLive ? String(localized: "LIVE") : self.elapsedText)
+                        .foregroundStyle(self.isLive ? .red : .secondary)
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
 
-                Spacer(minLength: 8)
+                    self.progressBar
+                        .frame(minWidth: 0, maxWidth: .infinity)
+                        .layoutPriority(1)
 
-                Text(self.isLive ? "" : self.remainingText)
-                    .foregroundStyle(.secondary)
+                    if !self.isLive {
+                        Text(self.remainingText)
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+                .frame(height: 16)
+            } else {
+                VStack(spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(self.isLive ? String(localized: "LIVE") : self.elapsedText)
+                            .foregroundStyle(self.isLive ? .red : .secondary)
+
+                        Spacer(minLength: 8)
+
+                        Text(self.isLive ? "" : self.remainingText)
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.system(size: 11))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .frame(height: 12)
+
+                    self.progressBar
+                }
+                .frame(height: 30)
             }
-            .font(.system(size: 11))
-            .monospacedDigit()
-            .lineLimit(1)
-            .frame(height: 12)
-
-            self.progressBar
         }
-        .frame(height: 30)
         .accessibilityElement()
         .accessibilityLabel(String(localized: "Playback position"))
         .accessibilityValue(self.accessibilityValue)

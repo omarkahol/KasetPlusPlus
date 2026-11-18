@@ -1107,7 +1107,9 @@ extension SingletonPlayerWebView.Coordinator {
             observedVideoId: playbackVideoId,
             isAuthoritativeContent: true
         )
-        if validatesBridgeContext {
+        if validatesBridgeContext,
+           isPlaying || !self.playerService.shouldAutoplayPlaybackDocument
+        {
             SingletonPlayerWebView.shared.confirmRouterNavigationIfNeeded(videoId: playbackVideoId)
         }
 

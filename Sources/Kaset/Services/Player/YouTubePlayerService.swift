@@ -229,84 +229,12 @@ final class YouTubePlayerService {
 
     /// Short-lived notice for the most recently auto-skipped SponsorBlock segment.
     private(set) var sponsorSkipNotice: SponsorSkipNotice?
-    @ObservationIgnored private var sponsorSkipNoticeDismissTask: Task<Void, Never>?
-    @ObservationIgnored private var pendingSponsorSegments: (videoId: String, segments: [SponsorSegment])?
-    @ObservationIgnored private var pendingSponsorSkip: (videoId: String, segment: SponsorSegment)?
+    @ObservationIgnored var sponsorSkipNoticeDismissTask: Task<Void, Never>?
+    @ObservationIgnored var pendingSponsorSegments: (videoId: String, segments: [SponsorSegment])?
+    @ObservationIgnored var pendingSponsorSkip: (videoId: String, segment: SponsorSegment)?
 
-    /// Clears SponsorBlock segments when a new video starts loading.
-    func setSponsorSegments(_ segments: [SponsorSegment], videoId: String) {
-        if self.currentVideo?.videoId == videoId {
-            self.pendingSponsorSegments = nil
-            self.sponsorSegments = segments
-        } else {
-            // The watch page can finish its SponsorBlock request before the
-            // first STATE_UPDATE adopts a new SPA video in native state.
-            self.pendingSponsorSegments = (videoId, segments)
-        }
-    }
-
-    /// Surfaces an automatic SponsorBlock skip in the native player chrome.
-    func handleSponsorBlockSkip(
-        start: Double,
-        end: Double,
-        category: String,
-        videoId: String
-    ) {
-        guard start.isFinite,
-              end.isFinite,
-              start >= 0,
-              end > start,
-              !category.isEmpty
-        else { return }
-
-        let segment = SponsorSegment(start: start, end: end, category: category)
-        guard self.currentVideo?.videoId == videoId else {
-            self.pendingSponsorSkip = (videoId, segment)
-            return
-        }
-        self.presentSponsorBlockSkip(segment)
-    }
-
-    private func presentSponsorBlockSkip(_ segment: SponsorSegment) {
-        let notice = SponsorSkipNotice(segment: segment)
+    func setSponsorSkipNotice(_ notice: SponsorSkipNotice?) {
         self.sponsorSkipNotice = notice
-        self.sponsorSkipNoticeDismissTask?.cancel()
-        self.sponsorSkipNoticeDismissTask = Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(5))
-            } catch {
-                return
-            }
-            guard self?.sponsorSkipNotice?.id == notice.id else { return }
-            self?.sponsorSkipNotice = nil
-            self?.sponsorSkipNoticeDismissTask = nil
-        }
-    }
-
-    /// Returns to the beginning of the last skipped segment. The WebView seek
-    /// is tagged as explicit user intent so SponsorBlock lets it play through.
-    func undoSponsorBlockSkip() {
-        guard let notice = self.sponsorSkipNotice else { return }
-        self.dismissSponsorBlockSkipNotice()
-        self.seek(to: notice.segment.start)
-    }
-
-    func dismissSponsorBlockSkipNotice() {
-        self.sponsorSkipNoticeDismissTask?.cancel()
-        self.sponsorSkipNoticeDismissTask = nil
-        self.sponsorSkipNotice = nil
-    }
-
-    private func applyPendingSponsorBlockState(for videoId: String) {
-        if let pendingSponsorSegments, pendingSponsorSegments.videoId == videoId {
-            self.sponsorSegments = pendingSponsorSegments.segments
-        }
-        self.pendingSponsorSegments = nil
-
-        if let pendingSponsorSkip, pendingSponsorSkip.videoId == videoId {
-            self.presentSponsorBlockSkip(pendingSponsorSkip.segment)
-        }
-        self.pendingSponsorSkip = nil
     }
 
     // MARK: - Return YouTube Dislikes
@@ -316,19 +244,11 @@ final class YouTubePlayerService {
     /// RYD like count for the current video.
     private(set) var rydLikes: Int?
     /// Tracks which videoId we already fetched RYD data for (dedup).
-    private var rydFetchVideoId: String?
+    var rydFetchVideoId: String?
 
-    /// Formats an integer count to a compact string (e.g. 12345 → "12.3K").
-    static func formatCount(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            let m = Double(count) / 1_000_000.0
-            return String(format: m >= 100 ? "%.0fM" : (m >= 10 ? "%.1fM" : "%.2fM"), m)
-        }
-        if count >= 1000 {
-            let k = Double(count) / 1000.0
-            return String(format: k >= 100 ? "%.0fK" : (k >= 10 ? "%.1fK" : "%.2fK"), k)
-        }
-        return "\(count)"
+    func setReturnYouTubeDislikes(dislikes: Int?, likes: Int?) {
+        self.rydDislikes = dislikes
+        self.rydLikes = likes
     }
 
     // MARK: - DeArrow
@@ -379,53 +299,6 @@ final class YouTubePlayerService {
     var dearrowOriginalTitle: String? {
         guard let videoId = self.currentVideo?.videoId else { return nil }
         return DearrowCache.shared.originalTitle(for: videoId)
-    }
-
-    func fetchReturnYouTubeDislikes(videoId: String) async {
-        guard SettingsManager.shared.returnYouTubeDislikesEnabled,
-              videoId != self.rydFetchVideoId
-        else { return }
-
-        self.rydFetchVideoId = videoId
-
-        guard var components = URLComponents(string: "https://returnyoutubedislikeapi.com/votes") else {
-            return
-        }
-        components.queryItems = [URLQueryItem(name: "videoId", value: videoId)]
-        guard let url = components.url else { return }
-
-        // The default 60s timeout is far too patient for an optional badge, and
-        // a network-level blocklist (this API is on several "tracker" lists, as
-        // is SponsorBlock's) makes the request fail or hang rather than 404.
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 10
-
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, !(200 ... 299).contains(http.statusCode) {
-                throw URLError(.badServerResponse)
-            }
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                throw URLError(.cannotParseResponse)
-            }
-            self.rydDislikes = json["dislikes"] as? Int
-            self.rydLikes = json["likes"] as? Int
-        } catch {
-            self.rydDislikes = nil
-            self.rydLikes = nil
-            // Let the next trigger try again: the old code marked the video as
-            // fetched before the request, so one failure killed the count for
-            // the rest of that video. And say why — a silently missing dislike
-            // count is indistinguishable from "this video has no dislikes".
-            self.rydFetchVideoId = nil
-            self.logger.error(
-                """
-                Return YouTube Dislike lookup failed for \(videoId): \(error.localizedDescription). \
-                If this persists, check whether returnyoutubedislikeapi.com is blocked by a \
-                network-level ad/tracker filter.
-                """
-            )
-        }
     }
 
     /// Playback volume (0...1).
@@ -557,7 +430,10 @@ final class YouTubePlayerService {
     let playbackController: any YouTubeWatchPlaybackControlling
     private var usesCookieFreePlaybackDataStore = false
     private let playbackLoadingTimeout: Duration
-    private let logger = DiagnosticsLogger.player
+    private let prefersNativeVideoStreaming: Bool
+    private let streamURLResolver: @MainActor @Sendable (String) async -> URL?
+    @ObservationIgnored private let idleWebViewReclamationScheduler = WebViewIdleReclamationScheduler()
+    let logger = DiagnosticsLogger.player
 
     /// Backing store for the settings this service persists itself (playback
     /// speed). Injected so tests stay deterministic without touching global
@@ -586,6 +462,8 @@ final class YouTubePlayerService {
         shouldPopOutOnNavigateAway: @escaping @MainActor () -> Bool = { SettingsManager.shared.popOutVideoOnNavigateAway },
         shouldKeepPlayingOnNavigateAway: @escaping @MainActor () -> Bool = { SettingsManager.shared.keepPlayingVideoOnNavigateAway },
         playbackLoadingTimeout: Duration = .seconds(15),
+        prefersNativeVideoStreaming: Bool = true,
+        streamURLResolver: (@MainActor @Sendable (String) async -> URL?)? = nil,
         defaults: UserDefaults = .standard
     ) {
         self.defaults = defaults
@@ -594,6 +472,10 @@ final class YouTubePlayerService {
         self.shouldPopOutOnNavigateAway = shouldPopOutOnNavigateAway
         self.shouldKeepPlayingOnNavigateAway = shouldKeepPlayingOnNavigateAway
         self.playbackLoadingTimeout = playbackLoadingTimeout
+        self.prefersNativeVideoStreaming = prefersNativeVideoStreaming
+        self.streamURLResolver = streamURLResolver ?? { videoId in
+            await DirectVideoStreamResolver.shared.resolveStreamURL(videoId: videoId, timeoutSeconds: 6.0)
+        }
         if let saved = defaults.object(forKey: Self.playbackSpeedKey) as? Double,
            Self.supportedPlaybackSpeeds.contains(saved)
         {
@@ -632,7 +514,19 @@ final class YouTubePlayerService {
             guard let self, self.isPlayingNativeVideo, let video = self.currentVideo else { return }
             self.logger.warning("NativeVideoPlayer item failed for \(video.videoId), falling back to WebKit")
             DirectVideoStreamResolver.shared.invalidate(videoId: video.videoId)
-            self.fallbackToWebKitWatch(video: video, startAt: nil)
+            let resumeAt = self.interruptionResumeAt(for: video.videoId)
+            self.fallbackToWebKitWatch(video: video, startAt: resumeAt)
+        }
+        NativeVideoPlayer.shared.onMediaSelectionOptionsResolved = { [weak self] captions, activeCaption, audio, activeAudio in
+            guard let self, self.isPlayingNativeVideo else { return }
+            self.captionTracks = captions
+            self.activeCaptionLanguageCode = Self.normalizedCaptionLanguageCode(activeCaption)
+            self.audioTracks = audio
+            self.activeAudioTrackId = activeAudio
+            if self.qualityLevels.isEmpty {
+                self.qualityLevels = ["hd2160", "hd1440", "hd1080", "hd720", "large", "medium", "auto"]
+                self.currentQuality = self.userPinnedQuality ?? "auto"
+            }
         }
     }
 
@@ -659,6 +553,7 @@ final class YouTubePlayerService {
         self.usesCookieFreePlaybackDataStore = usesCookieFreeDataStore
         self.playbackWillStart?()
 
+        let hadPreviousVideo = self.currentVideo != nil
         if let current = self.currentVideo, current.videoId != video.videoId {
             self.rememberInHistory(current)
         }
@@ -682,7 +577,7 @@ final class YouTubePlayerService {
         self.streamResolutionTask = nil
         if self.isPlayingNativeVideo {
             NativeVideoPlayer.shared.stop()
-        } else {
+        } else if hadPreviousVideo {
             self.playbackController.pause()
         }
         self.isPlaying = false
@@ -691,6 +586,14 @@ final class YouTubePlayerService {
 
         self.beginPlaybackLoading()
         self.surfaceLocation = .inline
+        self.startStreamPlayback(for: video, startAt: normalizedStartAt)
+    }
+
+    private func startStreamPlayback(for video: YouTubeVideo, startAt normalizedStartAt: Double?) {
+        guard self.prefersNativeVideoStreaming else {
+            self.fallbackToWebKitWatch(video: video, startAt: normalizedStartAt)
+            return
+        }
 
         // 0. Instant local-first: play downloaded video files directly via NativeVideoPlayer
         if let localVideoURL = DownloadManager.shared.fileURL(for: video.videoId) {
@@ -700,6 +603,7 @@ final class YouTubePlayerService {
             NativeVideoPlayer.shared.play(url: localVideoURL, videoId: video.videoId, startAt: normalizedStartAt)
             NativeVideoPlayer.shared.setVolume(Float(self.volume))
             self.finishPlaybackLoading()
+            self.scheduleIdleWebViewReclamationIfNeeded()
             return
         }
 
@@ -713,6 +617,7 @@ final class YouTubePlayerService {
             NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
             NativeVideoPlayer.shared.setVolume(Float(self.volume))
             self.finishPlaybackLoading()
+            self.scheduleIdleWebViewReclamationIfNeeded()
             return
         }
 
@@ -720,7 +625,7 @@ final class YouTubePlayerService {
             guard let self else { return }
 
             // 2. Resolve direct stream asynchronously with native loading indicator
-            if let streamURL = await DirectVideoStreamResolver.shared.resolveStreamURL(videoId: video.videoId, timeoutSeconds: 10.0) {
+            if let streamURL = await self.streamURLResolver(video.videoId) {
                 guard !Task.isCancelled, self.currentVideo?.videoId == video.videoId else { return }
                 self.logger.info("Routing video playback through NativeVideoPlayer for: \(video.title)")
                 self.isPlayingNativeVideo = true
@@ -728,6 +633,7 @@ final class YouTubePlayerService {
                 NativeVideoPlayer.shared.play(url: streamURL, videoId: video.videoId, startAt: normalizedStartAt)
                 NativeVideoPlayer.shared.setVolume(Float(self.volume))
                 self.finishPlaybackLoading()
+                self.scheduleIdleWebViewReclamationIfNeeded()
                 return
             }
 
@@ -738,11 +644,35 @@ final class YouTubePlayerService {
         }
     }
 
+    private func scheduleIdleWebViewReclamationIfNeeded() {
+        guard WebViewIdleReclamationPolicy.shouldReclaimYouTubeWatchWebView(
+            isPlayingNativeVideo: self.isPlayingNativeVideo,
+            isPlaybackLoading: self.isPlaybackLoading,
+            isIdentityReloadInFlight: self.isIdentityReloadInFlight
+        ) else { return }
+        self.idleWebViewReclamationScheduler.schedule { [weak self] in
+            guard let self,
+                  WebViewIdleReclamationPolicy.shouldReclaimYouTubeWatchWebView(
+                      isPlayingNativeVideo: self.isPlayingNativeVideo,
+                      isPlaybackLoading: self.isPlaybackLoading,
+                      isIdentityReloadInFlight: self.isIdentityReloadInFlight
+                  )
+            else { return }
+            self.playbackController.tearDown()
+        }
+    }
+
     private func fallbackToWebKitWatch(video: YouTubeVideo, startAt: Double?) {
-        if self.isPlayingNativeVideo {
+        self.idleWebViewReclamationScheduler.cancel()
+        let wasPlayingNative = self.isPlayingNativeVideo
+        self.isPlayingNativeVideo = false
+        if wasPlayingNative {
             NativeVideoPlayer.shared.stop()
         }
-        self.isPlayingNativeVideo = false
+        self.hasObservedPausedMedia = false
+        if self.desiredPlaybackIntent == .playing {
+            self.beginPlaybackLoading()
+        }
         self.playbackController.prepare(
             webKitManager: self.webKitManager,
             playerService: self,
@@ -826,13 +756,20 @@ final class YouTubePlayerService {
         self.logger.info("Manual refresh: reloading current video")
         self.beginYouTubePlaybackIntent()
         let resumeAt = self.interruptionResumeAt(for: currentVideo.videoId)
+        self.streamResolutionTask?.cancel()
+        self.streamResolutionTask = nil
+        if self.isPlayingNativeVideo {
+            DirectVideoStreamResolver.shared.invalidate(videoId: currentVideo.videoId)
+            NativeVideoPlayer.shared.stop()
+            self.isPlayingNativeVideo = false
+        }
+        self.beginPlaybackLoading()
         self.playbackController.prepare(
             webKitManager: self.webKitManager,
             playerService: self,
             usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
         )
         self.playbackController.reloadVideo(videoId: currentVideo.videoId, resumeAt: resumeAt)
-        self.isPlaybackLoading = true
     }
 
     /// Auto-retry when connectivity returns (issue #19): if a video was meant to
@@ -1336,13 +1273,17 @@ final class YouTubePlayerService {
         self.currentWatchConcluded = false
         self.isIdentityReloadInFlight = false
         self.resetPerVideoState()
+        self.streamResolutionTask?.cancel()
+        self.streamResolutionTask = nil
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.stop()
+            self.isPlayingNativeVideo = false
+        }
+        self.isPlaying = false
+        self.progress = 0
+        self.duration = 0
         self.beginPlaybackLoading()
-        self.playbackController.prepare(
-            webKitManager: self.webKitManager,
-            playerService: self,
-            usesCookieFreeDataStore: self.usesCookieFreePlaybackDataStore
-        )
-        self.playbackController.loadVideo(videoId: video.videoId)
+        self.startStreamPlayback(for: video, startAt: nil)
 
         // Keep the surface where it is; when docked inline the content view
         // opens the new video's watch view.
@@ -1463,6 +1404,13 @@ final class YouTubePlayerService {
     /// playback starts — and reads the player's actual caption state
     /// (YouTube persists captions-on across sessions).
     func refreshPlaybackOptions() async {
+        guard !self.isPlayingNativeVideo else {
+            if self.qualityLevels.isEmpty {
+                self.qualityLevels = ["hd2160", "hd1440", "hd1080", "hd720", "large", "medium", "auto"]
+                self.currentQuality = self.userPinnedQuality ?? "auto"
+            }
+            return
+        }
         let videoId = self.currentVideo?.videoId
         for attempt in 0 ..< 3 {
             let tracks = await self.playbackController.availableCaptionTracks()
@@ -1547,14 +1495,22 @@ final class YouTubePlayerService {
     func selectCaptionTrack(languageCode: String?) {
         let normalized = Self.normalizedCaptionLanguageCode(languageCode)
         self.activeCaptionLanguageCode = normalized
-        self.playbackController.setCaptionTrack(languageCode: normalized)
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.selectCaptionTrack(languageCode: normalized)
+        } else {
+            self.playbackController.setCaptionTrack(languageCode: normalized)
+        }
         HapticService.toggle()
     }
 
     /// Selects an alternate audio track (dubbed language) by id.
     func selectAudioTrack(id: String) {
         self.activeAudioTrackId = id
-        self.playbackController.setAudioTrack(id: id)
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.selectAudioTrack(id: id)
+        } else {
+            self.playbackController.setAudioTrack(id: id)
+        }
         HapticService.toggle()
     }
 
@@ -1563,7 +1519,11 @@ final class YouTubePlayerService {
         self.currentQuality = level
         // "auto" clears the pin (back to Auto); any real level pins it.
         self.userPinnedQuality = (level == "auto") ? nil : level
-        self.playbackController.setQualityLevel(level)
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.setQualityLevel(level)
+        } else {
+            self.playbackController.setQualityLevel(level)
+        }
         HapticService.toggle()
     }
 
@@ -1571,7 +1531,11 @@ final class YouTubePlayerService {
 
     /// Shows the system AirPlay picker for the video element.
     func showAirPlayPicker(at screenPoint: CGPoint? = nil) {
-        self.playbackController.showAirPlayPicker(at: screenPoint)
+        if self.isPlayingNativeVideo {
+            NativeVideoPlayer.shared.showAirPlayPicker(at: screenPoint)
+        } else {
+            self.playbackController.showAirPlayPicker(at: screenPoint)
+        }
     }
 
     // MARK: - Rating
@@ -2039,7 +2003,8 @@ extension YouTubePlayerService {
         if update.isPlaying,
            !update.isAd,
            self.currentVideo != nil,
-           SettingsManager.shared.ambientBackdropEnabled
+           (SettingsManager.shared.ambientBackdropEnabled
+               && SettingsManager.shared.ambientBackdropStyle == .live)
            || SettingsManager.shared.controlsOnVideoEnabled
         {
             Task {

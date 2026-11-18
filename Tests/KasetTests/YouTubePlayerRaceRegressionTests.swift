@@ -9,7 +9,10 @@ struct YouTubePlayerRaceRegressionTests {
 
     init() {
         self.controller = MockYouTubeWatchPlaybackController()
-        self.sut = YouTubePlayerService(playbackController: self.controller)
+        self.sut = YouTubePlayerService(
+            playbackController: self.controller,
+            prefersNativeVideoStreaming: false
+        )
     }
 
     @Test("Paused identity drift preserves the new video's ready position")
@@ -164,7 +167,10 @@ struct YouTubePlayerRaceRegressionTests {
     @Test("Exhausted seek retries clear an unacknowledged explicit start")
     func exhaustedSeekClearsExplicitStartTarget() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.play(
             video: MockYouTubeClient.makeVideo(videoId: "a"),
             startAt: 45

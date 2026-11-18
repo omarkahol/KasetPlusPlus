@@ -207,6 +207,9 @@ private struct QueueRowView: View {
         .buttonStyle(.plain)
         .onHover { hovering in
             self.isHovering = hovering
+            if hovering {
+                DirectStreamResolver.shared.prewarmIfEnabled(videoId: self.song.videoId)
+            }
         }
         .contextMenu {
             FavoritesContextMenu.menuItem(for: self.song, manager: self.favoritesManager)

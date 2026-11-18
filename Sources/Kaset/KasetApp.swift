@@ -1,4 +1,5 @@
 import AppKit
+import CoreSpotlight
 import SwiftUI
 
 extension EnvironmentValues {
@@ -29,8 +30,26 @@ extension EnvironmentValues {
     @Entry var libraryViewModel: LibraryViewModel?
 }
 
+struct PlaylistDeletionAction: Equatable {
+    let id: UUID
+    private let handler: () -> Void
+
+    init(id: UUID = UUID(), handler: @escaping () -> Void) {
+        self.id = id
+        self.handler = handler
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func callAsFunction() {
+        self.handler()
+    }
+}
+
 extension EnvironmentValues {
-    @Entry var onPlaylistDeleted: (() -> Void)?
+    @Entry var onPlaylistDeleted: PlaylistDeletionAction?
 }
 
 // MARK: - KasetApp
@@ -174,6 +193,15 @@ struct KasetApp: App {
         youtubePlayer.youtubeClient = youtubeClient
         let arbiter = PlaybackArbiter(playerService: player, youtubePlayerService: youtubePlayer)
 
+        if !UITestConfig.isUITestMode, !UITestConfig.isRunningUnitTests {
+            Task {
+                await InnerTubeStreamResolver.shared.prewarmVisitorData()
+            }
+            Task {
+                await HLSManifestCache.shared.prewarmConnection()
+            }
+        }
+
         _authService = State(initialValue: auth)
         _webKitManager = State(initialValue: webkit)
         _playerService = State(initialValue: player)
@@ -290,6 +318,20 @@ struct KasetApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .kasetOpenURLs)) { notification in
                     guard let urls = notification.object as? [URL] else { return }
                     for url in urls {
+                        self.handleIncomingURL(url)
+                    }
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { userActivity in
+                    if let videoId = userActivity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                       !videoId.isEmpty
+                    {
+                        Task { @MainActor in
+                            await self.playerService.play(videoId: videoId)
+                        }
+                    }
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+                    if let url = userActivity.webpageURL {
                         self.handleIncomingURL(url)
                     }
                 }
@@ -425,6 +467,8 @@ struct KasetApp: App {
                 .tint(self.settings.accentColor)
                 .environment(\.locale, self.settings.contentLanguage.locale)
                 .environment(self.playerService)
+                .environment(self.youtubePlayerService)
+                .environment(self.playbackArbiter)
         } label: {
             self.menuBarIcon
         }

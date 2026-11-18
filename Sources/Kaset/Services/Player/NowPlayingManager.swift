@@ -133,6 +133,8 @@ final class NowPlayingManager {
     private var currentArtworkImage: NSImage?
     private var currentArtworkTrackId: String?
     private var artworkLoadTask: Task<Void, Never>?
+    private var handoffActivity: NSUserActivity?
+    private var lastHandoffKey: String?
     private var lastPublishedElapsedTime: TimeInterval?
     private var lastPublishedAt: Date?
     private var lastPublishedRate: Double = 0
@@ -241,8 +243,14 @@ final class NowPlayingManager {
         guard let player = self.playerService else { return }
         if self.routesToYouTubeVideo, let video = self.youtubePlayerService?.currentVideo {
             self.syncArtwork(itemId: "yt:\(video.videoId)", thumbnailURL: video.thumbnailURL)
+            self.updateHandoffActivity(videoId: video.videoId, title: video.title, isYouTubeVideo: true)
         } else {
             self.syncArtwork(itemId: player.currentTrack?.id, thumbnailURL: player.currentTrack?.thumbnailURL)
+            if let track = player.currentTrack {
+                self.updateHandoffActivity(videoId: track.videoId, title: track.title, isYouTubeVideo: false)
+            } else {
+                self.invalidateHandoffActivity()
+            }
         }
         let track = player.currentTrack.map { song in
             (title: song.title, artist: song.artists.map(\.name).joined(separator: ", "))
@@ -321,6 +329,26 @@ final class NowPlayingManager {
             self.lastPublishedRate = publishedRate
             self.isAssertingNativeClaim = true
         }
+    }
+
+    private func updateHandoffActivity(videoId: String, title: String, isYouTubeVideo: Bool) {
+        let key = "\(isYouTubeVideo ? "yt" : "ytm"):\(videoId)"
+        guard self.lastHandoffKey != key else { return }
+        self.lastHandoffKey = key
+        self.handoffActivity?.invalidate()
+        let activity = SpotlightIndexService.makeHandoffActivity(
+            videoId: videoId,
+            title: title,
+            isYouTubeVideo: isYouTubeVideo
+        )
+        activity?.becomeCurrent()
+        self.handoffActivity = activity
+    }
+
+    private func invalidateHandoffActivity() {
+        self.lastHandoffKey = nil
+        self.handoffActivity?.invalidate()
+        self.handoffActivity = nil
     }
 
     /// Returns whether elapsed playback time has jumped enough (e.g. after a seek) to warrant

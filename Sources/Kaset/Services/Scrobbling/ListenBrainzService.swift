@@ -99,8 +99,8 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
     }
 
     func scrobble(_ tracks: [ScrobbleTrack]) async throws -> [ScrobbleResult] {
-        guard let token = self.token else { throw ScrobbleError.sessionExpired }
         guard !tracks.isEmpty else { return [] }
+        guard let token = self.token else { throw ScrobbleError.sessionExpired }
 
         let body = Self.submissionBody(listenType: "import", tracks: tracks, includeTimestamp: true)
         let data = try JSONSerialization.data(withJSONObject: body)

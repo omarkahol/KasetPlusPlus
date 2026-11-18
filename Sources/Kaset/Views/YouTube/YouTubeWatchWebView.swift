@@ -301,7 +301,13 @@ final class YouTubeWatchWebView {
             completionHandler: nil
         )
         webView.evaluateJavaScript(
-            "window.__kasetTargetVolume = \(targetVolume);",
+            """
+            window.__kasetTargetVolume = \(targetVolume);
+            window.__kasetNativePausePending = false;
+            window.__kasetAutoplayPending = true;
+            window.__kasetAutoplayAttempts = 0;
+            window.__kasetAutoplayRetryScheduled = false;
+            """,
             completionHandler: nil
         )
         self.startDocumentNavigation(

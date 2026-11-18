@@ -454,11 +454,57 @@ extension YouTubeWatchWebView {
             function handlePlaybackStarted(event) {
                 const video = eventVideo(event);
                 if (!video) return;
+                if ((!event || event.type === 'playing') && !video.paused) {
+                    window.__kasetAutoplayPending = false;
+                    window.__kasetAutoplayAttempts = 0;
+                    window.__kasetAutoplayRetryScheduled = false;
+                }
                 bindVideoIdentity(video, false);
                 armEndedOccurrence(video);
                 enforceVolume(video);
                 enforceSpeed(video);
                 sendUpdate(true);
+            }
+
+            function recoverAutoplayIfNeeded() {
+                const video = videoEl();
+                if (!video) return;
+                if (!window.__kasetAutoplayPending || window.__kasetNativePausePending === true) return;
+                if (!video.paused) {
+                    window.__kasetAutoplayPending = false;
+                    window.__kasetAutoplayAttempts = 0;
+                    window.__kasetAutoplayRetryScheduled = false;
+                    return;
+                }
+                const attempts = window.__kasetAutoplayAttempts || 0;
+                if (attempts >= 5) return;
+                window.__kasetAutoplayAttempts = attempts + 1;
+
+                function scheduleRetry() {
+                    if (typeof setTimeout !== 'function' || window.__kasetAutoplayRetryScheduled) return;
+                    window.__kasetAutoplayRetryScheduled = true;
+                    const retryDelayMs = 250 * Math.pow(2, attempts);
+                    setTimeout(function() {
+                        window.__kasetAutoplayRetryScheduled = false;
+                        const current = videoEl();
+                        if (!window.__kasetAutoplayPending || window.__kasetNativePausePending === true || !current || !current.paused) return;
+                        recoverAutoplayIfNeeded();
+                    }, retryDelayMs);
+                }
+
+                try {
+                    const mp = moviePlayer();
+                    if (mp && typeof mp.playVideo === 'function') {
+                        try { mp.playVideo(); } catch (e) {}
+                    }
+                    const playResult = video.play();
+                    if (playResult && typeof playResult.catch === 'function') {
+                        playResult.catch(function() { scheduleRetry(); });
+                    }
+                    scheduleRetry();
+                } catch (e) {
+                    scheduleRetry();
+                }
             }
 
             function handlePlaybackStopped(event) {
@@ -524,6 +570,19 @@ extension YouTubeWatchWebView {
                 ['pause', 'seeked', 'loadedmetadata', 'durationchange', 'canplay', 'waiting', 'error'].forEach(function(evt) {
                     video.addEventListener(evt, handlePlaybackStopped);
                 });
+                video.addEventListener('loadeddata', function() {
+                    if (video.paused) {
+                        recoverAutoplayIfNeeded();
+                    }
+                });
+                video.addEventListener('canplay', recoverAutoplayIfNeeded);
+                video.addEventListener('canplaythrough', function() {
+                    if (window.__kasetAutoplayPending && window.__kasetNativePausePending !== true && video.paused) {
+                        window.__kasetAutoplayAttempts = 0;
+                        window.__kasetAutoplayRetryScheduled = false;
+                    }
+                    recoverAutoplayIfNeeded();
+                });
                 video.addEventListener('timeupdate', handleTimelineUpdate);
                 video.addEventListener('ended', handleEnded);
                 // Ignore YouTube kevlar's involuntary pauses. YouTube's web app
@@ -558,6 +617,9 @@ extension YouTubeWatchWebView {
                 enforceVolume(video);
                 enforceSpeed(video);
                 applyPendingSeek(video);
+                if (video.readyState >= 3 && video.paused) {
+                    recoverAutoplayIfNeeded();
+                }
                 sendUpdate(true);
                 return true;
             }
@@ -1129,6 +1191,9 @@ extension YouTubeWatchWebView {
             """
             (function() {
                 window.__kasetNativePausePending = false;
+                window.__kasetAutoplayPending = true;
+                window.__kasetAutoplayAttempts = 0;
+                window.__kasetAutoplayRetryScheduled = false;
                 const video = document.querySelector('#movie_player video') || document.querySelector('video');
                 if (video && video.paused) { video.play(); }
             })();
@@ -1143,6 +1208,7 @@ extension YouTubeWatchWebView {
             """
             (function() {
                 window.__kasetNativePausePending = true;
+                window.__kasetAutoplayPending = false;
                 const video = document.querySelector('#movie_player video') || document.querySelector('video');
                 if (video && !video.paused) { video.pause(); }
             })();

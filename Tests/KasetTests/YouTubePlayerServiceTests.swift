@@ -191,7 +191,8 @@ struct YouTubePlayerServiceTests {
         // assertions don't depend on the global SettingsManager.shared state.
         self.sut = YouTubePlayerService(
             playbackController: self.controller,
-            shouldPopOutOnNavigateAway: { true }
+            shouldPopOutOnNavigateAway: { true },
+            prefersNativeVideoStreaming: false
         )
     }
 
@@ -1374,7 +1375,10 @@ extension YouTubePlayerServiceTests {
     func loadingPostRollPlaceholderTerminationRecoversNextVideo() {
         for isAd in [true, false] {
             let controller = MockYouTubeWatchPlaybackController()
-            let sut = YouTubePlayerService(playbackController: controller)
+            let sut = YouTubePlayerService(
+                playbackController: controller,
+                prefersNativeVideoStreaming: false
+            )
             let nextVideo = MockYouTubeClient.makeVideo(videoId: "b")
             sut.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
             sut.setUpNext([nextVideo])
@@ -1426,7 +1430,10 @@ extension YouTubePlayerServiceTests {
     func explicitReplayPlaceholderTerminationReloadsCurrentVideo() {
         for isAd in [true, false] {
             let controller = MockYouTubeWatchPlaybackController()
-            let sut = YouTubePlayerService(playbackController: controller)
+            let sut = YouTubePlayerService(
+                playbackController: controller,
+                prefersNativeVideoStreaming: false
+            )
             sut.play(video: MockYouTubeClient.makeVideo(videoId: "a"))
             sut.setUpNext([MockYouTubeClient.makeVideo(videoId: "b")])
             let contentOccurrence = YouTubePlaybackOccurrence(
@@ -2150,13 +2157,16 @@ extension YouTubePlayerServiceTests {
         let settings = SettingsManager.shared
         let originalEnabled = settings.ambientBackdropEnabled
         let originalStyle = settings.ambientBackdropStyle
+        let originalControlsOnVideo = settings.controlsOnVideoEnabled
         defer {
             settings.ambientBackdropEnabled = originalEnabled
             settings.ambientBackdropStyle = originalStyle
+            settings.controlsOnVideoEnabled = originalControlsOnVideo
         }
 
         settings.ambientBackdropEnabled = true
         settings.ambientBackdropStyle = .soft
+        settings.controlsOnVideoEnabled = false
         self.controller.storyboardSpecResponse = "mock-storyboard-spec"
         self.sut.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
 
@@ -2195,7 +2205,10 @@ extension YouTubePlayerServiceTests {
     @Test("An older ended callback cannot break a newer remote-command batch")
     func staleEndedCallbackPreservesRemoteBatch() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let video = MockYouTubeClient.makeVideo(videoId: "stale-ended-remote-batch")
         service.play(video: video)
         service.youtubePlaybackIntentIssuedAtMilliseconds = 1000
@@ -2214,7 +2227,10 @@ extension YouTubePlayerServiceTests {
     @Test("A newer remote pause invalidates an older delayed skip")
     func remotePauseInvalidatesDelayedSkip() async {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let client = MockYouTubeClient()
         let requestStarted = AsyncGate()
         let releaseRequest = AsyncGate()
@@ -2249,7 +2265,10 @@ extension YouTubePlayerServiceTests {
     @Test("A remote command issued after an ended event remains admissible")
     func remoteCommandAfterEndedEventRemainsAdmissible() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let video = MockYouTubeClient.makeVideo(videoId: "ended-remote-order")
         service.play(video: video)
         service.youtubePlaybackIntentIssuedAtMilliseconds = 1000
@@ -2266,7 +2285,10 @@ extension YouTubePlayerServiceTests {
     @Test("Remote video commands captured before a newer native intent are ignored")
     func staleRemoteVideoCommandsAreIgnored() {
         let controller = MockYouTubeWatchPlaybackController()
-        let service = YouTubePlayerService(playbackController: controller)
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         service.beginYouTubePlaybackIntent(issuedAtMilliseconds: 2000)
 
         service.handleRemotePause(issuedAtMilliseconds: 1000)
@@ -2296,7 +2318,10 @@ struct PlaybackArbiterTests {
     func videoStartPausesMusic() {
         let playerService = PlayerService()
         let controller = MockYouTubeWatchPlaybackController()
-        let youtubePlayer = YouTubePlayerService(playbackController: controller)
+        let youtubePlayer = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let arbiter = PlaybackArbiter(playerService: playerService, youtubePlayerService: youtubePlayer)
 
         #expect(arbiter.activeSource == .music)
@@ -2311,7 +2336,10 @@ struct PlaybackArbiterTests {
     func musicStartPausesVideo() {
         let playerService = PlayerService()
         let controller = MockYouTubeWatchPlaybackController()
-        let youtubePlayer = YouTubePlayerService(playbackController: controller)
+        let youtubePlayer = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let arbiter = PlaybackArbiter(playerService: playerService, youtubePlayerService: youtubePlayer)
 
         youtubePlayer.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
@@ -2332,7 +2360,10 @@ struct PlaybackArbiterTests {
     func repeatedMusicStartsIdempotent() {
         let playerService = PlayerService()
         let controller = MockYouTubeWatchPlaybackController()
-        let youtubePlayer = YouTubePlayerService(playbackController: controller)
+        let youtubePlayer = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let arbiter = PlaybackArbiter(playerService: playerService, youtubePlayerService: youtubePlayer)
 
         arbiter.musicDidStartPlaying()
@@ -2346,7 +2377,10 @@ struct PlaybackArbiterTests {
     func staleVideoPauseDoesNotPauseNewMusicIntent() async {
         let playerService = PlayerService()
         let controller = MockYouTubeWatchPlaybackController()
-        let youtubePlayer = YouTubePlayerService(playbackController: controller)
+        let youtubePlayer = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let arbiter = PlaybackArbiter(playerService: playerService, youtubePlayerService: youtubePlayer)
         playerService.state = .playing
 
@@ -2383,7 +2417,10 @@ struct PlaybackArbiterTests {
             await releaseRequest.wait()
         }
         let controller = MockYouTubeWatchPlaybackController()
-        let youtubePlayer = YouTubePlayerService(playbackController: controller)
+        let youtubePlayer = YouTubePlayerService(
+            playbackController: controller,
+            prefersNativeVideoStreaming: false
+        )
         let arbiter = PlaybackArbiter(playerService: playerService, youtubePlayerService: youtubePlayer)
 
         let mixTask = Task { @MainActor in

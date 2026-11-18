@@ -258,6 +258,9 @@ private struct FavoriteItemCard: View {
             withAnimation(AppAnimation.quick) {
                 self.isHovering = hovering
             }
+            if hovering, case let .song(song) = self.item.itemType {
+                DirectStreamResolver.shared.prewarmIfEnabled(videoId: song.videoId)
+            }
         }
         .accessibilityLabel("\(self.item.title), \(self.item.typeLabel), \(self.item.subtitle ?? "")")
         .accessibilityHint(String(localized: "Drag to reorder"))

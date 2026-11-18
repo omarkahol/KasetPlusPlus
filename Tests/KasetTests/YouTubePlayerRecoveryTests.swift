@@ -9,7 +9,10 @@ struct YouTubePlayerRecoveryTests {
 
     init() {
         self.controller = MockYouTubeWatchPlaybackController()
-        self.sut = YouTubePlayerService(playbackController: self.controller)
+        self.sut = YouTubePlayerService(
+            playbackController: self.controller,
+            prefersNativeVideoStreaming: false
+        )
     }
 
     @Test("WebContent recovery reloads a playing video at its content position")
@@ -691,7 +694,10 @@ struct YouTubePlayerRecoveryTests {
     @Test("Interrupted explicit start targets survive every early recovery path")
     func interruptedStartAtIsPreserved() {
         let failureController = MockYouTubeWatchPlaybackController()
-        let failureService = YouTubePlayerService(playbackController: failureController)
+        let failureService = YouTubePlayerService(
+            playbackController: failureController,
+            prefersNativeVideoStreaming: false
+        )
         failureService.play(
             video: MockYouTubeClient.makeVideo(videoId: "failure"),
             startAt: 42
@@ -701,7 +707,10 @@ struct YouTubePlayerRecoveryTests {
         #expect(failureController.reloadResumeSeconds == [42, 42])
 
         let cancellationController = MockYouTubeWatchPlaybackController()
-        let cancellationService = YouTubePlayerService(playbackController: cancellationController)
+        let cancellationService = YouTubePlayerService(
+            playbackController: cancellationController,
+            prefersNativeVideoStreaming: false
+        )
         cancellationService.play(
             video: MockYouTubeClient.makeVideo(videoId: "cancellation"),
             startAt: 84
@@ -711,7 +720,10 @@ struct YouTubePlayerRecoveryTests {
         #expect(cancellationController.reloadResumeSeconds == [84, 84])
 
         let processController = MockYouTubeWatchPlaybackController()
-        let processService = YouTubePlayerService(playbackController: processController)
+        let processService = YouTubePlayerService(
+            playbackController: processController,
+            prefersNativeVideoStreaming: false
+        )
         processService.play(
             video: MockYouTubeClient.makeVideo(videoId: "process"),
             startAt: 126
@@ -726,7 +738,10 @@ struct YouTubePlayerRecoveryTests {
         #expect(processController.reloadResumeSeconds == [126, 126])
 
         let confirmedController = MockYouTubeWatchPlaybackController()
-        let confirmedService = YouTubePlayerService(playbackController: confirmedController)
+        let confirmedService = YouTubePlayerService(
+            playbackController: confirmedController,
+            prefersNativeVideoStreaming: false
+        )
         confirmedService.play(
             video: MockYouTubeClient.makeVideo(videoId: "confirmed"),
             startAt: 168

@@ -68,7 +68,7 @@ struct ListenBrainzServiceTests {
         let info = try #require(metadata["additional_info"] as? [String: Any])
         #expect(info["duration_ms"] as? Int == 210_000)
         #expect(info["music_service_name"] as? String == "YouTube Music")
-        #expect(info["submission_client"] as? String == "KasetPlus")
+        #expect(info["submission_client"] as? String == "Kaset++")
     }
 
     @Test("Playing-now body omits listened_at")

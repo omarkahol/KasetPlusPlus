@@ -9,7 +9,10 @@ struct YouTubePlayerMediaErrorTests {
 
     init() {
         self.controller = MockYouTubeWatchPlaybackController()
-        self.sut = YouTubePlayerService(playbackController: self.controller)
+        self.sut = YouTubePlayerService(
+            playbackController: self.controller,
+            prefersNativeVideoStreaming: false
+        )
     }
 
     @Test("A media error clears loading even when media never becomes ready")

@@ -1,5 +1,5 @@
 <h1 align="center">
-  &nbsp;kaset++
+  &nbsp;KasetPlusPlus
 </h1>
 
 <p align="center">
@@ -41,13 +41,29 @@
 ## Legal Disclaimer & Terms of Use
 
 > [!IMPORTANT]
-> - **kaset++** is an unofficial, independent open-source fork and is **not** affiliated with, authorized, maintained, or endorsed by Google LLC, YouTube, or the original authors.
-> - **No Binaries or Circumvention Tools Distributed**: This repository contains pure Swift/SwiftUI application source code only. No media-downloading binaries, DRM-circumvention code, copyrighted media streams, or proprietary extraction modules are bundled or hosted in this repository.
-> - **User Responsibility & Fair Use**: Any optional integration with user-installed command-line tools (such as `yt-dlp` and `ffmpeg`) is provided strictly for personal, non-commercial, fair-use archival of user-owned media or content for which the user has obtained explicit authorization from the copyright holder. Users are solely responsible for ensuring that their use complies with local copyright laws and YouTube's Terms of Service.
+> - **KasetPlusPlus** is an unofficial, independent open-source fork and is **not** affiliated with, authorized, maintained, or endorsed by Google LLC, YouTube, or the original authors.
+> - **User Responsibility & Fair Use**: Any integration with command-line tools (such as `yt-dlp` and `ffmpeg`) is provided strictly for personal, non-commercial, fair-use archival of user-owned media or content for which the user has obtained explicit authorization from the copyright holder. Users are solely responsible for ensuring that their use complies with local copyright laws and YouTube's Terms of Service.
 
 ---
 
-## Features & Highlights in kaset++
+## Installation (Pre-built Releases)
+
+Pre-built Universal Binary (Apple Silicon & Intel) `.dmg` releases are published on the [GitHub Releases](https://github.com/omarkahol/KasetPlusPlus/releases/latest) page.
+
+1. Download the latest `KasetPlusPlus-v*.dmg` from [Releases](https://github.com/omarkahol/KasetPlusPlus/releases/latest).
+2. Open the `.dmg` and drag **KasetPlusPlus.app** into your **Applications** folder.
+3. Because community builds are ad-hoc signed (not notarized with a paid Apple Developer ID), macOS Gatekeeper may block the first launch. If so, clear the quarantine attribute in Terminal:
+   ```bash
+   xattr -cr /Applications/KasetPlusPlus.app
+   ```
+4. *(Optional)* Install `ffmpeg` via [Homebrew](https://brew.sh) if you want full media conversion/archival support:
+   ```bash
+   brew install yt-dlp ffmpeg
+   ```
+
+---
+
+## Features & Highlights in KasetPlusPlus
 
 - 🎵 **Offline Media Archival**:
   - Download high-fidelity music tracks (with ID3 metadata, album artwork, and like-status tagging) or full YouTube videos (customizable 1080p, 720p, 480p, or Best Available).
@@ -106,18 +122,18 @@
    ```
    The finished app bundle will be located at:
    ```
-   .build/app/KasetPlus.app
+   .build/app/KasetPlusPlus.app
    ```
 
 4. **Install to `/Applications`**:
    ```bash
    # Close any running instance
-   pkill -x KasetPlus || true
+   pkill -x KasetPlusPlus || true
 
    # Copy to Applications and clear Gatekeeper quarantine
-   rm -rf /Applications/KasetPlus.app
-   cp -R .build/app/KasetPlus.app /Applications/
-   xattr -cr /Applications/KasetPlus.app
+   rm -rf /Applications/KasetPlusPlus.app
+   cp -R .build/app/KasetPlusPlus.app /Applications/
+   xattr -cr /Applications/KasetPlusPlus.app
    ```
 
 5. **Building in Xcode (GUI)**:
@@ -130,7 +146,7 @@
 
 ## Upstream Credits & Attribution
 
-`kaset++` is built with gratitude on the foundational work of the open-source community:
+`KasetPlusPlus` is built with gratitude on the foundational work of the open-source community:
 - [Kaset](https://github.com/sozercan/kaset) by Sertac Ozercan ([@sozercan](https://github.com/sozercan)).
 - [KasetPlus](https://github.com/Yoddikko/kasetPlus) by Alessio Iodice ([@Yoddikko](https://github.com/Yoddikko)).
 

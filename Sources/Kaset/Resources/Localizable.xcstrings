@@ -9414,7 +9414,7 @@
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Konstnären"
+            "value": "Artist"
           }
         },
         "tr": {
@@ -37245,6 +37245,84 @@
           "stringUnit": {
             "state": "translated",
             "value": "視窗置頂"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float on Top"
           }
         }
       }
@@ -75367,7 +75445,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Playlist"
+            "value": "播放清單"
           }
         }
       }
@@ -76670,19 +76748,407 @@
     },
     "Keep Playing in the Player Bar When Navigating Away": {
       "comment": "Settings window → YouTube tab: navigate-away option that keeps the video playing docked in the bottom player bar with no pop-out window. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep Playing in the Player Bar When Navigating Away"
+          }
+        }
+      }
     },
     "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.": {
       "comment": "Help text for the keep-playing-in-player-bar navigate-away option. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."
+          }
+        }
+      }
     },
     "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.": {
       "comment": "Footer explaining precedence of the keep-playing vs pop-out navigate-away options. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work."
+          }
+        }
+      }
     },
     "Return to video": {
       "comment": "Tooltip / accessibility label on the player-bar thumbnail that returns to the video kept playing docked. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to video"
+          }
+        }
+      }
     },
     "Pop Out Video When Navigating Away": {
       "comment": "Settings window → YouTube tab (YouTube video playback, ambient backdrop, SponsorBlock/DeArrow).",
@@ -87610,7 +88076,104 @@
     "Save to library": {
       "comment": "YouTube playlist save-to-library button",
       "extractionState": "manual",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to library"
+          }
+        }
+      }
     },
     "Save to Playlist": {
       "comment": "Action buttons at the bottom of the queue side panel (save as playlist, clear, etc.).",
@@ -87800,7 +88363,104 @@
     "Saved": {
       "comment": "YouTube playlist saved-to-library button, saved state",
       "extractionState": "manual",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved"
+          }
+        }
+      }
     },
     "Saving queue as playlist…": {
       "comment": "Action buttons at the bottom of the queue side panel (save as playlist, clear, etc.).",
@@ -89277,7 +89937,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Search"
+            "value": "搜尋"
           }
         }
       }
@@ -96492,7 +97152,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Sign In"
+            "value": "登入"
           }
         }
       }
@@ -99268,7 +99928,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Smart Shuffle"
+            "value": "智慧隨機播放"
           }
         }
       }
@@ -113151,7 +113811,7 @@
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Video"
+            "value": "影片"
           }
         }
       }
@@ -121205,6 +121865,18 @@
             "state": "translated",
             "value": "Kaset не вдалося безпечно видалити збережені дані входу. Повторіть спробу перед новим входом."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaset could not safely clear saved sign-in data. Retry before signing in again."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaset could not safely clear saved sign-in data. Retry before signing in again."
+          }
         }
       }
     },
@@ -121298,6 +121970,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kaset не вдалося видалити збережені дані входу. Спробуйте вийти ще раз перед завершенням роботи."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaset could not remove saved sign-in data. Try signing out again before quitting."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaset could not remove saved sign-in data. Try signing out again before quitting."
           }
         }
       }
@@ -121393,6 +122077,18 @@
             "state": "translated",
             "value": "Потрібне очищення даних входу"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-In Cleanup Required"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign-In Cleanup Required"
+          }
         }
       }
     },
@@ -121486,6 +122182,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Вихід не завершено"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign Out Incomplete"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign Out Incomplete"
           }
         }
       }
@@ -121582,6 +122290,18 @@
             "state": "translated",
             "value": "Спробуйте запитати:"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try asking:"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try asking:"
+          }
         }
       }
     },
@@ -121676,6 +122396,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запитати Gemini"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini"
           }
         }
       }
@@ -121772,6 +122504,18 @@
             "state": "translated",
             "value": "Запитайте що завгодно про це відео..."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask anything about this video..."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask anything about this video..."
+          }
         }
       }
     },
@@ -121866,6 +122610,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запитайте про це відео..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about this video..."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask about this video..."
           }
         }
       }
@@ -121962,6 +122718,18 @@
             "state": "translated",
             "value": "Відповіді створює YouTube, і вони можуть бути неточними."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responses are generated by YouTube and may be inaccurate."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responses are generated by YouTube and may be inaccurate."
+          }
         }
       }
     },
@@ -122055,6 +122823,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Згорнути «Запитати Gemini»"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse Ask Gemini"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse Ask Gemini"
           }
         }
       }
@@ -122150,6 +122930,18 @@
             "state": "translated",
             "value": "Розгорнути «Запитати Gemini»"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand Ask Gemini"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand Ask Gemini"
+          }
         }
       }
     },
@@ -122243,6 +123035,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Новий чат"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Chat"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Chat"
           }
         }
       }
@@ -122339,6 +123143,18 @@
             "state": "translated",
             "value": "Ваше запитання: %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You asked: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You asked: %@"
+          }
         }
       }
     },
@@ -122434,6 +123250,18 @@
             "state": "translated",
             "value": "Відповідь YouTube: %@"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube response: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube response: %@"
+          }
         }
       }
     },
@@ -122527,6 +123355,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Підготовка «Запитати Gemini»…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing Ask Gemini…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing Ask Gemini…"
           }
         }
       }
@@ -122623,6 +123463,18 @@
             "state": "translated",
             "value": "Надіслати"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
         }
       }
     },
@@ -122716,6 +123568,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Надсилання…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sending…"
           }
         }
       }
@@ -122811,6 +123675,18 @@
             "state": "translated",
             "value": "Увійдіть знову, щоб використовувати «Запитати Gemini»."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again to use Ask Gemini."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again to use Ask Gemini."
+          }
         }
       }
     },
@@ -122904,6 +123780,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Для «Запитати Gemini» тимчасово діє обмеження частоти запитів. Спробуйте пізніше."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini is temporarily rate limited. Try again later."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini is temporarily rate limited. Try again later."
           }
         }
       }
@@ -122999,6 +123887,18 @@
             "state": "translated",
             "value": "Не вдалося підготувати цей чат у «Запитати Gemini»."
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini couldn’t prepare this chat."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini couldn’t prepare this chat."
+          }
         }
       }
     },
@@ -123092,6 +123992,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Почніть новий чат, щоб продовжити."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a new chat to continue."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a new chat to continue."
           }
         }
       }
@@ -123187,6 +124099,18 @@
             "state": "translated",
             "value": "Відповідь «Запитати Gemini» готова"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini response ready"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask Gemini response ready"
+          }
         }
       }
     },
@@ -123280,6 +124204,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Новий чат «Запитати Gemini» готовий"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Ask Gemini chat ready"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New Ask Gemini chat ready"
           }
         }
       }
@@ -123700,55 +124636,1316 @@
     },
     "Click to collapse": {
       "comment": "Tooltip on an expanded album/playlist description. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to collapse"
+          }
+        }
+      }
     },
     "Click to show the full description": {
       "comment": "Tooltip on a truncated album/playlist description. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click to show the full description"
+          }
+        }
+      }
     },
     "Enable Discord Rich Presence": {
       "comment": "Settings toggle for Discord Rich Presence. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Discord Rich Presence"
+          }
+        }
+      }
     },
     "Discord Rich Presence": {
       "comment": "Settings section title for Discord Rich Presence. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord Rich Presence"
+          }
+        }
+      }
     },
     "Application ID": {
       "comment": "Label for the Discord Application ID field. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application ID"
+          }
+        }
+      }
     },
     "Show the track or video you are playing on your Discord profile.": {
       "comment": "Help text for the Discord Rich Presence toggle. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show the track or video you are playing on your Discord profile."
+          }
+        }
+      }
     },
     "Waiting for Discord to be running on this Mac.": {
       "comment": "Discord Rich Presence status: Discord not running. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for Discord to be running on this Mac."
+          }
+        }
+      }
     },
     "Connected to Discord.": {
       "comment": "Discord Rich Presence status: connected. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected to Discord."
+          }
+        }
+      }
     },
     "Discord refused the connection: %@": {
       "comment": "Discord Rich Presence status: handshake rejected. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discord refused the connection: %@"
+          }
+        }
+      }
     },
     "Could not reach Discord: %@": {
       "comment": "Discord Rich Presence status: transport failure. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach Discord: %@"
+          }
+        }
+      }
     },
     "Paused": {
       "comment": "Discord presence hover text shown while playback is paused. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        }
+      }
     },
     "Default": {
       "comment": "Placeholder meaning the built-in Discord application is used. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default"
+          }
+        }
+      }
     },
     "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.": {
       "comment": "Footer for the Discord Rich Presence settings section. Needs translation.",
-      "localizations": {}
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops."
+          }
+        }
+      }
     },
     "Sleep Timer": {
       "localizations": {

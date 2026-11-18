@@ -70,14 +70,14 @@ jobs:
           Scripts/build-app.sh release
 
       - name: Verify packaged app
-        run: Scripts/verify-release-app.sh .build/app/Kaset.app
+        run: Scripts/verify-release-app.sh .build/app/KasetPlusPlus.app
 
       - name: Create DMG
         run: |
-          APP_PATH=".build/app/Kaset.app"
+          APP_PATH=".build/app/KasetPlusPlus.app"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "Error: Could not find Kaset.app"
+            echo "Error: Could not find KasetPlusPlus.app"
             exit 1
           fi
 
@@ -88,15 +88,15 @@ jobs:
           cp -R "$APP_PATH" dmg_contents/
 
           # Create DMG
-          hdiutil create -volname "Kaset-dev" \
+          hdiutil create -volname "KasetPlusPlus-dev" \
             -srcfolder dmg_contents \
             -ov -format UDZO \
-            kaset-dev.dmg
+            KasetPlusPlus-dev.dmg
 
       - name: Upload DMG
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         if: github.event_name != 'pull_request'
         with:
-          name: kaset-dev-${{ steps.slug.outputs.sha_short }}
-          path: kaset-dev.dmg
+          name: KasetPlusPlus-dev-${{ steps.slug.outputs.sha_short }}
+          path: KasetPlusPlus-dev.dmg
           retention-days: 30

@@ -265,12 +265,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v1.0.0" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v1.0.0" {
                 body = [
                     "tag_name": "v1.0.0",
                     "name": "What's New in KasetPlus 1.0.0",
                     "body": "Release notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v1.0.0",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v1.0.0",
                 ]
                 statusCode = 200
             } else {
@@ -318,12 +318,12 @@ struct WhatsNewProviderTests {
             let statusCode: Int
 
             switch url.path {
-            case "/repos/Yoddikko/kasetPlus/releases/latest":
+            case "/repos/omarkahol/KasetPlusPlus/releases/latest":
                 body = [
                     "tag_name": "v0.13.0-kp.21",
                     "name": "What's New in KasetPlus 0.13.0",
                     "body": "Latest release notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.13.0-kp.21",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.13.0-kp.21",
                 ]
                 statusCode = 200
             default:
@@ -374,12 +374,12 @@ struct WhatsNewProviderTests {
 
             // No exact `v0.13.0` tag exists — our releases are tagged `-kp.N`.
             switch url.path {
-            case "/repos/Yoddikko/kasetPlus/releases/latest":
+            case "/repos/omarkahol/KasetPlusPlus/releases/latest":
                 body = [
                     "tag_name": "v0.13.0-kp.21",
                     "name": "KasetPlus v0.13.0-kp.21",
                     "body": "### What's New\n\n### Feature\nDetails",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.13.0-kp.21",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.13.0-kp.21",
                 ]
                 statusCode = 200
             default:
@@ -425,12 +425,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v0.12.0" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v0.12.0" {
                 body = [
                     "tag_name": "v0.12.0",
                     "name": "What's New in KasetPlus 0.12.0",
                     "body": "Minor release notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.12.0",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.12.0",
                 ]
                 statusCode = 200
             } else {
@@ -476,12 +476,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v0.14.0" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v0.14.0" {
                 body = [
                     "tag_name": "v0.13.0",
                     "name": "What's New in KasetPlus 0.13.0",
                     "body": "Mismatched release notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.13.0",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.13.0",
                 ]
                 statusCode = 200
             } else {
@@ -530,12 +530,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v2.5" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v2.5" {
                 body = [
                     "tag_name": "v2.5",
                     "name": "What's New in KasetPlus 2.5",
                     "body": "Short-form release notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v2.5",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v2.5",
                 ]
                 statusCode = 200
             } else {
@@ -581,12 +581,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v1.0.0-beta.1" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v1.0.0-beta.1" {
                 body = [
                     "tag_name": "v1.0.0-beta.1",
                     "name": "1.0.0-beta.1",
                     "body": "Beta notes",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v1.0.0-beta.1",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v1.0.0-beta.1",
                 ]
                 statusCode = 200
             } else {
@@ -632,12 +632,12 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v1.2.3" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v1.2.3" {
                 body = [
                     "tag_name": "v1.2.3",
                     "name": "What's New in KasetPlus 1.2.3",
                     "body": "Star intro\r\n\r\n## What's New\r\n\r\n### Queue Enhancements\r\n\r\n- Faster queue updates\r\n\r\n## New Contributors\r\n\r\n- @new-contributor made their first contribution\r\n",
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v1.2.3",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v1.2.3",
                 ]
                 statusCode = 200
             } else {
@@ -682,7 +682,7 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v0.7.0" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v0.7.0" {
                 body = [
                     "tag_name": "v0.7.0",
                     "name": "What's New in KasetPlus 0.7.0",
@@ -704,9 +704,9 @@ struct WhatsNewProviderTests {
 
                     ## Full Changelog
 
-                    - https://github.com/Yoddikko/kasetPlus/compare/v0.6.0...v0.7.0
+                    - https://github.com/omarkahol/KasetPlusPlus/compare/v0.6.0...v0.7.0
                     """,
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.7.0",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.7.0",
                 ]
                 statusCode = 200
             } else {
@@ -758,7 +758,7 @@ struct WhatsNewProviderTests {
             let body: [String: Any]
             let statusCode: Int
 
-            if url.path == "/repos/Yoddikko/kasetPlus/releases/tags/v0.8.0" {
+            if url.path == "/repos/omarkahol/KasetPlusPlus/releases/tags/v0.8.0" {
                 body = [
                     "tag_name": "v0.8.0",
                     "name": "What's New in KasetPlus 0.8.0",
@@ -773,7 +773,7 @@ struct WhatsNewProviderTests {
 
                     - SHA256: abc123
                     """,
-                    "html_url": "https://github.com/Yoddikko/kasetPlus/releases/tag/v0.8.0",
+                    "html_url": "https://github.com/omarkahol/KasetPlusPlus/releases/tag/v0.8.0",
                 ]
                 statusCode = 200
             } else {

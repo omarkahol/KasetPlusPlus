@@ -26,24 +26,36 @@ struct YouTubePlayerBar: View {
 
     @MainActor private static var brandAccent: Color { SettingsManager.shared.accentColor }
     private static let fullVideoDetailsWidth: CGFloat = 294
-    private static let compactVideoDetailsWidth: CGFloat = 141
+    private static let compactVideoDetailsWidth: CGFloat = 72
 
     /// How densely the trailing option buttons are packed. On a narrow bar (the
     /// pop-out/PiP window can shrink to ~480pt wide) the secondary options
     /// collapse into a single "•••" overflow menu so the transport controls keep
     /// room and never overlap the elapsed/remaining time labels.
-    private enum OptionsTier {
+    enum OptionsTier: Equatable {
         case full // every option inline
-        case reduced // full-view + overflow menu + PiP
+        case reduced // full-view + overflow menu + quality menu + PiP
+    }
+
+    struct BarLayoutMetrics: Equatable {
+        let showsDetails: Bool
+        let usesCompactDetails: Bool
+        let leadingPadding: CGFloat
+        let detailsWidth: CGFloat
+        let optionsTier: OptionsTier
+        let optionsWidth: CGFloat
+        let progressWidth: CGFloat
     }
 
     /// Below this bar width the thumbnail/title details are dropped entirely to
-    /// give the transport controls and progress lane room (the main window is
-    /// always far wider, so it is unaffected).
+    /// give the transport controls and progress lane room.
     private static let detailsCollapseWidth: CGFloat = 600
+    /// At/above this bar width full title/channel details are shown alongside
+    /// the progress lane and full options without compressing the scrubber.
+    private static let fullDetailsWidth: CGFloat = 840
     /// At/above this bar width every option button is shown inline; below it they
     /// collapse into the overflow menu.
-    private static let fullOptionsWidth: CGFloat = 680
+    private static let fullOptionsWidth: CGFloat = 760
     /// When the video has chapters, the progress lane floats a chapter tooltip
     /// above the track; lift the scrub bubble just enough that its timestamp
     /// capsule sits a little above the chapter tooltip instead of landing on it
@@ -66,9 +78,6 @@ struct YouTubePlayerBar: View {
     /// Namespace for glass effect morphing.
     @Namespace private var playerNamespace
 
-    @State private var seekValue: Double = 0
-    @State private var isSeeking = false
-    @State private var seekHold = PlayerBarSeekHold()
     @State private var volumeValue: Double = 1.0
     @State private var isAdjustingVolume = false
     @State private var showsVolumeOverlay = false
@@ -80,24 +89,10 @@ struct YouTubePlayerBar: View {
 
     var body: some View {
         self.content
-        .onChange(of: self.youtubePlayer.progress) { _, newValue in
-            self.seekHold.reconcile(observedProgress: newValue)
-            if !self.isSeeking, !self.seekHold.isActive, self.youtubePlayer.duration > 0 {
-                self.seekValue = self.displayedPlaybackProgress / self.youtubePlayer.duration
-            }
-        }
-        .onChange(of: self.youtubePlayer.duration) { _, newValue in
-            self.seekHold.reconcile(observedProgress: self.youtubePlayer.progress)
-            if !self.isSeeking, !self.seekHold.isActive, newValue > 0 {
-                self.seekValue = self.displayedPlaybackProgress / newValue
-            }
-        }
         .onChange(of: self.currentSeekIdentity) { _, _ in
-            self.clearSeekHold()
             self.chapterPreviewMarker = nil
         }
         .onChange(of: self.youtubePlayer.isShowingAd) { _, _ in
-            self.clearSeekHold()
             self.chapterPreviewMarker = nil
         }
         .onChange(of: self.youtubePlayer.volume) { _, newValue in
@@ -108,9 +103,6 @@ struct YouTubePlayerBar: View {
         .onChange(of: self.showsVolumeOverlay) { _, isPresented in self.onVolumeOverlayChange(isPresented) }
         .onAppear {
             self.volumeValue = self.youtubePlayer.volume
-            if self.youtubePlayer.duration > 0 {
-                self.seekValue = self.youtubePlayer.progress / self.youtubePlayer.duration
-            }
         }
     }
 
@@ -149,26 +141,27 @@ struct YouTubePlayerBar: View {
     private var dockedBar: some View {
         CompatGlassContainer(spacing: 0) {
             GeometryReader { proxy in
-                let width = proxy.size.width
-                let usesCompactDetails = width <= PlayerBarLayout.compactDetailsBreakpoint
-                let showsDetails = width >= Self.detailsCollapseWidth
-                let optionsTier: OptionsTier = width >= Self.fullOptionsWidth ? .full : .reduced
+                let metrics = Self.layoutMetrics(
+                    forBarWidth: proxy.size.width,
+                    hasPersonalAccount: self.hasPersonalAccount,
+                    isLive: self.youtubePlayer.isLive,
+                    hasAlternateAudio: self.hasAlternateAudio
+                )
 
                 HStack(spacing: 10) {
-                    if showsDetails {
-                        self.videoDetailsSection(usesCompactDetails: usesCompactDetails)
-                            .frame(
-                                width: usesCompactDetails ? Self.compactVideoDetailsWidth : Self.fullVideoDetailsWidth,
-                                height: 52
-                            )
+                    if metrics.showsDetails {
+                        self.videoDetailsSection(usesCompactDetails: metrics.usesCompactDetails)
+                            .frame(width: metrics.detailsWidth, height: 52)
                     }
 
                     self.youtubeProgressSection(showsHeatmap: false)
-                        .frame(maxWidth: .infinity)
+                        .padding(.leading, metrics.leadingPadding)
+                        .frame(minWidth: 0, maxWidth: .infinity)
                         .frame(height: 52)
+                        .layoutPriority(1)
 
-                    self.youtubeOptionsSection(tier: optionsTier)
-                        .frame(width: self.youtubeOptionsWidth(tier: optionsTier), height: 52)
+                    self.youtubeOptionsSection(tier: metrics.optionsTier)
+                        .frame(width: metrics.optionsWidth, height: 52)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -187,14 +180,26 @@ struct YouTubePlayerBar: View {
     /// right there), laid over a bottom scrim. Reuses `youtubeOptionsSection`,
     /// which already collapses quality/captions into menus on narrow widths.
     private var videoOverlayControls: some View {
-        HStack(spacing: 10) {
-            self.youtubeProgressSection(showsHeatmap: true)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
+        GeometryReader { proxy in
+            let optionsTier: OptionsTier = proxy.size.width >= Self.fullOptionsWidth ? .full : .reduced
+            let optionsWidth = Self.youtubeOptionsWidth(
+                tier: optionsTier,
+                hasPersonalAccount: self.hasPersonalAccount,
+                isLive: self.youtubePlayer.isLive,
+                hasAlternateAudio: self.hasAlternateAudio
+            )
 
-            self.youtubeOptionsSection(tier: .full)
-                .frame(width: self.youtubeOptionsWidth(tier: .full), height: 52)
+            HStack(spacing: 10) {
+                self.youtubeProgressSection(showsHeatmap: true)
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    .frame(height: 52)
+                    .layoutPriority(1)
+
+                self.youtubeOptionsSection(tier: optionsTier)
+                    .frame(width: optionsWidth, height: 52)
+            }
         }
+        .frame(height: 52)
         .padding(.horizontal, 16)
         .padding(.top, 40)
         .padding(.bottom, 10)
@@ -399,47 +404,35 @@ struct YouTubePlayerBar: View {
     }
 
     private func youtubeProgressSection(showsHeatmap: Bool = false) -> some View {
-        ZStack(alignment: .top) {
+        VStack(spacing: 2) {
+            self.youtubeTransportControls
+                .frame(height: 28)
+
             Group {
                 if self.youtubePlayer.isShowingAd {
                     PlayerBarAdIndicator()
                 } else {
-                    PlayerBarProgressLane(
-                        fraction: self.displayFraction,
+                    YouTubePlayerProgressLaneHost(
                         accent: Self.brandAccent,
-                        elapsedText: Self.formatTime(self.progressTextValue),
-                        remainingText: "-\(Self.formatTime(max(0, self.youtubePlayer.duration - self.progressTextValue)))",
                         markers: self.chapterProgressMarkers,
                         segments: self.chapterProgressSegments,
-                        isLive: false,
                         canSeek: self.canSeek,
                         isLoading: self.isProgressLoading,
-                        onScrub: { fraction in
-                            self.isSeeking = true
-                            self.seekValue = fraction
-                        },
-                        onCommit: {
-                            self.performSeek()
-                        },
+                        currentSeekIdentity: self.currentSeekIdentity,
+                        segmentMarkers: self.segmentFractionMarkers,
+                        heatmap: showsHeatmap ? self.youtubePlayer.heatmap : [],
                         onMarkerPreviewChange: { marker in
                             self.chapterPreviewMarker = marker
                         },
-                        segmentMarkers: self.segmentFractionMarkers,
-                        heatmap: showsHeatmap ? self.youtubePlayer.heatmap : [],
                         onHoverFractionChange: self.mode == .videoOverlay
                             ? { fraction in self.hoverPreviewFraction = fraction }
                             : nil
                     )
                 }
             }
-            .padding(.top, 18)
-            // Match the music player's segmented lane layering so chapter tooltips stay above
-            // transport controls without intercepting their clicks.
             .zIndex(1)
-
-            self.youtubeTransportControls
-                .padding(.top, 2)
         }
+        .padding(.vertical, 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Storyboard scrub preview, floating over the video above the bar
         // (and above the "most replayed" band), YouTube-style. Only on the
@@ -988,30 +981,61 @@ struct YouTubePlayerBar: View {
         self.colorScheme == .dark ? .black.opacity(0.36) : .black.opacity(0.18)
     }
 
-    private func youtubeOptionsWidth(tier: OptionsTier) -> CGFloat {
+    static func layoutMetrics(
+        forBarWidth width: CGFloat,
+        hasPersonalAccount: Bool = true,
+        isLive: Bool = false,
+        hasAlternateAudio: Bool = false
+    ) -> BarLayoutMetrics {
+        let showsDetails = width >= Self.detailsCollapseWidth
+        let usesCompactDetails = width < Self.fullDetailsWidth
+        // `videoDetailsSection` supplies its own 14pt leading padding inside the
+        // capsule; when details collapse at narrow widths, apply the same 14pt
+        // leading inset to the progress section so the left timestamp clears the
+        // 52pt capsule's 26pt corner curve.
+        let leadingPadding: CGFloat = showsDetails ? 0 : 14
+        let detailsWidth: CGFloat = showsDetails
+            ? (usesCompactDetails ? Self.compactVideoDetailsWidth : Self.fullVideoDetailsWidth)
+            : 0
+        let optionsTier: OptionsTier = width >= Self.fullOptionsWidth ? .full : .reduced
+        let optionsWidth = Self.youtubeOptionsWidth(
+            tier: optionsTier,
+            hasPersonalAccount: hasPersonalAccount,
+            isLive: isLive,
+            hasAlternateAudio: hasAlternateAudio
+        )
+        let spacingTotal: CGFloat = showsDetails ? 20 : 10
+        let progressWidth = max(0, width - leadingPadding - detailsWidth - optionsWidth - spacingTotal)
+        return BarLayoutMetrics(
+            showsDetails: showsDetails,
+            usesCompactDetails: usesCompactDetails,
+            leadingPadding: leadingPadding,
+            detailsWidth: detailsWidth,
+            optionsTier: optionsTier,
+            optionsWidth: optionsWidth,
+            progressWidth: progressWidth
+        )
+    }
+
+    static func youtubeOptionsWidth(
+        tier: OptionsTier,
+        hasPersonalAccount: Bool = true,
+        isLive: Bool = false,
+        hasAlternateAudio: Bool = false
+    ) -> CGFloat {
         switch tier {
-        // Widened to fit the Download button that lives in this group.
-        case .full: 246
-        // Full-view + overflow "•••" + PiP: three 28pt buttons, spacing, trailing pad.
-        case .reduced: 112
+        case .full:
+            // Base 5: fullView, airPlay, captions, quality, pip.
+            let buttonCount = 5
+                + (hasPersonalAccount ? 1 : 0)
+                + (!isLive ? 1 : 0)
+                + (hasAlternateAudio ? 1 : 0)
+            let buttonsWidth = CGFloat(buttonCount) * 28 + CGFloat(max(0, buttonCount - 1)) * 6 + 12
+            return max(246, buttonsWidth)
+        // Full-view + overflow "•••" + quality + PiP: four 28pt buttons, 6pt spacing, 12pt trailing pad.
+        case .reduced:
+            return 144
         }
-    }
-
-    /// Fraction (0...1) to render: the live drag value while seeking, otherwise actual progress.
-    private var displayFraction: Double {
-        if self.isSeeking {
-            return min(max(0, self.seekValue), 1)
-        }
-        guard self.youtubePlayer.duration > 0 else { return 0 }
-        return min(max(0, self.displayedPlaybackProgress / self.youtubePlayer.duration), 1)
-    }
-
-    private var progressTextValue: TimeInterval {
-        self.isSeeking ? self.seekValue * self.youtubePlayer.duration : self.displayedPlaybackProgress
-    }
-
-    private var displayedPlaybackProgress: TimeInterval {
-        self.seekHold.displayProgress(observedProgress: self.youtubePlayer.progress)
     }
 
     private var currentSeekIdentity: String {
@@ -1120,35 +1144,6 @@ struct YouTubePlayerBar: View {
         self.youtubeStore?.navigationPath.append(YouTubeRoute.channel(channelId: channelId))
     }
 
-    private func performSeek() {
-        guard self.isSeeking, self.canSeek else { return }
-        let seekTime = self.seekValue * self.youtubePlayer.duration
-        let holdID = self.seekHold.begin(target: seekTime)
-        self.isSeeking = false
-        self.youtubePlayer.seek(to: seekTime)
-
-        Task { @MainActor in
-            try? await Task.sleep(for: PlayerBarSeekHold.timeout)
-            if self.seekHold.clearIfCurrent(holdID) {
-                self.syncSeekValueFromDisplayedProgress()
-            }
-        }
-    }
-
-    private func clearSeekHold() {
-        self.seekHold.clear()
-        self.isSeeking = false
-        self.syncSeekValueFromDisplayedProgress()
-    }
-
-    private func syncSeekValueFromDisplayedProgress() {
-        if self.youtubePlayer.duration > 0 {
-            self.seekValue = self.displayedPlaybackProgress / self.youtubePlayer.duration
-        } else {
-            self.seekValue = 0
-        }
-    }
-
     private var volumeIcon: String {
         if self.displayedVolume == 0 {
             "speaker.slash.fill"
@@ -1234,4 +1229,132 @@ extension AccessibilityID.YouTubeContent {
     static let watchFullView = "youtubeContent.watchFullView"
     static let captionsButton = "youtubeContent.captionsButton"
     static let qualityButton = "youtubeContent.qualityButton"
+}
+
+// MARK: - YouTubePlayerProgressLaneHost
+
+/// Isolated progress leaf so 4 Hz `youtubePlayer.progress` updates only
+/// re-evaluate the scrubber lane instead of the entire `YouTubePlayerBar`.
+private struct YouTubePlayerProgressLaneHost: View {
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
+
+    let accent: Color
+    let markers: [PlayerBarProgressMarker]
+    let segments: [PlayerBarProgressSegment]
+    let canSeek: Bool
+    let isLoading: Bool
+    let currentSeekIdentity: String
+    let segmentMarkers: [PlayerBarSegmentMarker]
+    let heatmap: [YouTubeHeatmapMarker]
+    let onMarkerPreviewChange: (PlayerBarProgressMarker?) -> Void
+    let onHoverFractionChange: ((Double?) -> Void)?
+
+    @State private var seekValue: Double = 0
+    @State private var isSeeking = false
+    @State private var seekHold = PlayerBarSeekHold()
+
+    private var displayedPlaybackProgress: TimeInterval {
+        self.seekHold.displayProgress(observedProgress: self.youtubePlayer.progress)
+    }
+
+    private var displayFraction: Double {
+        if self.isSeeking {
+            return min(max(0, self.seekValue), 1)
+        }
+        guard self.youtubePlayer.duration > 0 else { return 0 }
+        return min(max(0, self.displayedPlaybackProgress / self.youtubePlayer.duration), 1)
+    }
+
+    private var progressTextValue: TimeInterval {
+        self.isSeeking ? self.seekValue * self.youtubePlayer.duration : self.displayedPlaybackProgress
+    }
+
+    var body: some View {
+        PlayerBarProgressLane(
+            fraction: self.displayFraction,
+            accent: self.accent,
+            elapsedText: Self.formatTime(self.progressTextValue),
+            remainingText: "-\(Self.formatTime(max(0, self.youtubePlayer.duration - self.progressTextValue)))",
+            markers: self.markers,
+            segments: self.segments,
+            isLive: false,
+            canSeek: self.canSeek,
+            isLoading: self.isLoading,
+            onScrub: { fraction in
+                self.isSeeking = true
+                self.seekValue = fraction
+            },
+            onCommit: {
+                self.performSeek()
+            },
+            onMarkerPreviewChange: self.onMarkerPreviewChange,
+            segmentMarkers: self.segmentMarkers,
+            heatmap: self.heatmap,
+            onHoverFractionChange: self.onHoverFractionChange,
+            inlineTimestamps: true
+        )
+        .onAppear {
+            if self.youtubePlayer.duration > 0 {
+                self.seekValue = self.youtubePlayer.progress / self.youtubePlayer.duration
+            }
+        }
+        .onChange(of: self.youtubePlayer.progress) { _, newValue in
+            self.seekHold.reconcile(observedProgress: newValue)
+            if !self.isSeeking, !self.seekHold.isActive, self.youtubePlayer.duration > 0 {
+                self.seekValue = self.displayedPlaybackProgress / self.youtubePlayer.duration
+            }
+        }
+        .onChange(of: self.youtubePlayer.duration) { _, newValue in
+            self.seekHold.reconcile(observedProgress: self.youtubePlayer.progress)
+            if !self.isSeeking, !self.seekHold.isActive, newValue > 0 {
+                self.seekValue = self.displayedPlaybackProgress / newValue
+            }
+        }
+        .onChange(of: self.currentSeekIdentity) { _, _ in
+            self.clearSeekHold()
+        }
+        .onChange(of: self.youtubePlayer.isShowingAd) { _, _ in
+            self.clearSeekHold()
+        }
+    }
+
+    private func performSeek() {
+        guard self.isSeeking, self.canSeek else { return }
+        let seekTime = self.seekValue * self.youtubePlayer.duration
+        let holdID = self.seekHold.begin(target: seekTime)
+        self.isSeeking = false
+        self.youtubePlayer.seek(to: seekTime)
+
+        Task { @MainActor in
+            try? await Task.sleep(for: PlayerBarSeekHold.timeout)
+            if self.seekHold.clearIfCurrent(holdID) {
+                self.syncSeekValueFromDisplayedProgress()
+            }
+        }
+    }
+
+    private func clearSeekHold() {
+        self.seekHold.clear()
+        self.isSeeking = false
+        self.syncSeekValueFromDisplayedProgress()
+    }
+
+    private func syncSeekValueFromDisplayedProgress() {
+        if self.youtubePlayer.duration > 0 {
+            self.seekValue = self.displayedPlaybackProgress / self.youtubePlayer.duration
+        } else {
+            self.seekValue = 0
+        }
+    }
+
+    private static func formatTime(_ seconds: TimeInterval) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+        let totalSeconds = Int(seconds)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%d:%02d", minutes, secs)
+    }
 }

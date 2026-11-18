@@ -97,6 +97,9 @@ struct HomeSectionItemCard: View, Equatable {
             withAnimation(AppAnimation.quick) {
                 self.isHovering = hovering
             }
+            if hovering, case let .song(song) = self.item {
+                DirectStreamResolver.shared.prewarmIfEnabled(videoId: song.videoId)
+            }
         }
         .onChange(of: self.item.id) { _, _ in
             self.failedThumbnailURLs = []

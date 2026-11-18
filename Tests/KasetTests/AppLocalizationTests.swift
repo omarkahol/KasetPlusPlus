@@ -109,11 +109,11 @@ struct AppLocalizationTests {
         )
         #expect(
             String(
-                localized: "Couldn't capture Kaset's audio (status \(status)). Check Screen & System Audio Recording permission in System Settings.",
+                localized: "Couldn't capture Kaset++'s audio (status \(status)). Check Screen & System Audio Recording permission in System Settings.",
                 bundle: bundle,
                 locale: locale
             ) ==
-                "Kasets Audio konnte nicht erfasst werden (Status -50). Prüfe die Berechtigung für Bildschirm- und Systemaudioaufnahme in den Systemeinstellungen."
+                "Kaset++s Audio konnte nicht erfasst werden (Status -50). Prüfe die Berechtigung für Bildschirm- und Systemaudioaufnahme in den Systemeinstellungen."
         )
 
         #expect(try self.sourceCatalogValue(key: "Scroll %@ left", localeIdentifier: "de") == "%1$@ nach links scrollen")
@@ -121,7 +121,7 @@ struct AppLocalizationTests {
         #expect(try self.sourceCatalogValue(key: "Couldn't install the audio I/O proc (%d).", localeIdentifier: "de").contains("%d"))
         #expect(
             try self.sourceCatalogValue(
-                key: "Couldn't capture Kaset's audio (status %d). Check Screen & System Audio Recording permission in System Settings.",
+                key: "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings.",
                 localeIdentifier: "de"
             ).contains("%d")
         )

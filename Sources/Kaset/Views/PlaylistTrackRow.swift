@@ -25,7 +25,12 @@ struct PlaylistTrackRow<Menu: View>: View {
     var body: some View {
         self.rowContent
             .background { self.playbackButton }
-            .onHover { hovering in self.isHovered = hovering }
+            .onHover { hovering in
+                self.isHovered = hovering
+                if hovering {
+                    DirectStreamResolver.shared.prewarmIfEnabled(videoId: self.track.videoId)
+                }
+            }
             .contextMenu { self.menu() }
     }
 
