@@ -822,11 +822,14 @@ struct YouTubePlayerBar: View {
                 self.youtubePlayer.selectAudioTrack(id: track.id)
             } label: {
                 if self.youtubePlayer.activeAudioTrackId == track.id {
-                    Label(track.displayName, systemImage: "checkmark")
+                    Label(track.menuDisplayName, systemImage: "checkmark")
+                        .foregroundStyle(track.isOriginal ? Self.brandAccent : .primary)
                 } else {
-                    Text(track.displayName)
+                    Text(track.menuDisplayName)
+                        .foregroundStyle(track.isOriginal ? Self.brandAccent : .primary)
                 }
             }
+            .tint(track.isOriginal ? Self.brandAccent : nil)
         }
     }
 

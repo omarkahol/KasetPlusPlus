@@ -49,6 +49,7 @@ final class SettingsManager {
         static let hasCompletedInitialOnboarding = "settings.onboarding.completed"
         static let distractionFreeEnabled = "settings.distractionFree.enabled"
         static let youtubeAutoplayEnabled = "settings.youtube.autoplay.enabled"
+        static let forceOriginalAudioLanguage = "settings.youtube.forceOriginalAudioLanguage"
         static let accentColorHex = "settings.accentColorHex"
         static let downloadAudioFormat = "settings.downloadAudioFormat"
         static let videoDownloadQuality = "settings.videoDownloadQuality"
@@ -671,6 +672,14 @@ final class SettingsManager {
         }
     }
 
+    /// Whether YouTube videos automatically switch to their original audio track
+    /// instead of auto-dubbed tracks when multiple audio tracks are available.
+    var forceOriginalAudioLanguage: Bool {
+        didSet {
+            UserDefaults.standard.set(self.forceOriginalAudioLanguage, forKey: Keys.forceOriginalAudioLanguage)
+        }
+    }
+
     /// The chosen ambient backdrop style when the feature is enabled.
     var ambientBackdropStyle: AmbientBackdropStyle {
         didSet {
@@ -913,6 +922,7 @@ final class SettingsManager {
         )
         self.ambientBackdropEnabled = UserDefaults.standard.object(forKey: Keys.ambientBackdropEnabled) as? Bool ?? true
         self.controlsOnVideoEnabled = UserDefaults.standard.object(forKey: Keys.controlsOnVideo) as? Bool ?? true
+        self.forceOriginalAudioLanguage = UserDefaults.standard.object(forKey: Keys.forceOriginalAudioLanguage) as? Bool ?? false
         self.popOutVideoOnNavigateAway = UserDefaults.standard.object(forKey: Keys.popOutVideoOnNavigateAway) as? Bool ?? true
         self.keepPlayingVideoOnNavigateAway = UserDefaults.standard.object(forKey: Keys.keepPlayingVideoOnNavigateAway) as? Bool ?? false
         self.sponsorBlockEnabled = UserDefaults.standard.object(forKey: Keys.sponsorBlockEnabled) as? Bool ?? false

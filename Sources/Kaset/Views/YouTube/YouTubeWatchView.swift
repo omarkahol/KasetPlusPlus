@@ -193,6 +193,7 @@ struct YouTubeWatchView: View {
     /// tab, so there is a single source of truth.
     @ToolbarContentBuilder
     private var ambientStylePicker: some ToolbarContent {
+        let isAmbientActive = self.settings.resolvedAmbientStyle != .off
         ToolbarItem(placement: .automatic) {
             Menu {
                 Picker("Ambient", selection: self.$settings.ambientBackdropStyle) {
@@ -203,7 +204,9 @@ struct YouTubeWatchView: View {
                 .pickerStyle(.inline)
             } label: {
                 Image(systemName: "paintpalette")
+                    .foregroundStyle(isAmbientActive ? Self.brandAccent : .primary)
             }
+            .tint(isAmbientActive ? Self.brandAccent : .primary)
             .help(String(localized: "Ambient backdrop style"))
         }
     }
@@ -502,8 +505,8 @@ struct YouTubeWatchView: View {
                 FlowLayout(spacing: 8, lineSpacing: 8) { self.engagementButtons }
             }
 
-            // KasetPlus tools (Summary, Lyrics) and Inspector toggles (Suggested, Comments / Live Chat).
-            if !self.isLiveStream || !self.settings.distractionFreeEnabled {
+            // KasetPlus tools (AI Summary).
+            if !self.isLiveStream, self.aiSummaryAvailable {
                 FlowLayout(spacing: 8, lineSpacing: 8) { self.toolsButtons }
             }
 
@@ -561,7 +564,7 @@ struct YouTubeWatchView: View {
         .buttonStyle(.plain)
     }
 
-    /// KasetPlus-only tools: on-device AI summary, lyrics, and inspector toggles.
+    /// KasetPlus-only tools: on-device AI summary.
     @ViewBuilder private var toolsButtons: some View {
         if !self.isLiveStream, self.aiSummaryAvailable {
             Button {
@@ -580,49 +583,6 @@ struct YouTubeWatchView: View {
             }
             .buttonStyle(.plain)
         }
-
-        if !self.isLiveStream {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    self.youtubePlayer.showsLyrics.toggle()
-                }
-            } label: {
-                self.togglePillLabel(
-                    systemImage: self.youtubePlayer.showsLyrics ? "music.quarternote.3" : "music.note.list",
-                    label: Text("Lyrics", comment: "Toggle lyrics section in YouTube watch view"),
-                    isActive: self.youtubePlayer.showsLyrics
-                )
-            }
-            .buttonStyle(.plain)
-        }
-
-        if !self.settings.distractionFreeEnabled {
-            self.inspectorPillButton(
-                tab: .suggested,
-                systemImage: "play.square.stack",
-                label: Text(String(localized: "Suggested"))
-            )
-            self.inspectorPillButton(
-                tab: .comments,
-                systemImage: self.viewModel.hasLiveChat ? "bubble.left.and.bubble.right" : "text.bubble",
-                label: Text(self.viewModel.hasLiveChat ? String(localized: "Live Chat") : String(localized: "Comments"))
-            )
-        }
-    }
-
-    private func inspectorPillButton(tab: WatchInspectorTab, systemImage: String, label: Text) -> some View {
-        let isActive = self.showsInspector && self.inspectorTab == tab
-        return Button {
-            if self.showsInspector, self.inspectorTab == tab {
-                self.showsInspector = false
-            } else {
-                self.inspectorTab = tab
-                self.showsInspector = true
-            }
-        } label: {
-            self.togglePillLabel(systemImage: systemImage, label: label, isActive: isActive)
-        }
-        .buttonStyle(.plain)
     }
 
     private func togglePillLabel(systemImage: String, label: Text, isActive: Bool) -> some View {

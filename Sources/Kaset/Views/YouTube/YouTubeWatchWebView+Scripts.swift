@@ -1424,17 +1424,18 @@ extension YouTubeWatchWebView {
     func availableAudioTracks() async -> [YouTubeAudioTrack] {
         guard let json = await self.evaluateForString(Self.availableAudioTracksScript),
               let data = json.data(using: .utf8),
-              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: String]]
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
         else {
             return []
         }
         return entries.compactMap { entry in
-            guard let id = entry["id"], !id.isEmpty,
-                  let name = entry["name"], !name.isEmpty
+            guard let id = entry["id"] as? String, !id.isEmpty,
+                  let name = entry["name"] as? String, !name.isEmpty
             else {
                 return nil
             }
-            return YouTubeAudioTrack(id: id, displayName: name)
+            let isOriginal = entry["isOriginal"] as? Bool ?? false
+            return YouTubeAudioTrack(id: id, displayName: name, isOriginal: isOriginal)
         }
     }
 
@@ -1485,33 +1486,60 @@ extension YouTubeWatchWebView {
                     }
                     return window.ytInitialPlayerResponse || null;
                 }
-                const responseNames = [];
+                const responseTracks = [];
                 const seenName = {};
                 const resp = playerResponse();
                 const fmts = (resp && resp.streamingData && resp.streamingData.adaptiveFormats) || [];
                 fmts.forEach(function(f) {
-                    const dn = f && f.audioTrack && f.audioTrack.displayName;
-                    if (dn && !seenName[dn]) { seenName[dn] = true; responseNames.push(dn); }
+                    const at = f && f.audioTrack;
+                    const dn = at && at.displayName;
+                    if (dn && !seenName[dn]) {
+                        seenName[dn] = true;
+                        responseTracks.push({
+                            name: dn,
+                            id: at.id || '',
+                            isDefault: Boolean(at.audioIsDefault)
+                        });
+                    }
                 });
 
-                function nameFrom(track, i) {
+                function infoFrom(track, i) {
+                    let name = '';
+                    let trackId = '';
+                    let trackIsDefault = false;
                     try {
                         for (const k in track) {
                             const v = track[k];
                             if (v && typeof v === 'object') {
-                                if (typeof v.name === 'string' && v.name) { return v.name; }
-                                if (v.name && typeof v.name.simpleText === 'string' && v.name.simpleText) {
-                                    return v.name.simpleText;
+                                if (!name) {
+                                    if (typeof v.name === 'string' && v.name) { name = v.name; }
+                                    else if (v.name && typeof v.name.simpleText === 'string' && v.name.simpleText) {
+                                        name = v.name.simpleText;
+                                    }
+                                }
+                                if (!trackId && typeof v.id === 'string' && v.id) { trackId = v.id; }
+                                if (v.isDefault === true || v.audioIsDefault === true || v.isOriginal === true) {
+                                    trackIsDefault = true;
                                 }
                             }
                         }
                     } catch (e) {}
-                    if (responseNames[i]) { return responseNames[i]; }
-                    return 'Audio ' + (i + 1);
+                    if (!name && responseTracks[i]) { name = responseTracks[i].name; }
+                    if (!name) { name = 'Audio ' + (i + 1); }
+
+                    const matchedResp = responseTracks.find(function(rt) {
+                        return (trackId && rt.id === trackId) || rt.name === name;
+                    }) || responseTracks[i];
+                    const isOriginal = /\\boriginal\\b/i.test(name)
+                        || trackIsDefault
+                        || Boolean(matchedResp && (matchedResp.isDefault || /\\boriginal\\b/i.test(matchedResp.name)));
+
+                    return { name: name, isOriginal: isOriginal };
                 }
 
                 return JSON.stringify(tracks.map(function(track, i) {
-                    return { id: String(i), name: nameFrom(track, i) };
+                    const info = infoFrom(track, i);
+                    return { id: String(i), name: info.name, isOriginal: info.isOriginal };
                 }));
             } catch (e) { return '[]'; }
         })();
@@ -1632,13 +1660,38 @@ extension YouTubeWatchWebView {
 
     /// Requests a playback quality level.
     func setQualityLevel(_ level: String) {
+        let escapedLevel = level.replacingOccurrences(of: "'", with: "\\'")
         let script = """
         (function() {
             const player = document.getElementById('movie_player');
             if (!player) { return; }
-            try { player.setPlaybackQualityRange('\(level)', '\(level)'); } catch (e) {
-                try { player.setPlaybackQuality('\(level)'); } catch (e2) {}
+            const target = '\(escapedLevel)';
+            if (target === 'auto') {
+                try {
+                    const levels = typeof player.getAvailableQualityLevels === 'function'
+                        ? player.getAvailableQualityLevels().filter(l => l && l !== 'auto')
+                        : [];
+                    if (levels.length > 0 && typeof player.setPlaybackQualityRange === 'function') {
+                        player.setPlaybackQualityRange(levels[levels.length - 1], levels[0]);
+                    }
+                } catch (e) {}
+                try {
+                    if (typeof player.setPlaybackQuality === 'function') {
+                        player.setPlaybackQuality('auto');
+                    }
+                } catch (e2) {}
+                return;
             }
+            try {
+                if (typeof player.setPlaybackQualityRange === 'function') {
+                    player.setPlaybackQualityRange(target, target);
+                }
+            } catch (e) {}
+            try {
+                if (typeof player.setPlaybackQuality === 'function') {
+                    player.setPlaybackQuality(target);
+                }
+            } catch (e2) {}
         })();
         """
         self.webView?.evaluateJavaScript(script, completionHandler: nil)

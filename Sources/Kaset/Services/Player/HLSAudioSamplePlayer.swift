@@ -758,7 +758,9 @@ final class HLSAudioSamplePlayer {
 
         let initialStartTime = startTimeSeconds
         let startCMTime = CMTime(seconds: initialStartTime, preferredTimescale: 44_100)
-        var dataTask: URLSessionDataTask?
+        let dataTaskState = OSAllocatedUnfairLock<(task: URLSessionDataTask?, cancelled: Bool)>(
+            initialState: (nil, false)
+        )
 
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -796,11 +798,21 @@ final class HLSAudioSamplePlayer {
                 )
                 let task = session.dataTask(with: request)
                 task.delegate = streamDelegate
-                dataTask = task
+                let shouldCancel = dataTaskState.withLock { state in
+                    state.task = task
+                    return state.cancelled
+                }
+                if shouldCancel {
+                    task.cancel()
+                }
                 task.resume()
             }
         } onCancel: {
-            dataTask?.cancel()
+            let task = dataTaskState.withLock { state in
+                state.cancelled = true
+                return state.task
+            }
+            task?.cancel()
         }
     }
 

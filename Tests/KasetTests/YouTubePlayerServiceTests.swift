@@ -2307,6 +2307,38 @@ extension YouTubePlayerServiceTests {
         #expect(controller.playCount == 1)
         #expect(controller.pendingRecoverySeeks == [42])
     }
+
+    @Test("Newly selected WebKit video auto-starts once when it loads paused")
+    func newlySelectedWebKitVideoAutoStartsWhenLoadedPaused() {
+        self.sut.play(video: MockYouTubeClient.makeVideo(videoId: "next-video"))
+        let readyPaused = YouTubePlayerService.PlaybackUpdate(
+            isPlaying: false,
+            progress: 0,
+            duration: 120,
+            hasReadyMedia: true,
+            videoId: "next-video",
+            boundVideoId: "next-video"
+        )
+
+        self.sut.updatePlaybackState(readyPaused)
+        #expect(self.controller.playCount == 1)
+
+        // Repeated paused snapshots for the same video do not spam play().
+        self.sut.updatePlaybackState(readyPaused)
+        #expect(self.controller.playCount == 1)
+
+        // Switching to another video resets the one-shot autoplay nudge.
+        self.sut.play(video: MockYouTubeClient.makeVideo(videoId: "another-video"))
+        self.sut.updatePlaybackState(YouTubePlayerService.PlaybackUpdate(
+            isPlaying: false,
+            progress: 0,
+            duration: 90,
+            hasReadyMedia: true,
+            videoId: "another-video",
+            boundVideoId: "another-video"
+        ))
+        #expect(self.controller.playCount == 2)
+    }
 }
 
 // MARK: - PlaybackArbiterTests

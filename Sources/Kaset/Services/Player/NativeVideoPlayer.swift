@@ -85,8 +85,13 @@ final class NativeVideoPlayer: NSObject {
     var onNearEnd: (@MainActor (TimeInterval) -> Void)?
     var onPlaybackFailed: (@MainActor () -> Void)?
     var onMediaSelectionOptionsResolved: (@MainActor ([YouTubeCaptionTrack], String?, [YouTubeAudioTrack], String?) -> Void)?
+    var onAvailableQualityLevelsResolved: (@MainActor ([String]) -> Void)?
 
     private var preferredQualityLevel: String = "auto"
+    private var cachedMasterPlaylist: (url: URL, text: String)?
+    private var preferredCaptionLanguageCode: String?
+    private var hasExplicitCaptionSelection = false
+    private var preferredAudioTrackId: String?
     private var hasFiredNearEnd = false
 
     private override init() {
@@ -117,15 +122,19 @@ final class NativeVideoPlayer: NSObject {
             self.preloadedItem = nil
             self.preloadedVideoId = nil
             self.preloadedResourceLoader = nil
-            let built = Self.makePlayerItem(for: url)
+            let built = self.makePlayerItem(for: url, preferredQualityLevel: self.preferredQualityLevel)
             playerItem = built.item
             self.activeResourceLoader = built.loader
         }
 
-        // Buffer ~4s ahead (enough to pipeline 5-6s HLS segments smoothly without forcing
-        // AVPlayer to buffer 15s before starting), and respect the user's preferred quality cap.
-        playerItem.preferredForwardBufferDuration = 4.0
-        playerItem.preferredPeakBitRate = Self.preferredPeakBitRate(for: self.preferredQualityLevel)
+        // Buffer ~4s ahead for fast startup at <=720p/auto, and 10s ahead for >=1080p so
+        // high-bitrate segments (1080p60/1440p/4K) don't stall at segment boundaries.
+        // For HLS streams, HLSMasterManifestLoader filters variants directly so preferredPeakBitRate
+        // stays 0 and never blocks high-bitrate variants.
+        playerItem.preferredForwardBufferDuration = Self.preferredForwardBufferDuration(for: self.preferredQualityLevel)
+        playerItem.preferredPeakBitRate = HLSAudioSamplePlayer.isHLSURL(url)
+            ? 0
+            : Self.preferredPeakBitRate(for: self.preferredQualityLevel)
 
         let player = AVPlayer(playerItem: playerItem)
         player.automaticallyWaitsToMinimizeStalling = true
@@ -167,7 +176,7 @@ final class NativeVideoPlayer: NSObject {
     /// Preloads the next video item into memory to enable instant, gapless transitions.
     func preloadNext(url: URL, videoId: String) {
         guard self.preloadedVideoId != videoId else { return }
-        let built = Self.makePlayerItem(for: url)
+        let built = self.makePlayerItem(for: url, preferredQualityLevel: "auto", cacheMasterPlaylist: false)
         built.item.preferredForwardBufferDuration = 0
         self.preloadedItem = built.item
         self.preloadedResourceLoader = built.loader
@@ -242,14 +251,91 @@ final class NativeVideoPlayer: NSObject {
         }
     }
 
-    /// Applies a quality cap to the current and subsequent native `AVPlayerItem`s.
+    private static func preferredForwardBufferDuration(for level: String) -> TimeInterval {
+        switch level {
+        case "highres", "hd2880", "hd2160", "hd1440", "hd1080":
+            10.0
+        default:
+            4.0
+        }
+    }
+
+    /// Applies a quality level to the current and subsequent native `AVPlayerItem`s.
+    /// For HLS streams, reloads the item at the current playback position with the filtered
+    /// master manifest so `AVPlayer` switches to the requested resolution immediately.
     func setQualityLevel(_ level: String) {
+        let previousLevel = self.preferredQualityLevel
         self.preferredQualityLevel = level
-        self.player?.currentItem?.preferredPeakBitRate = Self.preferredPeakBitRate(for: level)
+        guard let player = self.player,
+              let currentURL = self.currentURL,
+              previousLevel != level
+        else { return }
+
+        if HLSAudioSamplePlayer.isHLSURL(currentURL) {
+            self.reloadCurrentHLSItemForQuality(level, on: player, url: currentURL)
+        } else {
+            player.currentItem?.preferredPeakBitRate = Self.preferredPeakBitRate(for: level)
+        }
+    }
+
+    private func reloadCurrentHLSItemForQuality(_ level: String, on player: AVPlayer, url: URL) {
+        self.startupTimeoutTask?.cancel()
+        self.startupTimeoutTask = nil
+
+        let resumeTime = self.pendingStartAt ?? self.currentTime
+        let wasPlaying = self.shouldBePlaying
+
+        self.removeObservers()
+        if resumeTime > 0 {
+            player.pause()
+        }
+
+        let built = self.makePlayerItem(for: url, preferredQualityLevel: level)
+        built.item.preferredForwardBufferDuration = Self.preferredForwardBufferDuration(for: level)
+        built.item.preferredPeakBitRate = 0
+
+        self.activeResourceLoader = built.loader
+        self.pendingStartAt = resumeTime > 0 ? resumeTime : nil
+        self.shouldBePlaying = wasPlaying
+        self.isLoading = true
+
+        player.replaceCurrentItem(with: built.item)
+        self.setupItemObservers(for: built.item, in: player)
+        self.scheduleStartupTimeout(for: built.item, in: player, url: url, timeoutSeconds: 10)
+    }
+
+    private func scheduleStartupTimeout(
+        for playerItem: AVPlayerItem,
+        in player: AVPlayer,
+        url: URL,
+        timeoutSeconds: Int
+    ) {
+        let scheme = url.scheme?.lowercased()
+        guard scheme == "https" || scheme == "http" else { return }
+        self.startupTimeoutTask = Task { @MainActor [weak self, weak playerItem, weak player] in
+            do {
+                try await Task.sleep(for: .seconds(timeoutSeconds))
+            } catch {
+                return
+            }
+            guard let self,
+                  let playerItem,
+                  let player,
+                  self.player === player,
+                  self.player?.currentItem === playerItem,
+                  self.shouldBePlaying,
+                  playerItem.status != .readyToPlay,
+                  player.timeControlStatus != .playing
+            else { return }
+            self.stop()
+            self.onPlaybackFailed?()
+        }
     }
 
     /// Selects a legible (caption/subtitle) media option on the current `AVPlayerItem`, or `nil` to turn captions off.
     func selectCaptionTrack(languageCode: String?) {
+        self.hasExplicitCaptionSelection = true
+        self.preferredCaptionLanguageCode = languageCode
         guard let item = self.player?.currentItem else { return }
         let videoId = self.currentVideoId
         Task { @MainActor [weak self, weak item] in
@@ -270,6 +356,7 @@ final class NativeVideoPlayer: NSObject {
 
     /// Selects an audible (audio track) media option on the current `AVPlayerItem`.
     func selectAudioTrack(id: String) {
+        self.preferredAudioTrackId = id
         guard let item = self.player?.currentItem else { return }
         let videoId = self.currentVideoId
         Task { @MainActor [weak self, weak item] in
@@ -318,6 +405,21 @@ final class NativeVideoPlayer: NSObject {
             let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
             guard self.player?.currentItem === item, self.currentVideoId == videoId else { return }
 
+            // Re-apply any user-selected caption or audio track (e.g. after a quality switch reload).
+            if self.hasExplicitCaptionSelection, let legibleGroup {
+                if let code = self.preferredCaptionLanguageCode?.lowercased() {
+                    let match = legibleGroup.options.first { Self.mediaOptionCode($0).lowercased() == code }
+                    item.select(match, in: legibleGroup)
+                } else {
+                    item.select(nil, in: legibleGroup)
+                }
+            }
+            if let audioId = self.preferredAudioTrackId, let audibleGroup,
+               let match = audibleGroup.options.first(where: { Self.mediaOptionCode($0) == audioId })
+            {
+                item.select(match, in: audibleGroup)
+            }
+
             let currentSelection = item.currentMediaSelection
             let captionTracks: [YouTubeCaptionTrack] = legibleGroup?.options.map { option in
                 YouTubeCaptionTrack(
@@ -329,12 +431,24 @@ final class NativeVideoPlayer: NSObject {
                 currentSelection.selectedMediaOption(in: group).map { Self.mediaOptionCode($0) }
             }
 
-            let audioTracks: [YouTubeAudioTrack] = audibleGroup?.options.map { option in
-                YouTubeAudioTrack(
+            let audibleOptions = audibleGroup?.options ?? []
+            let hasExplicitOriginalAudio = audibleOptions.contains {
+                $0.hasMediaCharacteristic(.isOriginalContent)
+                    || $0.displayName.localizedCaseInsensitiveContains("original")
+            }
+            let audioTracks: [YouTubeAudioTrack] = audibleOptions.map { option in
+                let isOriginal = if hasExplicitOriginalAudio {
+                    option.hasMediaCharacteristic(.isOriginalContent)
+                        || option.displayName.localizedCaseInsensitiveContains("original")
+                } else {
+                    audibleGroup?.defaultOption == option
+                }
+                return YouTubeAudioTrack(
                     id: Self.mediaOptionCode(option),
-                    displayName: option.displayName
+                    displayName: option.displayName,
+                    isOriginal: isOriginal
                 )
-            } ?? []
+            }
             let activeAudioId = audibleGroup.flatMap { group in
                 currentSelection.selectedMediaOption(in: group).map { Self.mediaOptionCode($0) }
             }
@@ -356,6 +470,10 @@ final class NativeVideoPlayer: NSObject {
         NotificationCenter.default.post(name: .nativeVideoPlayerChanged, object: nil)
         self.currentURL = nil
         self.currentVideoId = nil
+        self.cachedMasterPlaylist = nil
+        self.preferredCaptionLanguageCode = nil
+        self.hasExplicitCaptionSelection = false
+        self.preferredAudioTrackId = nil
         self.isPlaying = false
         self.isLoading = false
         self.hasFiredNearEnd = false
@@ -370,7 +488,7 @@ final class NativeVideoPlayer: NSObject {
             let seconds = time.seconds
             guard seconds.isFinite, seconds >= 0 else { return }
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self, self.pendingStartAt == nil else { return }
                 self.onProgressUpdate?(seconds)
 
                 // Trigger near-end callback when within 15 seconds of the end for next-item preloading
@@ -406,28 +524,39 @@ final class NativeVideoPlayer: NSObject {
 
         // 4. Status KVO
         self.statusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-            Task { @MainActor [weak self] in
-                guard let self, let player = self.player, player.currentItem === item else { return }
+            Task { @MainActor [weak self, weak item] in
+                guard let self, let item, let player = self.player, player.currentItem === item else { return }
                 if item.status == .readyToPlay {
                     self.startupTimeoutTask?.cancel()
                     self.startupTimeoutTask = nil
-                    self.isLoading = false
                     let dur = item.duration.seconds
                     if dur.isFinite, dur > 0 {
                         self.onDurationResolved?(dur)
                     }
                     self.resolveMediaSelectionOptions(for: item, videoId: self.currentVideoId)
                     if let startAt = self.pendingStartAt, startAt > 0 {
-                        self.pendingStartAt = nil
                         let targetTime = CMTime(seconds: startAt, preferredTimescale: 600)
-                        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak player] _ in
-                            Task { @MainActor [weak self, weak player] in
-                                guard let self, let player, self.shouldBePlaying, self.player === player else { return }
-                                player.rate = self.playbackSpeed
+                        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak player, weak item] _ in
+                            Task { @MainActor [weak self, weak player, weak item] in
+                                guard let self, let player, let item,
+                                      self.player === player,
+                                      player.currentItem === item
+                                else { return }
+                                self.pendingStartAt = nil
+                                if item.isPlaybackLikelyToKeepUp || !self.shouldBePlaying {
+                                    self.isLoading = false
+                                }
+                                if self.shouldBePlaying {
+                                    player.rate = self.playbackSpeed
+                                }
                             }
                         }
-                    } else if self.shouldBePlaying, player.rate == 0 {
-                        player.rate = self.playbackSpeed
+                    } else {
+                        self.pendingStartAt = nil
+                        self.isLoading = false
+                        if self.shouldBePlaying, player.rate == 0 {
+                            player.rate = self.playbackSpeed
+                        }
                     }
                 } else if item.status == .failed {
                     self.startupTimeoutTask?.cancel()
@@ -446,9 +575,11 @@ final class NativeVideoPlayer: NSObject {
             Task { @MainActor [weak self] in
                 guard let self, self.player?.currentItem === item else { return }
                 if item.isPlaybackLikelyToKeepUp {
-                    self.isLoading = false
-                    if self.shouldBePlaying, let player = self.player, player.rate == 0, self.pendingStartAt == nil {
-                        player.rate = self.playbackSpeed
+                    if self.pendingStartAt == nil {
+                        self.isLoading = false
+                        if self.shouldBePlaying, let player = self.player, player.rate == 0 {
+                            player.rate = self.playbackSpeed
+                        }
                     }
                 } else if self.shouldBePlaying, self.player?.timeControlStatus != .playing {
                     self.isLoading = true
@@ -468,7 +599,6 @@ final class NativeVideoPlayer: NSObject {
                     self.isPlaying = true
                 case .waitingToPlayAtSpecifiedRate:
                     if self.shouldBePlaying,
-                       player.currentItem?.status != .readyToPlay,
                        player.currentItem?.isPlaybackLikelyToKeepUp != true
                     {
                         self.isLoading = true
@@ -506,14 +636,37 @@ final class NativeVideoPlayer: NSObject {
         self.timeControlStatusObserver = nil
     }
 
-    private static func makePlayerItem(for url: URL) -> (item: AVPlayerItem, loader: HLSMasterManifestLoader?) {
+    private func makePlayerItem(
+        for url: URL,
+        preferredQualityLevel: String,
+        cacheMasterPlaylist: Bool = true
+    ) -> (item: AVPlayerItem, loader: HLSMasterManifestLoader?) {
         guard HLSAudioSamplePlayer.isHLSURL(url),
               let customURL = URL(string: "kaset-hls://master/\(UUID().uuidString).m3u8")
         else {
             return (AVPlayerItem(url: url), nil)
         }
         let asset = AVURLAsset(url: customURL)
-        let loader = HLSMasterManifestLoader(sourceURL: url)
+        let cachedText = (cacheMasterPlaylist && self.cachedMasterPlaylist?.url == url)
+            ? self.cachedMasterPlaylist?.text
+            : nil
+        let onLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = if cacheMasterPlaylist {
+            { [weak self] masterText, availableLevels in
+                guard let self else { return }
+                if self.currentURL == url {
+                    self.cachedMasterPlaylist = (url, masterText)
+                    self.onAvailableQualityLevelsResolved?(availableLevels)
+                }
+            }
+        } else {
+            nil
+        }
+        let loader = HLSMasterManifestLoader(
+            sourceURL: url,
+            preferredQualityLevel: preferredQualityLevel,
+            initialMasterPlaylistText: cachedText,
+            onMasterPlaylistLoaded: onLoaded
+        )
         asset.resourceLoader.setDelegate(loader, queue: HLSMasterManifestLoader.delegateQueue)
         return (AVPlayerItem(asset: asset), loader)
     }
@@ -522,15 +675,30 @@ final class NativeVideoPlayer: NSObject {
 // MARK: - HLSMasterManifestLoader
 
 /// Intercepts HLS master manifest loading for `NativeVideoPlayer` so unsupported `vp09` variants
-/// are filtered out and `avc1`/`hvc1` variants are ordered highest-bitrate-first (avoiding
-/// `AVPlayer` starting locked onto the lowest `240p` variant).
+/// are filtered out, `avc1`/`hvc1` variants are ordered for ABR or filtered to a user-pinned
+/// quality level, and available quality tiers are reported back to the player UI.
 final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @unchecked Sendable {
     static let delegateQueue = DispatchQueue(label: "com.kaset.hls-video-master-loader")
 
-    private let sourceURL: URL
+    private static let orderedQualityLevels = [
+        "highres", "hd2880", "hd2160", "hd1440", "hd1080", "hd720", "large", "medium", "small", "tiny",
+    ]
 
-    init(sourceURL: URL) {
+    private let sourceURL: URL
+    private let preferredQualityLevel: String
+    private let initialMasterPlaylistText: String?
+    private let onMasterPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)?
+
+    init(
+        sourceURL: URL,
+        preferredQualityLevel: String = "auto",
+        initialMasterPlaylistText: String? = nil,
+        onMasterPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = nil
+    ) {
         self.sourceURL = sourceURL
+        self.preferredQualityLevel = preferredQualityLevel
+        self.initialMasterPlaylistText = initialMasterPlaylistText
+        self.onMasterPlaylistLoaded = onMasterPlaylistLoaded
         super.init()
     }
 
@@ -538,7 +706,16 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
         _: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {
+        if let cachedText = self.initialMasterPlaylistText {
+            let rewritten = Self.rewriteMasterPlaylist(cachedText, preferredQualityLevel: self.preferredQualityLevel)
+            let responseData = rewritten?.data(using: .utf8) ?? Data(cachedText.utf8)
+            Self.finish(loadingRequest: loadingRequest, with: responseData)
+            return true
+        }
+
         let sourceURL = self.sourceURL
+        let preferredQualityLevel = self.preferredQualityLevel
+        let onMasterPlaylistLoaded = self.onMasterPlaylistLoaded
         Task {
             let session = await HLSManifestCache.shared.sharedSession
             var request = URLRequest(url: sourceURL)
@@ -553,28 +730,119 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
                 return
             }
 
-            let responseData: Data = if let text = String(data: rawData, encoding: .utf8),
-                                        let rewritten = Self.rewriteMasterPlaylist(text),
-                                        let rewrittenData = rewritten.data(using: .utf8)
-            {
-                rewrittenData
+            let responseData: Data
+            if let text = String(data: rawData, encoding: .utf8) {
+                let availableLevels = Self.availableQualityLevels(in: text)
+                if let onMasterPlaylistLoaded {
+                    await MainActor.run {
+                        onMasterPlaylistLoaded(text, availableLevels)
+                    }
+                }
+                if let rewritten = Self.rewriteMasterPlaylist(text, preferredQualityLevel: preferredQualityLevel),
+                   let rewrittenData = rewritten.data(using: .utf8)
+                {
+                    responseData = rewrittenData
+                } else {
+                    responseData = rawData
+                }
             } else {
-                rawData
+                responseData = rawData
             }
 
-            loadingRequest.contentInformationRequest?.contentType = "com.apple.mpegurl"
-            loadingRequest.contentInformationRequest?.isByteRangeAccessSupported = false
-            loadingRequest.contentInformationRequest?.contentLength = Int64(responseData.count)
-            loadingRequest.dataRequest?.respond(with: responseData)
-            loadingRequest.finishLoading()
+            Self.finish(loadingRequest: loadingRequest, with: responseData)
         }
         return true
     }
 
-    static func rewriteMasterPlaylist(_ masterText: String) -> String? {
+    private static func finish(loadingRequest: AVAssetResourceLoadingRequest, with responseData: Data) {
+        loadingRequest.contentInformationRequest?.contentType = "com.apple.mpegurl"
+        loadingRequest.contentInformationRequest?.isByteRangeAccessSupported = false
+        loadingRequest.contentInformationRequest?.contentLength = Int64(responseData.count)
+        loadingRequest.dataRequest?.respond(with: responseData)
+        loadingRequest.finishLoading()
+    }
+
+    /// Returns the distinct YouTube quality levels present in `avc1`/`hvc1` variants, ordered highest-to-lowest.
+    static func availableQualityLevels(in masterText: String) -> [String] {
+        let parsed = Self.parseMasterPlaylist(masterText)
+        let present = Set(parsed.variants.compactMap(\.qualityLevel))
+        return Self.orderedQualityLevels.filter { present.contains($0) }
+    }
+
+    static func rewriteMasterPlaylist(_ masterText: String, preferredQualityLevel: String = "auto") -> String? {
+        let parsed = Self.parseMasterPlaylist(masterText)
+        let variants = parsed.variants
+        guard !variants.isEmpty else { return nil }
+
+        let selected: [MasterVariant]
+        if preferredQualityLevel.isEmpty || preferredQualityLevel == "auto" {
+            // Start with 720p (~1.0-2.5 Mbps) first for fast ~1s startup, followed by 1080p+ so ABR
+            // steps up immediately on segment 1, then lower fallback rungs.
+            let hd720Variants = variants
+                .filter { $0.bandwidth >= 900_000 && $0.bandwidth <= 2_500_000 }
+                .sorted { $0.bandwidth > $1.bandwidth }
+            let higherVariants = variants
+                .filter { $0.bandwidth > 2_500_000 }
+                .sorted { $0.bandwidth > $1.bandwidth }
+            let lowerVariants = variants
+                .filter { $0.bandwidth < 900_000 }
+                .sorted { $0.bandwidth > $1.bandwidth }
+            selected = hd720Variants + higherVariants + lowerVariants
+        } else {
+            let targetLevel = Self.resolvedTargetQualityLevel(
+                requested: preferredQualityLevel,
+                availableVariants: variants
+            )
+            let matching = targetLevel.map { target in
+                variants.filter { $0.qualityLevel == target }
+            } ?? []
+            selected = (matching.isEmpty ? variants : matching).sorted { $0.bandwidth > $1.bandwidth }
+        }
+
+        var output = parsed.headerLines.joined(separator: "\n") + "\n"
+        for variant in selected {
+            output += variant.infLine + "\n" + variant.urlLine + "\n"
+        }
+        return output
+    }
+
+    /// Maps an `#EXT-X-STREAM-INF:` line's `RESOLUTION=WxH` attribute to a YouTube quality identifier.
+    static func qualityLevel(forStreamInfLine line: String) -> String? {
+        guard let range = line.range(of: "RESOLUTION=") else { return nil }
+        let token = line[range.upperBound...].prefix(while: { $0 != "," && !$0.isWhitespace })
+        let parts = token.split(separator: "x")
+        guard parts.count == 2,
+              let width = Int(parts[0]),
+              let height = Int(parts[1]),
+              width > 0,
+              height > 0
+        else { return nil }
+
+        let shortSide = min(width, height)
+        let longSide = max(width, height)
+        if shortSide >= 4320 || longSide >= 7680 { return "highres" }
+        if shortSide >= 2880 || longSide >= 5120 { return "hd2880" }
+        if shortSide >= 2160 || longSide >= 3840 { return "hd2160" }
+        if shortSide >= 1440 || longSide >= 2560 { return "hd1440" }
+        if shortSide >= 1080 || longSide >= 1920 { return "hd1080" }
+        if shortSide >= 720 || longSide >= 1280 { return "hd720" }
+        if shortSide >= 480 || longSide >= 854 { return "large" }
+        if shortSide >= 360 || longSide >= 640 { return "medium" }
+        if shortSide >= 240 || longSide >= 426 { return "small" }
+        return "tiny"
+    }
+
+    private struct MasterVariant {
+        let bandwidth: Int
+        let qualityLevel: String?
+        let infLine: String
+        let urlLine: String
+    }
+
+    private static func parseMasterPlaylist(_ masterText: String) -> (headerLines: [String], variants: [MasterVariant]) {
         let lines = masterText.components(separatedBy: .newlines)
         var headerLines: [String] = []
-        var variants: [(bandwidth: Int, infLine: String, urlLine: String)] = []
+        var variants: [MasterVariant] = []
 
         var index = 0
         while index < lines.count {
@@ -583,7 +851,8 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
                 let urlLine = lines[index + 1]
                 if line.contains("avc1") || line.contains("hvc1") {
                     let bandwidth = Self.extractBandwidth(from: line)
-                    variants.append((bandwidth: bandwidth, infLine: line, urlLine: urlLine))
+                    let quality = Self.qualityLevel(forStreamInfLine: line)
+                    variants.append(MasterVariant(bandwidth: bandwidth, qualityLevel: quality, infLine: line, urlLine: urlLine))
                 }
                 index += 2
             } else {
@@ -593,26 +862,24 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
                 index += 1
             }
         }
+        return (headerLines, variants)
+    }
 
-        guard !variants.isEmpty else { return nil }
-        // Start with 720p (~1.0-2.5 Mbps) first for fast ~1s startup, followed by 1080p+ so ABR
-        // steps up immediately on segment 1, then lower fallback rungs.
-        let hd720Variants = variants
-            .filter { $0.bandwidth >= 900_000 && $0.bandwidth <= 2_500_000 }
-            .sorted { $0.bandwidth > $1.bandwidth }
-        let higherVariants = variants
-            .filter { $0.bandwidth > 2_500_000 }
-            .sorted { $0.bandwidth > $1.bandwidth }
-        let lowerVariants = variants
-            .filter { $0.bandwidth < 900_000 }
-            .sorted { $0.bandwidth > $1.bandwidth }
-        let ordered = hd720Variants + higherVariants + lowerVariants
-
-        var output = headerLines.joined(separator: "\n") + "\n"
-        for variant in ordered {
-            output += variant.infLine + "\n" + variant.urlLine + "\n"
+    private static func resolvedTargetQualityLevel(requested: String, availableVariants: [MasterVariant]) -> String? {
+        let availableLevels = Set(availableVariants.compactMap(\.qualityLevel))
+        guard !availableLevels.isEmpty else { return nil }
+        if availableLevels.contains(requested) {
+            return requested
         }
-        return output
+        guard let requestedIndex = Self.orderedQualityLevels.firstIndex(of: requested) else {
+            return nil
+        }
+        // Prefer the highest available quality at or below the requested tier, otherwise the lowest available.
+        let orderedAvailable = Self.orderedQualityLevels.enumerated().filter { availableLevels.contains($0.element) }
+        if let lowerOrEqual = orderedAvailable.first(where: { $0.offset >= requestedIndex }) {
+            return lowerOrEqual.element
+        }
+        return orderedAvailable.last?.element
     }
 
     private static func extractBandwidth(from streamInfLine: String) -> Int {

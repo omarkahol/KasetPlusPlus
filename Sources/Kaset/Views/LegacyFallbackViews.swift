@@ -284,10 +284,17 @@ struct SimpleLyricsView: View {
         } else {
             switch self.syncedLyricsService.currentLyrics {
             case let .synced(synced):
+                let isOffline = self.playerService.isPlayingOfflineTrack
+                let displayTimeMs = isOffline
+                    ? self.playerService.currentTimeMs
+                    : self.playerService.currentLyricsDisplayTimeMs
+                let currentLineIndex = isOffline
+                    ? synced.currentLineIndex(at: self.playerService.currentTimeMs)
+                    : self.playerService.currentLyricsLineIndex
                 SyncedLyricsDisplayView(
                     lyrics: synced,
-                    currentLineIndex: self.playerService.currentLyricsLineIndex,
-                    displayTimeMs: self.playerService.currentLyricsDisplayTimeMs,
+                    currentLineIndex: currentLineIndex,
+                    displayTimeMs: displayTimeMs,
                     onSeek: { timeMs in
                         Task { await self.playerService.seek(to: Double(timeMs) / 1000.0) }
                     }
@@ -376,14 +383,12 @@ struct SimpleLyricsView: View {
     }
 
     private func updateLyricsPolling(for result: LyricResult) {
-        if case let .synced(synced) = result {
-            self.playerService.currentLyricsLineIndex = nil
-            self.playerService.currentLyricsDisplayTimeMs = nil
+        self.playerService.currentLyricsLineIndex = nil
+        self.playerService.currentLyricsDisplayTimeMs = nil
+        if case let .synced(synced) = result, !self.playerService.isPlayingOfflineTrack {
             SingletonPlayerWebView.shared.startLyricsPoll(lineRanges: synced.bridgeLineRanges)
         } else {
             SingletonPlayerWebView.shared.stopLyricsPoll()
-            self.playerService.currentLyricsLineIndex = nil
-            self.playerService.currentLyricsDisplayTimeMs = nil
         }
     }
 

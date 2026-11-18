@@ -494,6 +494,18 @@ struct YouTubeCaptionTrack: Identifiable, Hashable {
 struct YouTubeAudioTrack: Identifiable, Hashable {
     let id: String
     let displayName: String
+    var isOriginal: Bool = false
+
+    /// Display label for the audio track menu, highlighting the original track
+    /// without duplicating an existing "(original)" suffix from YouTube.
+    var menuDisplayName: String {
+        guard self.isOriginal,
+              !self.displayName.localizedCaseInsensitiveContains("original")
+        else {
+            return self.displayName
+        }
+        return "\(self.displayName) (\(String(localized: "Original")))"
+    }
 }
 
 // MARK: - YouTubeQuality

@@ -39,4 +39,30 @@ struct NativeVideoBackendParityTests {
         NativeVideoPlayer.shared.stop()
         NativeVideoPlayer.shared.setQualityLevel("auto")
     }
+
+    @Test("Switching quality on an active HLS stream replaces the player item to force variant switch")
+    func switchingQualityReloadsActiveHLSItem() {
+        let player = NativeVideoPlayer.shared
+        player.stop()
+        player.setQualityLevel("auto")
+
+        guard let hlsURL = URL(string: "https://manifest.googlevideo.com/api/manifest/hls_variant/test.m3u8") else {
+            Issue.record("Failed to construct test HLS URL")
+            return
+        }
+
+        player.play(url: hlsURL, videoId: "hls-quality-test")
+        let initialItem = player.player?.currentItem
+        #expect(initialItem != nil)
+        #expect(initialItem?.preferredPeakBitRate == 0)
+
+        player.setQualityLevel("hd1080")
+        let updatedItem = player.player?.currentItem
+        #expect(updatedItem != nil)
+        #expect(updatedItem !== initialItem)
+        #expect(updatedItem?.preferredPeakBitRate == 0)
+
+        player.stop()
+        player.setQualityLevel("auto")
+    }
 }

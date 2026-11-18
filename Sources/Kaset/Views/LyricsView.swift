@@ -65,6 +65,9 @@ struct LyricsView: View {
         .onChange(of: self.syncedLyricsService.currentLyrics) { _, newLyrics in
             self.updateLyricsPolling(for: newLyrics)
         }
+        .onChange(of: self.playerService.isPlayingOfflineTrack) { _, _ in
+            self.updateLyricsPolling(for: self.syncedLyricsService.currentLyrics)
+        }
         .onDisappear {
             SingletonPlayerWebView.shared.stopLyricsPoll()
         }
@@ -74,14 +77,12 @@ struct LyricsView: View {
     }
 
     private func updateLyricsPolling(for result: LyricResult) {
-        if case let .synced(synced) = result {
-            self.playerService.currentLyricsLineIndex = nil
-            self.playerService.currentLyricsDisplayTimeMs = nil
+        self.playerService.currentLyricsLineIndex = nil
+        self.playerService.currentLyricsDisplayTimeMs = nil
+        if case let .synced(synced) = result, !self.playerService.isPlayingOfflineTrack {
             SingletonPlayerWebView.shared.startLyricsPoll(lineRanges: synced.bridgeLineRanges)
         } else {
             SingletonPlayerWebView.shared.stopLyricsPoll()
-            self.playerService.currentLyricsLineIndex = nil
-            self.playerService.currentLyricsDisplayTimeMs = nil
         }
     }
 
@@ -179,10 +180,18 @@ struct LyricsView: View {
                 Divider().opacity(0.3)
             }
 
+            let isOffline = self.playerService.isPlayingOfflineTrack
+            let displayTimeMs = isOffline
+                ? self.playerService.currentTimeMs
+                : self.playerService.currentLyricsDisplayTimeMs
+            let currentLineIndex = isOffline
+                ? synced.currentLineIndex(at: self.playerService.currentTimeMs)
+                : self.playerService.currentLyricsLineIndex
+
             SyncedLyricsDisplayView(
                 lyrics: synced,
-                currentLineIndex: self.playerService.currentLyricsLineIndex,
-                displayTimeMs: self.playerService.currentLyricsDisplayTimeMs,
+                currentLineIndex: currentLineIndex,
+                displayTimeMs: displayTimeMs,
                 onSeek: { timeMs in
                     Task { await self.playerService.seek(to: Double(timeMs) / 1000.0) }
                 }

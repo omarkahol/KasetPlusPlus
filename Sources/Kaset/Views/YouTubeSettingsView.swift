@@ -36,6 +36,17 @@ struct YouTubeSettingsView: View {
             }
 
             Section {
+                Toggle(String(localized: "Force Original Language"), isOn: self.$settings.forceOriginalAudioLanguage)
+                    .help(String(localized: "Automatically select the video's original audio track instead of auto-dubbed tracks when available."))
+            } header: {
+                Text(String(localized: "Audio"))
+            } footer: {
+                Text(String(localized: "When a YouTube video has multiple audio tracks, automatically switch to the original language track."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle(String(localized: "Keep Playing in the Player Bar When Navigating Away"), isOn: self.$settings.keepPlayingVideoOnNavigateAway)
                     .help(String(localized: "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video."))
                 Toggle(String(localized: "Pop Out Video When Navigating Away"), isOn: self.$settings.popOutVideoOnNavigateAway)

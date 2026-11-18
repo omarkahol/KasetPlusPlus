@@ -184,4 +184,51 @@ struct DirectVideoStreamResolverTests {
         let second240 = try #require(rewritten.range(of: "426x240"))
         #expect(first1080.lowerBound < second240.lowerBound)
     }
+
+    @Test("HLSMasterManifestLoader filters variants to requested quality level and extracts available levels")
+    func filtersMasterPlaylistForRequestedQuality() throws {
+        let master = """
+        #EXTM3U
+        #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="234",NAME="main",URI="https://manifest.googlevideo.com/audio.m3u8"
+        #EXT-X-STREAM-INF:BANDWIDTH=300694,CODECS="avc1.4D4015,mp4a.40.5",RESOLUTION=426x240,AUDIO="234"
+        https://manifest.googlevideo.com/240p.m3u8
+        #EXT-X-STREAM-INF:BANDWIDTH=1500000,CODECS="avc1.4D401F,mp4a.40.2",RESOLUTION=1280x720,AUDIO="234"
+        https://manifest.googlevideo.com/720p.m3u8
+        #EXT-X-STREAM-INF:BANDWIDTH=6200000,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="234"
+        https://manifest.googlevideo.com/1080p.m3u8
+        #EXT-X-STREAM-INF:BANDWIDTH=19117677,CODECS="vp09.00.50.08,mp4a.40.2",RESOLUTION=3840x2160,AUDIO="234"
+        https://manifest.googlevideo.com/2160p_vp9.m3u8
+        """
+
+        #expect(HLSMasterManifestLoader.availableQualityLevels(in: master) == ["hd1080", "hd720", "small"])
+
+        let pinned1080 = try #require(HLSMasterManifestLoader.rewriteMasterPlaylist(master, preferredQualityLevel: "hd1080"))
+        #expect(pinned1080.contains("1920x1080"))
+        #expect(!pinned1080.contains("1280x720"))
+        #expect(!pinned1080.contains("426x240"))
+
+        let pinned240 = try #require(HLSMasterManifestLoader.rewriteMasterPlaylist(master, preferredQualityLevel: "small"))
+        #expect(pinned240.contains("426x240"))
+        #expect(!pinned240.contains("1920x1080"))
+        #expect(!pinned240.contains("1280x720"))
+
+        // Unavailable higher tier falls back to highest available tier (1080p)
+        let fallbackFrom4K = try #require(HLSMasterManifestLoader.rewriteMasterPlaylist(master, preferredQualityLevel: "hd2160"))
+        #expect(fallbackFrom4K.contains("1920x1080"))
+        #expect(!fallbackFrom4K.contains("1280x720"))
+    }
+
+    @Test("HLSMasterManifestLoader maps landscape, portrait, and ultrawide resolutions to YouTube quality tiers")
+    func mapsResolutionsToQualityLevels() {
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=3840x2160") == "hd2160")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=2560x1440") == "hd1440")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=1920x1080") == "hd1080")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=1080x1920") == "hd1080")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=1920x800") == "hd1080")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=1280x720") == "hd720")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=854x480") == "large")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=640x360") == "medium")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=426x240") == "small")
+        #expect(HLSMasterManifestLoader.qualityLevel(forStreamInfLine: "#EXT-X-STREAM-INF:BANDWIDTH=1,RESOLUTION=256x144") == "tiny")
+    }
 }

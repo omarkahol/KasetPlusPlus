@@ -149,6 +149,9 @@ final class YouTubePlayerService {
     /// same-document autoplay can still become authoritative.
     @ObservationIgnored private var isExplicitPauseIntentActive = false
     @ObservationIgnored private var isAwaitingResumeConfirmation = false
+    /// Tracks whether we have already issued a play nudge for a WebKit-backed
+    /// video that loaded in a paused state despite `desiredPlaybackIntent == .playing`.
+    @ObservationIgnored private var hasRequestedInitialWebAutoplay = false
 
     private struct ExplicitStartTarget {
         let videoId: String
@@ -382,6 +385,10 @@ final class YouTubePlayerService {
     /// Id of the active audio track (nil until resolved).
     private(set) var activeAudioTrackId: String?
 
+    /// Tracks the video ID for which we already applied the "Force Original
+    /// Language" preference so manual track changes aren't overridden.
+    private var didAutoSelectOriginalAudioForVideoId: String?
+
     /// Quality levels available on the current watch page.
     private(set) var qualityLevels: [String] = []
 
@@ -523,10 +530,20 @@ final class YouTubePlayerService {
             self.activeCaptionLanguageCode = Self.normalizedCaptionLanguageCode(activeCaption)
             self.audioTracks = audio
             self.activeAudioTrackId = activeAudio
+            self.applyPreferredOriginalAudioTrackIfNeeded(
+                videoId: self.currentVideo?.videoId,
+                tracks: audio,
+                activeTrackId: activeAudio
+            )
             if self.qualityLevels.isEmpty {
                 self.qualityLevels = ["hd2160", "hd1440", "hd1080", "hd720", "large", "medium", "auto"]
                 self.currentQuality = self.userPinnedQuality ?? "auto"
             }
+        }
+        NativeVideoPlayer.shared.onAvailableQualityLevelsResolved = { [weak self] levels in
+            guard let self, self.isPlayingNativeVideo, !levels.isEmpty else { return }
+            self.qualityLevels = levels.contains("auto") ? levels : levels + ["auto"]
+            self.currentQuality = self.userPinnedQuality ?? "auto"
         }
     }
 
@@ -565,6 +582,7 @@ final class YouTubePlayerService {
         self.isAwaitingResumeConfirmation = false
         self.watchActivityGeneration += 1 // a new watch began
         self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
         self.isIdentityReloadInFlight = false
         self.resetPerVideoState()
         if let normalizedStartAt {
@@ -579,6 +597,9 @@ final class YouTubePlayerService {
             NativeVideoPlayer.shared.stop()
         } else if hadPreviousVideo {
             self.playbackController.pause()
+        }
+        if self.prefersNativeVideoStreaming {
+            NativeVideoPlayer.shared.setQualityLevel("auto")
         }
         self.isPlaying = false
         self.progress = 0
@@ -1271,6 +1292,7 @@ final class YouTubePlayerService {
         self.signalWatchConclusion()
         self.watchActivityGeneration += 1
         self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
         self.isIdentityReloadInFlight = false
         self.resetPerVideoState()
         self.streamResolutionTask?.cancel()
@@ -1342,6 +1364,7 @@ final class YouTubePlayerService {
         self.activeCaptionLanguageCode = nil
         self.audioTracks = []
         self.activeAudioTrackId = nil
+        self.didAutoSelectOriginalAudioForVideoId = nil
         self.qualityLevels = []
         self.currentQuality = nil
         self.userPinnedQuality = nil
@@ -1428,6 +1451,11 @@ final class YouTubePlayerService {
             self.activeCaptionLanguageCode = Self.normalizedCaptionLanguageCode(rawCaptionCode)
             self.audioTracks = await self.playbackController.availableAudioTracks()
             self.activeAudioTrackId = await self.playbackController.currentAudioTrackId()
+            self.applyPreferredOriginalAudioTrackIfNeeded(
+                videoId: videoId,
+                tracks: self.audioTracks,
+                activeTrackId: self.activeAudioTrackId
+            )
 
             if !tracks.isEmpty || attempt == 2 {
                 return
@@ -1505,6 +1533,7 @@ final class YouTubePlayerService {
 
     /// Selects an alternate audio track (dubbed language) by id.
     func selectAudioTrack(id: String) {
+        self.didAutoSelectOriginalAudioForVideoId = self.currentVideo?.videoId
         self.activeAudioTrackId = id
         if self.isPlayingNativeVideo {
             NativeVideoPlayer.shared.selectAudioTrack(id: id)
@@ -1512,6 +1541,27 @@ final class YouTubePlayerService {
             self.playbackController.setAudioTrack(id: id)
         }
         HapticService.toggle()
+    }
+
+    /// Switches to the original audio track once per video when the user has
+    /// enabled "Force Original Language" in YouTube settings.
+    private func applyPreferredOriginalAudioTrackIfNeeded(
+        videoId: String?,
+        tracks: [YouTubeAudioTrack],
+        activeTrackId: String?
+    ) {
+        guard SettingsManager.shared.forceOriginalAudioLanguage,
+              let videoId,
+              self.didAutoSelectOriginalAudioForVideoId != videoId,
+              tracks.count > 1,
+              let originalTrack = tracks.first(where: \.isOriginal)
+        else {
+            return
+        }
+        self.didAutoSelectOriginalAudioForVideoId = videoId
+        if activeTrackId != originalTrack.id {
+            self.selectAudioTrack(id: originalTrack.id)
+        }
     }
 
     /// Selects a playback quality level.
@@ -1734,6 +1784,7 @@ extension YouTubePlayerService {
         self.refreshPlaybackMetadataIfNeeded(update, effectiveIsPlaying: effectiveIsPlaying)
         self.followPageDriftIfNeeded(update)
         self.finishPlaybackLoadingIfReady(update)
+        self.ensureWebPlaybackStartsIfNeeded(update)
         self.deferMediaErrorIfNeeded(update)
         self.completeAutoplayTransitionIfNeeded(update)
         self.recordReadyContentProgressIfPossible(update)
@@ -1882,6 +1933,26 @@ extension YouTubePlayerService {
         self.finishPlaybackLoading()
     }
 
+    /// Ensures a newly loaded WebKit watch page starts playing automatically when
+    /// `desiredPlaybackIntent == .playing` and the page's `<video>` element loaded paused.
+    private func ensureWebPlaybackStartsIfNeeded(_ update: PlaybackUpdate) {
+        guard !self.isPlayingNativeVideo,
+              !self.hasRequestedInitialWebAutoplay,
+              self.desiredPlaybackIntent == .playing,
+              !self.isExplicitPauseIntentActive,
+              !self.currentWatchConcluded,
+              !self.isPlaying,
+              !update.isPlaying,
+              !update.isAd,
+              !update.nativePausePending,
+              self.readyMediaBelongsToCurrentPlayback(update)
+        else { return }
+        self.hasRequestedInitialWebAutoplay = true
+        self.isAwaitingResumeConfirmation = true
+        self.lastResumeIssuedAtMilliseconds = Date().timeIntervalSince1970 * 1000
+        self.playbackController.play()
+    }
+
     /// The fork's original loading-finish signal: a known duration means metadata
     /// loaded and a frame is imminent. Kept alongside #408's stricter ready-media
     /// check so surfaces that gate on `isPlaybackLoading` — notably the Shorts
@@ -1948,6 +2019,7 @@ extension YouTubePlayerService {
            videoId == self.currentVideo?.videoId
         {
             self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
         }
     }
 
@@ -2074,6 +2146,7 @@ extension YouTubePlayerService {
         self.signalWatchConclusion()
         self.watchActivityGeneration += 1
         self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
         YouTubeWatchWebView.shared.currentVideoId = videoId
         if shouldRepointDriftedVideo {
             self.reloadCurrentVideoForIdentitySwitch()
@@ -2368,6 +2441,7 @@ extension YouTubePlayerService {
             // the watch-level conclusion latch.
             if isResumedNativeTerminal {
                 self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
                 return true
             }
             return !self.currentWatchConcluded
@@ -2379,6 +2453,7 @@ extension YouTubePlayerService {
                   occurrence == self.currentPlaybackOccurrence
             else { return false }
             self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
             return true
         }
         let isNewerThanCurrent = self.currentPlaybackOccurrence.map {
@@ -2392,6 +2467,7 @@ extension YouTubePlayerService {
         }
         if isResumedNativeTerminal || (isNewerThanCurrent && self.currentWatchConcluded) {
             self.currentWatchConcluded = false
+        self.hasRequestedInitialWebAutoplay = false
         }
         self.currentPlaybackOccurrence = occurrence
         self.lastEndedPlaybackOccurrence = occurrence
