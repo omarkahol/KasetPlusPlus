@@ -244,6 +244,15 @@ struct YouTubePlayerRecoveryTests {
     func secondToggleCancelsUnconfirmedResume() {
         self.sut.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
         self.sut.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 10,
+            duration: 100,
+            hasReadyMedia: true,
+            videoId: "abc",
+            boundVideoId: "abc"
+        ))
+        self.sut.pause()
+        self.sut.updatePlaybackState(.init(
             isPlaying: false,
             progress: 10,
             duration: 100,
@@ -263,7 +272,7 @@ struct YouTubePlayerRecoveryTests {
         self.sut.playPause()
 
         #expect(self.controller.playCount == 1)
-        #expect(self.controller.pauseCount == 1)
+        #expect(self.controller.pauseCount == 2)
     }
 
     @Test("Skipping clears the previous watch resume confirmation")
