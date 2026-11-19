@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import AppKit
 import CoreSpotlight
 import SwiftUI
@@ -110,6 +111,7 @@ struct KasetApp: App {
 
     @State private var didCompleteStartupPlaybackCleanup = false
 
+    // swiftlint:disable:next function_body_length
     init() {
         Bundle.enableAppLocalizationOverride()
 

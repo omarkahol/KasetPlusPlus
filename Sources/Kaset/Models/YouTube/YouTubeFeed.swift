@@ -400,13 +400,13 @@ struct YouTubeComment: Identifiable, Hashable {
     /// The comment was written by the video's own creator (highlighted on YouTube).
     var authorIsChannelOwner: Bool = false
     /// Channel membership / sponsor badge icon (custom per channel), when present.
-    var memberBadgeThumbnailURL: URL? = nil
+    var memberBadgeThumbnailURL: URL?
     /// Membership badge tooltip, e.g. "Member (6 months)", when available.
-    var memberBadgeTooltip: String? = nil
+    var memberBadgeTooltip: String?
     /// The creator "hearted" this comment.
     var isHeartedByCreator: Bool = false
     /// The channel avatar shown inside the creator heart, when hearted.
-    var creatorHeartAvatarURL: URL? = nil
+    var creatorHeartAvatarURL: URL?
     /// The comment was pinned by the creator.
     var isPinned: Bool = false
 
@@ -465,10 +465,10 @@ struct YouTubeCommentsPage {
     let createCommentParams: String?
     /// Continuation token that reloads comments sorted by "Top comments".
     /// Only present on the first comments page (which carries the sort submenu).
-    var sortTopToken: String? = nil
+    var sortTopToken: String?
     /// Continuation token that reloads comments sorted by "Newest first".
     /// Only present on the first comments page (which carries the sort submenu).
-    var sortNewestToken: String? = nil
+    var sortNewestToken: String?
 
     static let empty = YouTubeCommentsPage(comments: [], continuation: nil, createCommentParams: nil)
 }

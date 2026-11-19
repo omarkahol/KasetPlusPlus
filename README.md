@@ -1,14 +1,9 @@
 <h1 align="center">
-  &nbsp;KasetPlusPlus
+  KasetPlusPlus
 </h1>
 
 <p align="center">
-  <strong>Native YouTube Music and YouTube client for macOS — refined, feature-packed, and built for you.</strong>
-</p>
-
-<p align="center">
-  Native SwiftUI · Local Offline Archival · On-device AI<br>
-  Wider Queue with Marquee · MiniPlayer Integration · Distraction-free viewing
+  <strong>A native macOS client for YouTube Music and YouTube — fast, distraction-free, and built for macOS.</strong>
 </p>
 
 <p align="center">
@@ -27,9 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/omarkahol/KasetPlusPlus"><strong>GitHub Repository</strong></a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/omarkahol/KasetPlusPlus/releases/latest"><strong>Releases</strong></a>
+  <a href="https://github.com/omarkahol/KasetPlusPlus/releases/latest"><strong>Download Latest Release</strong></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/Yoddikko/kasetPlus">KasetPlus</a>
   &nbsp;·&nbsp;
@@ -38,121 +31,92 @@
 
 ---
 
-## Legal Disclaimer & Terms of Use
+**KasetPlusPlus** (`Kaset++`) brings YouTube Music and regular YouTube together in a single native SwiftUI app for macOS. No Electron, no browser tabs eating RAM—just a clean Mac app with native media keys, Now Playing integration, offline archival, and built-in quality-of-life tools.
+
+## Key Features
+
+### 🎵 Video & Song Archival
+- **Save Music & Videos Offline**: Archive songs (complete with ID3 tags, album art, and like status) or full YouTube videos at your preferred quality (Best Available, 1080p, 720p, or 480p).
+- **Dedicated Downloads Library**: Browse your saved collection across *All*, *Music*, and *Videos* tabs, search locally, reveal files in Finder, and play them natively offline—including synced lyrics for downloaded tracks.
+- **One-Click Downloads Everywhere**: Start or cancel downloads right from playlists, albums, search results, context menus, or the MiniPlayer bar with a live progress ring.
+
+### 🎬 Improved Video Experience
+- **Native Video Playback & Ambient Mode**: Smooth native playback with an optional ambient color backdrop that reacts to the video in real time.
+- **Flexible Viewing Modes**: Watch inline, pop out a floating picture-in-picture window, keep videos playing in the docked bar when navigating away, or switch on **Distraction-Free Mode** to hide comments and the related-videos rail.
+- **Original Audio Control**: Automatically prefer the creator's original audio track instead of AI-dubbed tracks, and see original languages clearly highlighted in the audio picker.
+- **Chapters, Quality & Speed**: Jump between video chapters, pin playback quality, and adjust playback speed right from the player bar.
+
+### 🛡️ Built-in SponsorBlock & Add-ons
+- **SponsorBlock**: Automatically skips sponsored segments, intros, outros, and self-promotions with subtle native skip notifications.
+- **Ad Blocker**: Built-in request filtering and automatic ad skipping.
+- **Return YouTube Dislike**: Restores community dislike counts on videos.
+- **DeArrow**: Replaces clickbait titles and thumbnails with community-curated alternatives.
+
+### 🎛️ Queue, Lyrics & On-Device AI
+- **Synced Lyrics & Wider Queue**: Follow time-synced lyrics for both streamed and downloaded songs, and enjoy a roomy queue panel with smooth scrolling marquee titles.
+- **Apple Intelligence (On-Device)**: Summarize videos, explain lyrics, and create playlists using natural language—processed privately on your Mac with no external API keys.
+
+---
+
+## Installation
+
+1. Download the latest `KasetPlusPlus-v*.dmg` from the [GitHub Releases](https://github.com/omarkahol/KasetPlusPlus/releases/latest) page (Universal Binary for Apple Silicon and Intel).
+2. Open the `.dmg` and drag **KasetPlusPlus.app** into **Applications**.
+3. Because community releases are ad-hoc signed, macOS Gatekeeper may ask to verify the app on first launch. If it is blocked, run:
+   ```bash
+   xattr -cr /Applications/KasetPlusPlus.app
+   ```
+4. *(Optional)* To enable offline song and video downloads, install `yt-dlp` and `ffmpeg` via [Homebrew](https://brew.sh):
+   ```bash
+   brew install yt-dlp ffmpeg
+   ```
+
+---
+
+## Building from Source
+
+### Requirements
+- **macOS 15.4 or later** (supports macOS 26.0+ Liquid Glass styling)
+- **Xcode 16.0 or later** with Swift 6.0 command-line tools
+- *(Optional)* `yt-dlp` and `ffmpeg` via Homebrew for offline downloads
+
+### Build & Run
+```bash
+git clone https://github.com/omarkahol/KasetPlusPlus.git
+cd KasetPlusPlus
+
+# Build debug binary
+swift build
+
+# Run unit tests (skipping UI tests)
+swift test --skip KasetUITests
+```
+
+To package a standalone `.app` bundle and install it to `/Applications`:
+```bash
+KASET_SIGNING=adhoc ./Scripts/build-app.sh release
+pkill -x KasetPlusPlus || true
+rm -rf /Applications/KasetPlusPlus.app
+cp -R .build/app/KasetPlusPlus.app /Applications/
+xattr -cr /Applications/KasetPlusPlus.app
+```
+
+You can also open the folder in Xcode (`xed .`), select the `KasetPlus` scheme and **My Mac**, and press **Cmd + R**.
+
+---
+
+## Disclaimer
 
 > [!IMPORTANT]
-> - **KasetPlusPlus** is an unofficial, independent open-source fork and is **not** affiliated with, authorized, maintained, or endorsed by Google LLC, YouTube, or the original authors.
-> - **User Responsibility & Fair Use**: Any integration with command-line tools (such as `yt-dlp` and `ffmpeg`) is provided strictly for personal, non-commercial, fair-use archival of user-owned media or content for which the user has obtained explicit authorization from the copyright holder. Users are solely responsible for ensuring that their use complies with local copyright laws and YouTube's Terms of Service.
+> **KasetPlusPlus** is an independent, unofficial open-source project and is not affiliated with or endorsed by Google LLC, YouTube, or the original authors.
+> Offline archival features (`yt-dlp` / `ffmpeg`) are intended strictly for personal, non-commercial, fair-use archival of content you own or have permission to save. Users are responsible for complying with local copyright laws and YouTube's Terms of Service.
 
 ---
 
-## Installation (Pre-built Releases)
+## Credits & License
 
-Pre-built Universal Binary (Apple Silicon & Intel) `.dmg` releases are published on the [GitHub Releases](https://github.com/omarkahol/KasetPlusPlus/releases/latest) page.
+`KasetPlusPlus` builds on the great work of:
+- [Kaset](https://github.com/sozercan/kaset) by Sertac Ozercan ([@sozercan](https://github.com/sozercan))
+- [KasetPlus](https://github.com/Yoddikko/kasetPlus) by Alessio Iodice ([@Yoddikko](https://github.com/Yoddikko))
 
-1. Download the latest `KasetPlusPlus-v*.dmg` from [Releases](https://github.com/omarkahol/KasetPlusPlus/releases/latest).
-2. Open the `.dmg` and drag **KasetPlusPlus.app** into your **Applications** folder.
-3. Because community builds are ad-hoc signed (not notarized with a paid Apple Developer ID), macOS Gatekeeper may block the first launch. If so, clear the quarantine attribute in Terminal:
-   ```bash
-   xattr -cr /Applications/KasetPlusPlus.app
-   ```
-4. *(Optional)* Install `ffmpeg` via [Homebrew](https://brew.sh) if you want full media conversion/archival support:
-   ```bash
-   brew install yt-dlp ffmpeg
-   ```
-
----
-
-## Features & Highlights in KasetPlusPlus
-
-- 🎵 **Offline Media Archival**:
-  - Download high-fidelity music tracks (with ID3 metadata, album artwork, and like-status tagging) or full YouTube videos (customizable 1080p, 720p, 480p, or Best Available).
-  - Dedicated **Downloads View** with indexed search, categorized tabs (*All / Music / Videos*), Finder access, and native offline playback (including `AVPlayerView` video presentation).
-  - One-click downloads available across playlists, albums, search results, history, artist discographies, context menus, and player bars.
-- 🎛️ **Polished MiniPlayer**:
-  - Integrated download action directly beside Volume in the MiniPlayer bar, complete with animated progress ring and cancellation support.
-- 📜 **Wider Queue & Marquee Titles**:
-  - 50%+ wider Queue popover and side panel giving track details room to breathe.
-  - Smooth horizontal marquee sliding ticker for overflowing song titles.
-- 🛡️ **Built-in Addon Suite**:
-  - **Ad Blocker**: Multi-tier request filtering and playback ad auto-skip.
-  - **SponsorBlock**: Auto-skip sponsored segments with native notifications.
-  - **Return YouTube Dislike**: Community dislike stats integrated directly into video and song views.
-  - **DeArrow**: Crowd-sourced clickbait-free titles and thumbnails.
-- 🧠 **On-Device Apple Intelligence**:
-  - Natural-language playlist curation, video summaries, and lyric explanation powered on-device without external API keys.
-
----
-
-## Requirements & Building from Source
-
-### Prerequisites
-
-1. **macOS**: macOS 15.4 or later (supports macOS 26.0+ Liquid Glass styling).
-2. **Xcode**: Xcode 16.0 or later with Swift 6.0 command-line tools.
-3. **Optional Archival Dependencies**:
-   To enable local offline archival of audio/video using external CLI tools, install `yt-dlp` and `ffmpeg` via [Homebrew](https://brew.sh):
-   ```bash
-   brew install yt-dlp ffmpeg
-   ```
-
-### Step-by-Step Build Instructions
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/omarkahol/KasetPlusPlus.git
-   cd KasetPlusPlus
-   ```
-
-2. **Build via Command Line**:
-   To compile and run tests:
-   ```bash
-   # Build debug binary
-   swift build
-
-   # Run test suites (skipping disruptive UI tests)
-   swift test --skip KasetUITests
-   ```
-
-3. **Packaging a Standalone Release `.app`**:
-   To build, sign, and bundle the app:
-   ```bash
-   # Ad-hoc sign for local use
-   KASET_SIGNING=adhoc ./Scripts/build-app.sh release
-   ```
-   The finished app bundle will be located at:
-   ```
-   .build/app/KasetPlusPlus.app
-   ```
-
-4. **Install to `/Applications`**:
-   ```bash
-   # Close any running instance
-   pkill -x KasetPlusPlus || true
-
-   # Copy to Applications and clear Gatekeeper quarantine
-   rm -rf /Applications/KasetPlusPlus.app
-   cp -R .build/app/KasetPlusPlus.app /Applications/
-   xattr -cr /Applications/KasetPlusPlus.app
-   ```
-
-5. **Building in Xcode (GUI)**:
-   - Open the project directory in Xcode: `xed .`
-   - Select the `KasetPlus` scheme and choose **My Mac**.
-   - Under **Signing & Capabilities**, select your personal Team / Apple ID for local development signing.
-   - Press **Cmd + B** to build, or **Cmd + R** to run.
-
----
-
-## Upstream Credits & Attribution
-
-`KasetPlusPlus` is built with gratitude on the foundational work of the open-source community:
-- [Kaset](https://github.com/sozercan/kaset) by Sertac Ozercan ([@sozercan](https://github.com/sozercan)).
-- [KasetPlus](https://github.com/Yoddikko/kasetPlus) by Alessio Iodice ([@Yoddikko](https://github.com/Yoddikko)).
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-Copyright (c) 2025 sozercan, 2025 Yoddikko, 2026 Omar.
+Licensed under the [MIT License](LICENSE). Copyright © 2025 sozercan, 2025 Yoddikko, 2026 Omar.

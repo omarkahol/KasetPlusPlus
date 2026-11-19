@@ -1,4 +1,3 @@
-// swiftlint:disable file_length
 import SwiftUI
 
 // MARK: - DownloadsScope
@@ -341,39 +340,7 @@ struct DownloadsView: View {
 
                     // Context Menu / Delete Button
                     Menu {
-                        Button(String(localized: "Play")) {
-                            self.playSong(at: index, in: allItems)
-                        }
-
-                        if item.mediaType == .audio {
-                            Button(String(localized: "Play Next")) {
-                                SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
-                            }
-
-                            Button(String(localized: "Add to Queue")) {
-                                SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
-                            }
-                        } else {
-                            Button(String(localized: "Open in Default App")) {
-                                let fileURL = self.downloadManager.mediaFileURL(for: item)
-                                NSWorkspace.shared.open(fileURL)
-                            }
-                        }
-
-                        Divider()
-
-                        Button(String(localized: "Show in Finder")) {
-                            let fileURL = self.downloadManager.mediaFileURL(for: item)
-                            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive) {
-                            self.downloadManager.removeDownload(videoId: item.videoId)
-                        } label: {
-                            Label(String(localized: "Remove Download"), systemImage: "trash")
-                        }
+                        self.downloadMenuItems(for: item, song: song, index: index, allItems: allItems)
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 12))
@@ -393,39 +360,49 @@ struct DownloadsView: View {
             .buttonStyle(.plain)
         }
         .contextMenu {
-            Button(String(localized: "Play")) {
-                self.playSong(at: index, in: allItems)
+            self.downloadMenuItems(for: item, song: song, index: index, allItems: allItems)
+        }
+    }
+
+    @ViewBuilder
+    private func downloadMenuItems(
+        for item: DownloadedSong,
+        song: Song,
+        index: Int,
+        allItems: [DownloadedSong]
+    ) -> some View {
+        Button(String(localized: "Play")) {
+            self.playSong(at: index, in: allItems)
+        }
+
+        if item.mediaType == .audio {
+            Button(String(localized: "Play Next")) {
+                SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
             }
 
-            if item.mediaType == .audio {
-                Button(String(localized: "Play Next")) {
-                    SongActionsHelper.addToQueueNext(song, playerService: self.playerService)
-                }
-
-                Button(String(localized: "Add to Queue")) {
-                    SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
-                }
-            } else {
-                Button(String(localized: "Open in Default App")) {
-                    let fileURL = self.downloadManager.mediaFileURL(for: item)
-                    NSWorkspace.shared.open(fileURL)
-                }
+            Button(String(localized: "Add to Queue")) {
+                SongActionsHelper.addToQueueLast(song, playerService: self.playerService)
             }
-
-            Divider()
-
-            Button(String(localized: "Show in Finder")) {
+        } else {
+            Button(String(localized: "Open in Default App")) {
                 let fileURL = self.downloadManager.mediaFileURL(for: item)
-                NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+                NSWorkspace.shared.open(fileURL)
             }
+        }
 
-            Divider()
+        Divider()
 
-            Button(role: .destructive) {
-                self.downloadManager.removeDownload(videoId: item.videoId)
-            } label: {
-                Label(String(localized: "Remove Download"), systemImage: "trash")
-            }
+        Button(String(localized: "Show in Finder")) {
+            let fileURL = self.downloadManager.mediaFileURL(for: item)
+            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            self.downloadManager.removeDownload(videoId: item.videoId)
+        } label: {
+            Label(String(localized: "Remove Download"), systemImage: "trash")
         }
     }
 
