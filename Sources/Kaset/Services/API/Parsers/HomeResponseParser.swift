@@ -9,15 +9,7 @@ enum HomeResponseParser {
         var sections: [HomeSection] = []
 
         // Navigate to contents
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-              let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        else {
+        guard let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) else {
             // Log what top-level keys we have for debugging
             self.logger.debug("HomeResponseParser: No standard structure found. Top keys: \(data.keys.sorted())")
             if let contents = data["contents"] as? [String: Any] {
@@ -66,35 +58,12 @@ enum HomeResponseParser {
 
     /// Extracts continuation token from the main response.
     static func extractContinuationToken(from data: [String: Any]) -> String? {
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-              let continuations = sectionListRenderer["continuations"] as? [[String: Any]],
-              let firstContinuation = continuations.first,
-              let nextContinuationData = firstContinuation["nextContinuationData"] as? [String: Any],
-              let token = nextContinuationData["continuation"] as? String
-        else {
-            return nil
-        }
-        return token
+        InnerTubeEnvelope.singleColumnContinuationToken(in: data)
     }
 
     /// Extracts continuation token from a continuation response.
     static func extractContinuationTokenFromContinuation(_ data: [String: Any]) -> String? {
-        if let continuationContents = data["continuationContents"] as? [String: Any],
-           let sectionListContinuation = continuationContents["sectionListContinuation"] as? [String: Any],
-           let continuations = sectionListContinuation["continuations"] as? [[String: Any]],
-           let firstContinuation = continuations.first,
-           let nextContinuationData = firstContinuation["nextContinuationData"] as? [String: Any],
-           let token = nextContinuationData["continuation"] as? String
-        {
-            return token
-        }
-        return nil
+        InnerTubeEnvelope.continuationToken(inContinuationData: data)
     }
 
     // MARK: - Section Parsing
@@ -343,7 +312,7 @@ enum HomeResponseParser {
         // but the actual content is a playlist. Create a unique ID using browseId + params
         // to avoid duplicate IDs when the same browseId appears in multiple sections.
         let params = browseEndpoint["params"] as? String
-        let uniqueId = params != nil ? "\(browseId)_\(params!)" : browseId
+        let uniqueId = params.map { "\(browseId)_\($0)" } ?? browseId
 
         // Try to extract thumbnail URL (some navigation buttons have iconImage)
         var thumbnailURL: URL?
@@ -427,7 +396,7 @@ enum HomeResponseParser {
     }
 
     private static func parseResponsiveListItem(_ data: [String: Any]) -> HomeSectionItem? {
-        guard let videoId = ParsingHelpers.extractVideoId(from: data) else {
+        guard let song = ResponsiveTrackParser.parseSong(from: data) else {
             // Might be a non-song item
             if let navigationEndpoint = data["navigationEndpoint"] as? [String: Any],
                let browseEndpoint = navigationEndpoint["browseEndpoint"] as? [String: Any],
@@ -439,23 +408,6 @@ enum HomeResponseParser {
             return nil
         }
 
-        let title = ParsingHelpers.extractTitleFromFlexColumns(data) ?? "Unknown"
-        let artists = ParsingHelpers.extractArtistsFromFlexColumns(data)
-        let thumbnailURL = ParsingHelpers.extractThumbnailURL(from: data)
-        let duration = ParsingHelpers.extractDurationFromFlexColumns(data)
-        let album = ParsingHelpers.extractAlbumFromFlexColumns(data)
-
-        let song = Song(
-            id: videoId,
-            title: title,
-            artists: artists,
-            album: album,
-            duration: duration,
-            thumbnailURL: thumbnailURL,
-            videoId: videoId,
-            musicVideoType: ParsingHelpers.extractMusicVideoType(from: data),
-            isExplicit: ParsingHelpers.extractIsExplicit(from: data)
-        )
         return .song(song)
     }
 

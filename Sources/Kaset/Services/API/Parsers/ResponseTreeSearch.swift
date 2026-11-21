@@ -24,6 +24,30 @@ enum ResponseTreeSearch {
         return nil
     }
 
+    static func firstDictionary(namedOneOf keys: [String], in value: Any) -> (key: String, dictionary: [String: Any])? {
+        if let dictionary = value as? [String: Any] {
+            for key in keys {
+                if let match = dictionary[key] as? [String: Any] {
+                    return (key, match)
+                }
+            }
+
+            for child in dictionary.values {
+                if let match = self.firstDictionary(namedOneOf: keys, in: child) {
+                    return match
+                }
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                if let match = self.firstDictionary(namedOneOf: keys, in: child) {
+                    return match
+                }
+            }
+        }
+
+        return nil
+    }
+
     static func dictionaries(named key: String, in value: Any) -> [[String: Any]] {
         var matches: [[String: Any]] = []
         if let dictionary = value as? [String: Any] {
@@ -36,6 +60,25 @@ enum ResponseTreeSearch {
         } else if let array = value as? [Any] {
             for child in array {
                 matches.append(contentsOf: self.dictionaries(named: key, in: child))
+            }
+        }
+        return matches
+    }
+
+    static func dictionaries(namedOneOf keys: Set<String>, in value: Any) -> [(key: String, dictionary: [String: Any])] {
+        var matches: [(key: String, dictionary: [String: Any])] = []
+        if let dictionary = value as? [String: Any] {
+            for key in keys {
+                if let match = dictionary[key] as? [String: Any] {
+                    matches.append((key, match))
+                }
+            }
+            for child in dictionary.values {
+                matches.append(contentsOf: self.dictionaries(namedOneOf: keys, in: child))
+            }
+        } else if let array = value as? [Any] {
+            for child in array {
+                matches.append(contentsOf: self.dictionaries(namedOneOf: keys, in: child))
             }
         }
         return matches

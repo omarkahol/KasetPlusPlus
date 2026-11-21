@@ -1003,8 +1003,7 @@ enum LibraryMutationActions {
 
     static func invalidateResponseCaches() {
         // Library mutations can leave stale data in both the app-level cache and URL loading cache.
-        APICache.shared.invalidate(matching: "browse:")
-        APICache.shared.invalidate(matching: "playlist/get_add_to_playlist:")
+        APICache.shared.invalidateMutationCaches()
         URLCache.shared.removeAllCachedResponses()
     }
 

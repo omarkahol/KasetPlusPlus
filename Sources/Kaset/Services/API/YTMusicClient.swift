@@ -35,9 +35,7 @@ enum PaginatedContentType: String, Hashable {
 @MainActor
 // swiftlint:disable:next type_body_length
 final class YTMusicClient: YTMusicClientProtocol {
-    private let authService: AuthService
-    private let webKitManager: WebKitManager
-    private let session: URLSession
+    private let transport: InnerTubeTransport
     private let apiKeyResolver: YTMusicAPIKeyResolver
     private let cache: APICache
     private let logger = DiagnosticsLogger.api
@@ -76,16 +74,32 @@ final class YTMusicClient: YTMusicClientProtocol {
         apiKeyResolver: YTMusicAPIKeyResolver? = nil,
         cache: APICache = .shared
     ) {
-        self.authService = authService
-        self.webKitManager = webKitManager
-
         let resolvedSession: URLSession = if let session {
             session
         } else {
             URLSession(configuration: APISessionConfiguration.make())
         }
 
-        self.session = resolvedSession
+        let authProvider = InnerTubeAuthProvider(
+            authService: authService,
+            webKitManager: webKitManager,
+            origin: WebKitManager.origin,
+            logLabel: "YTMusic"
+        )
+        let profile = InnerTubeClientProfile(
+            clientName: "WEB_REMIX",
+            clientVersion: Self.clientVersion,
+            origin: WebKitManager.origin,
+            baseURL: Self.baseURL,
+            includeExperiments: true,
+            logLabel: "YTMusic",
+            telemetryPrefix: "ytm"
+        )
+        self.transport = InnerTubeTransport(
+            profile: profile,
+            authProvider: authProvider,
+            session: resolvedSession
+        )
         self.apiKeyResolver = apiKeyResolver ?? YTMusicAPIKeyResolver(session: resolvedSession)
         self.cache = cache
     }
@@ -128,29 +142,52 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Fetches the next batch of sections for the given content type via continuation.
     /// Returns nil if no more sections are available.
-    private func fetchContinuation(type: PaginatedContentType) async throws -> [HomeSection]? {
-        guard let token = continuationTokens[type] else {
-            self.logger.debug("No \(type.displayName) continuation token available")
+    private func fetchContinuation(
+        type: PaginatedContentType,
+        authPolicy: InnerTubeAuthPolicy? = nil
+    ) async throws -> [HomeSection]? {
+        let paginationEpoch = self.paginationEpochs[type] ?? 0
+        let generation = self.continuationGeneration
+        return try await self.fetchContinuation(
+            label: type.displayName,
+            token: self.continuationTokens[type],
+            isCurrent: {
+                generation == self.continuationGeneration && self.paginationEpochs[type] == paginationEpoch
+            },
+            setToken: { self.continuationTokens[type] = $0 },
+            authPolicy: authPolicy,
+            parse: HomeResponseParser.parseContinuation
+        )
+    }
+
+    /// Generic continuation fetcher shared across paginated home, history,
+    /// personalized recommendations, and podcasts surfaces.
+    private func fetchContinuation<Section>(
+        label: String,
+        token: String?,
+        isCurrent: () -> Bool,
+        setToken: (String?) -> Void,
+        authPolicy: InnerTubeAuthPolicy? = nil,
+        parse: ([String: Any]) -> [Section]
+    ) async throws -> [Section]? {
+        guard let token else {
+            self.logger.debug("No \(label) continuation token available")
             return nil
         }
 
-        self.logger.info("Fetching \(type.displayName) continuation")
-        let generation = self.continuationGeneration
-        let paginationEpoch = self.paginationEpochs[type] ?? 0
+        self.logger.info("Fetching \(label) continuation")
 
         do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            guard generation == self.continuationGeneration,
-                  self.paginationEpochs[type] == paginationEpoch
-            else {
-                self.logger.info("Discarding stale \(type.displayName) continuation")
+            let continuationData = try await self.requestContinuation(token, authPolicy: authPolicy)
+            let additionalSections = parse(continuationData)
+            guard isCurrent() else {
+                self.logger.info("Discarding stale \(label) continuation")
                 return nil
             }
-            self.continuationTokens[type] = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self.continuationTokens[type] != nil
+            let nextToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            setToken(nextToken)
 
-            self.logger.info("\(type.displayName.capitalized) continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
+            self.logger.info("\(label.capitalized) continuation loaded: \(additionalSections.count) sections, hasMore: \(nextToken != nil)")
             return additionalSections
         } catch is CancellationError {
             // A cancelled request says nothing about the server-side page, so
@@ -160,11 +197,9 @@ final class YTMusicClient: YTMusicClientProtocol {
             // retry the same continuation instead of ending pagination.
             throw CancellationError()
         } catch {
-            self.logger.warning("Failed to fetch \(type.displayName) continuation: \(error.localizedDescription)")
-            if generation == self.continuationGeneration,
-               self.paginationEpochs[type] == paginationEpoch
-            {
-                self.continuationTokens[type] = nil
+            self.logger.warning("Failed to fetch \(label) continuation: \(error.localizedDescription)")
+            if isCurrent() {
+                setToken(nil)
             }
             throw error
         }
@@ -217,33 +252,15 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Fetches the next batch of signed-in recommendation sections.
     func getPersonalizedRecommendationsContinuation() async throws -> [HomeSection]? {
-        guard let token = self.personalizedRecommendationsContinuationToken else {
-            self.logger.debug("No personalized recommendations continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching personalized recommendations continuation")
         let generation = self.continuationGeneration
-
-        do {
-            let continuationData = try await self.requestContinuation(token, authPolicy: .required)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            guard generation == self.continuationGeneration else {
-                self.logger.info("Discarding stale personalized recommendations continuation after session reset")
-                return nil
-            }
-            self.personalizedRecommendationsContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self.personalizedRecommendationsContinuationToken != nil
-
-            self.logger.info("Personalized recommendations continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            self.logger.warning("Failed to fetch personalized recommendations continuation: \(error.localizedDescription)")
-            self.personalizedRecommendationsContinuationToken = nil
-            throw error
-        }
+        return try await self.fetchContinuation(
+            label: "personalized recommendations",
+            token: self.personalizedRecommendationsContinuationToken,
+            isCurrent: { generation == self.continuationGeneration },
+            setToken: { self.personalizedRecommendationsContinuationToken = $0 },
+            authPolicy: .required,
+            parse: HomeResponseParser.parseContinuation
+        )
     }
 
     /// Whether more signed-in recommendation sections are available to load.
@@ -319,33 +336,7 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Fetches the next batch of history sections via continuation.
     func getHistoryContinuation() async throws -> [HomeSection]? {
-        guard let continuation = continuationTokens[.history] else {
-            self.logger.debug("No history continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching history continuation")
-        let generation = self.continuationGeneration
-
-        do {
-            let continuationData = try await self.requestContinuation(continuation, authPolicy: .required)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            guard generation == self.continuationGeneration else {
-                self.logger.info("Discarding stale history continuation after session reset")
-                return nil
-            }
-            self.continuationTokens[.history] = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self.continuationTokens[.history] != nil
-
-            self.logger.info("History continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            self.logger.warning("Failed to fetch history continuation: \(error.localizedDescription)")
-            self.continuationTokens[.history] = nil
-            throw error
-        }
+        try await self.fetchContinuation(type: .history, authPolicy: .required)
     }
 
     /// Whether more history sections are available to load.
@@ -378,33 +369,14 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Fetches the next batch of podcasts sections via continuation.
     func getPodcastsContinuation() async throws -> [PodcastSection]? {
-        guard let token = continuationTokens[.podcasts] else {
-            self.logger.debug("No podcasts continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching podcasts continuation")
         let generation = self.continuationGeneration
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = PodcastParser.parseContinuation(continuationData)
-            guard generation == self.continuationGeneration else {
-                self.logger.info("Discarding stale podcasts continuation after session reset")
-                return nil
-            }
-            self.continuationTokens[.podcasts] = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self.continuationTokens[.podcasts] != nil
-
-            self.logger.info("Podcasts continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            self.logger.warning("Failed to fetch podcasts continuation: \(error.localizedDescription)")
-            self.continuationTokens[.podcasts] = nil
-            throw error
-        }
+        return try await self.fetchContinuation(
+            label: "podcasts",
+            token: self.continuationTokens[.podcasts],
+            isCurrent: { generation == self.continuationGeneration },
+            setToken: { self.continuationTokens[.podcasts] = $0 },
+            parse: PodcastParser.parseContinuation
+        )
     }
 
     /// Whether more podcasts sections are available to load.
@@ -443,7 +415,7 @@ final class YTMusicClient: YTMusicClientProtocol {
     private func requestContinuation(
         _ token: String,
         ttl: TimeInterval? = APICache.TTL.home,
-        authPolicy: RequestAuthPolicy? = nil
+        authPolicy: InnerTubeAuthPolicy? = nil
     ) async throws -> [String: Any] {
         let body: [String: Any] = [
             "continuation": token,
@@ -684,6 +656,7 @@ final class YTMusicClient: YTMusicClientProtocol {
         self.logger.info("Resetting client session state for account switch")
         self.continuationGeneration &+= 1
         self.cache.invalidateAll()
+        self.transport.clearInFlightRequests()
         self.continuationTokens.removeAll()
         self.paginationEpochs.removeAll()
         self.personalizedRecommendationsContinuationToken = nil
@@ -1060,7 +1033,7 @@ final class YTMusicClient: YTMusicClientProtocol {
         self.logger.info("Fetching playlist continuation")
 
         do {
-            let authPolicy: RequestAuthPolicy? = requiresAuth ? .required : nil
+            let authPolicy: InnerTubeAuthPolicy? = requiresAuth ? .required : nil
             let continuationData = try await requestContinuation(token, authPolicy: authPolicy)
             let response = PlaylistParser.parsePlaylistContinuation(continuationData)
             let hasMore = response.hasMore
@@ -1797,19 +1770,7 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     // MARK: - Private Methods
 
-    private enum RequestAuthPolicy {
-        case optional
-        case required
-    }
-
-    private struct RequestAuthHeaders {
-        let headers: [String: String]
-        let authenticated: Bool
-        let authIdentityGeneration: UInt64?
-        let allowsGuestAuthentication: Bool
-    }
-
-    private func authPolicy(forEndpoint endpoint: String, body: [String: Any]) -> RequestAuthPolicy {
+    private func authPolicy(forEndpoint endpoint: String, body: [String: Any]) -> InnerTubeAuthPolicy {
         if Self.authRequiredActionEndpoints.contains(endpoint) {
             return .required
         }
@@ -1825,59 +1786,6 @@ final class YTMusicClient: YTMusicClientProtocol {
         }
 
         return .optional
-    }
-
-    private func buildRequestHeaders(
-        authPolicy: RequestAuthPolicy,
-        allowGuestAuthentication: Bool
-    ) async throws -> RequestAuthHeaders {
-        let canAuthenticate = self.canUseAuthenticatedSession(allowGuestAuthentication: allowGuestAuthentication)
-        if canAuthenticate {
-            let authIdentityGeneration = self.authService.accountIdentityGeneration
-            do {
-                let headers = try await self.buildAuthHeaders()
-                try self.validateAuthIdentity(
-                    authenticated: true,
-                    generation: authIdentityGeneration,
-                    allowGuestAuthentication: allowGuestAuthentication
-                )
-                return RequestAuthHeaders(
-                    headers: headers,
-                    authenticated: true,
-                    authIdentityGeneration: authIdentityGeneration,
-                    allowsGuestAuthentication: allowGuestAuthentication
-                )
-            } catch {
-                if error is CancellationError {
-                    throw error
-                }
-                try self.validateAuthIdentity(
-                    authenticated: true,
-                    generation: authIdentityGeneration,
-                    allowGuestAuthentication: allowGuestAuthentication
-                )
-                self.authService.sessionExpired(ifIdentityGenerationMatches: authIdentityGeneration)
-                throw YTMusicError.authExpired
-            }
-        } else if authPolicy == .required {
-            throw YTMusicError.notAuthenticated
-        }
-
-        return RequestAuthHeaders(
-            headers: self.buildUnauthenticatedHeaders(),
-            authenticated: false,
-            authIdentityGeneration: nil,
-            allowsGuestAuthentication: false
-        )
-    }
-
-    private func buildUnauthenticatedHeaders() -> [String: String] {
-        let origin = WebKitManager.origin
-        return [
-            "Origin": origin,
-            "Referer": origin,
-            "Content-Type": "application/json",
-        ]
     }
 
     private func cacheScope(authenticated: Bool) -> String {
@@ -1924,89 +1832,13 @@ final class YTMusicClient: YTMusicClientProtocol {
         "stats/watchtime",
     ]
 
-    /// Builds authentication headers for API requests.
-    private func buildAuthHeaders() async throws -> [String: String] {
-        // Snapshot cookies once per request; deriving the cookie header and SAPISID from
-        // the same snapshot avoids repeated WebKit cookie-store enumerations during API fanout.
-        let authMaterial = await webKitManager.authMaterial(for: "youtube.com")
-        self.logger.debug("Building auth headers - total cookies: \(authMaterial.totalCookieCount), youtube.com cookies: \(authMaterial.domainCookieCount)")
-
-        guard let cookieHeader = authMaterial.cookieHeader else {
-            self.logger.error("No cookies found for youtube.com domain")
-            throw YTMusicError.notAuthenticated
-        }
-
-        guard let sapisid = authMaterial.sapisid else {
-            self.logger.error("SAPISID cookie not found or expired")
-            throw YTMusicError.authExpired
-        }
-
-        // Compute SAPISIDHASH
-        let origin = WebKitManager.origin
-        let timestamp = Int(Date().timeIntervalSince1970)
-        let sapisidhash = InnerTubeSupport.sapisidHash(
-            sapisid: sapisid,
-            origin: origin,
-            timestamp: timestamp
-        )
-
-        return [
-            "Cookie": cookieHeader,
-            "Authorization": "SAPISIDHASH \(sapisidhash)",
-            "Origin": origin,
-            "Referer": origin,
-            "Content-Type": "application/json",
-            "X-Goog-AuthUser": "0",
-            "X-Origin": origin,
-        ]
-    }
-
-    /// Builds the standard context payload.
-    /// Includes `onBehalfOfUser` only for authenticated requests when a brand account is selected.
-    private func buildContext(authenticated: Bool) -> [String: Any] {
-        var userDict: [String: Any] = [
-            "lockedSafetyMode": false,
-        ]
-
-        // Add brand account ID only when this request is actually authenticated.
-        // Signed-out requests must look like a normal public YouTube Music web
-        // request and must not carry a stale delegated identity in the body.
-        if authenticated, let brandId = self.brandIdProvider?() {
-            userDict["onBehalfOfUser"] = brandId
-            self.logger.debug("Using brand account: \(brandId)")
-        } else if authenticated {
-            self.logger.debug("Using primary account (no brand ID)")
-        } else {
-            self.logger.debug("Using signed-out YouTube Music context")
-        }
-
-        return [
-            "client": [
-                "clientName": "WEB_REMIX",
-                "clientVersion": Self.clientVersion,
-                "hl": SettingsManager.shared.contentLanguage.apiLanguageCode,
-                "gl": "US",
-                "experimentIds": [],
-                "experimentsToken": "",
-                "browserName": "Safari",
-                "browserVersion": "17.0",
-                "osName": "Macintosh",
-                "osVersion": "10_15_7",
-                "platform": "DESKTOP",
-                "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-                "utcOffsetMinutes": InnerTubeSupport.utcOffsetMinutes(for: .current),
-            ],
-            "user": userDict,
-        ]
-    }
-
-    /// Makes a request to the API with optional authentication, caching, and retry.
+    /// Makes a request to the API with optional authentication, caching, coalescing, and retry.
     private func request(
         _ endpoint: String,
         body: [String: Any],
         ttl: TimeInterval? = nil,
         bypassCache: Bool = false,
-        authPolicy explicitAuthPolicy: RequestAuthPolicy? = nil,
+        authPolicy explicitAuthPolicy: InnerTubeAuthPolicy? = nil,
         allowGuestAuthentication: Bool = false
     ) async throws -> [String: Any] {
         // Account and guest-mode transitions invalidate the shared API cache.
@@ -2022,14 +1854,17 @@ final class YTMusicClient: YTMusicClientProtocol {
             }
         }
         let authPolicy = explicitAuthPolicy ?? self.authPolicy(forEndpoint: endpoint, body: body)
-        let requestAuth = try await self.buildRequestHeaders(
+        let requestAuth = try await self.transport.authProvider.buildRequestHeaders(
             authPolicy: authPolicy,
             allowGuestAuthentication: allowGuestAuthentication
         )
 
         // Build request body with context so cache keys reflect the actual request.
         var fullBody = body
-        fullBody["context"] = self.buildContext(authenticated: requestAuth.authenticated)
+        fullBody["context"] = self.transport.buildContext(
+            authenticated: requestAuth.authenticated,
+            brandId: self.brandIdProvider?()
+        )
 
         let cacheScope = self.cacheScope(authenticated: requestAuth.authenticated)
         let cacheKey = APICache.stableCacheKey(endpoint: endpoint, body: fullBody, brandId: cacheScope)
@@ -2045,192 +1880,67 @@ final class YTMusicClient: YTMusicClientProtocol {
             self.cache.beginWrite(for: cacheKey, ticket: $0)
         }
 
-        // Execute with retry policy.
-        let json = try await RetryPolicy.default.execute { [self] in
-            try await self.performRequest(
-                endpoint,
-                fullBody: fullBody,
-                requestAuth: requestAuth
+        let executeNetworkRequest: @MainActor () async throws -> [String: Any] = { [self] in
+            let json = try await RetryPolicy.default.execute { [self] in
+                try await self.performRequest(
+                    endpoint,
+                    fullBody: fullBody,
+                    requestAuth: requestAuth
+                )
+            }
+
+            // Cache only if no account/guest transition happened while the
+            // request was in flight. YTMusicClient and APICache are both
+            // @MainActor, so this comparison and the synchronous set below are
+            // atomic relative to invalidateAll().
+            if ttl != nil, let cacheWrite {
+                self.cache.setIfCurrent(
+                    key: cacheKey,
+                    data: json,
+                    ttl: ttl ?? 0,
+                    reservation: cacheWrite
+                )
+            }
+            return json
+        }
+
+        if ttl != nil, !bypassCache {
+            return try await self.transport.coalesceJSONRequest(
+                cacheKey: cacheKey,
+                generation: cacheGeneration,
+                operation: executeNetworkRequest
             )
         }
 
-        // Cache only if no account/guest transition happened while the
-        // request was in flight. YTMusicClient and APICache are both
-        // @MainActor, so this comparison and the synchronous set below are
-        // atomic relative to invalidateAll().
-        if let ttl, let cacheWrite {
-            self.cache.setIfCurrent(
-                key: cacheKey,
-                data: json,
-                ttl: ttl,
-                reservation: cacheWrite
-            )
-        }
-
-        return json
+        return try await executeNetworkRequest()
     }
 
-    /// Performs the actual network request.
+    /// Performs the actual network request using the resolved API key.
     private func performRequest(
         _ endpoint: String,
         fullBody: [String: Any],
-        requestAuth: RequestAuthHeaders
+        requestAuth: InnerTubeAuthHeaders
     ) async throws -> [String: Any] {
-        let authenticated = requestAuth.authenticated
-        let authIdentityGeneration = requestAuth.authIdentityGeneration
-        let allowGuestAuthentication = requestAuth.allowsGuestAuthentication
-        try self.validateAuthIdentity(
-            authenticated: authenticated,
-            generation: authIdentityGeneration,
-            allowGuestAuthentication: allowGuestAuthentication
+        try self.transport.authProvider.validateAuthIdentity(
+            authenticated: requestAuth.authenticated,
+            generation: requestAuth.authIdentityGeneration,
+            allowGuestAuthentication: requestAuth.allowsGuestAuthentication
         )
         let apiKey = try await self.resolveAPIKey()
-        try self.validateAuthIdentity(
-            authenticated: authenticated,
-            generation: authIdentityGeneration,
-            allowGuestAuthentication: allowGuestAuthentication
+        return try await self.transport.performRequest(
+            endpoint,
+            fullBody: fullBody,
+            requestAuth: requestAuth,
+            queryItems: [
+                URLQueryItem(name: "key", value: apiKey),
+                URLQueryItem(name: "prettyPrint", value: "false"),
+            ]
         )
-        var components = URLComponents(string: "\(Self.baseURL)/\(endpoint)")
-        components?.queryItems = [
-            URLQueryItem(name: "key", value: apiKey),
-            URLQueryItem(name: "prettyPrint", value: "false"),
-        ]
-        guard let url = components?.url else {
-            throw YTMusicError.unknown(message: "Invalid API URL for endpoint: \(endpoint)")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpShouldHandleCookies = authenticated
-
-        for (key, value) in requestAuth.headers {
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: fullBody)
-
-        if let context = fullBody["context"] as? [String: Any],
-           let user = context["user"] as? [String: Any]
-        {
-            let onBehalfOfUser = user["onBehalfOfUser"] as? String
-            self.logger.debug(
-                "Making request to \(endpoint) (onBehalfOfUser=\(onBehalfOfUser ?? "primary"))"
-            )
-        } else {
-            self.logger.debug("Making request to \(endpoint) (missing context)")
-        }
-
-        // Perform network I/O off the main thread
-        let result = try await Self.performNetworkRequest(request: request, session: self.session)
-        try self.validateAuthIdentity(
-            authenticated: authenticated,
-            generation: authIdentityGeneration,
-            allowGuestAuthentication: allowGuestAuthentication
-        )
-
-        // Handle errors back on main actor
-        switch result {
-        case let .success(data):
-            // Parse JSON synchronously - JSONSerialization is highly optimized
-            // and typically completes in <5ms even for large responses.
-            // The actual response parsing (in Parsers/) is more expensive
-            // but must happen on MainActor anyway for @Observable updates.
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Telemetry.report("ytm.parse_fail", ["endpoint": endpoint])
-                throw YTMusicError.parseError(message: "Response is not a JSON object")
-            }
-            return json
-        case let .authError(statusCode):
-            self.logger.error("Auth error: HTTP \(statusCode)")
-            if authenticated {
-                if let authIdentityGeneration {
-                    self.authService.sessionExpired(ifIdentityGenerationMatches: authIdentityGeneration)
-                }
-                throw YTMusicError.authExpired
-            }
-            throw YTMusicError.notAuthenticated
-        case let .httpError(statusCode):
-            self.logger.error("API error: HTTP \(statusCode)")
-            Telemetry.report("ytm.http_error", ["endpoint": endpoint, "code": "\(statusCode)"])
-            throw YTMusicError.apiError(
-                message: "HTTP \(statusCode)",
-                code: statusCode
-            )
-        case let .networkError(error):
-            if error is CancellationError || (error as? URLError)?.code == .cancelled {
-                throw CancellationError()
-            }
-            throw YTMusicError.networkError(underlying: error)
-        }
-    }
-
-    private func canUseAuthenticatedSession(allowGuestAuthentication: Bool) -> Bool {
-        self.authService.hasPersonalAccount
-            || (allowGuestAuthentication
-                && self.authService.state.isLoggedIn
-                && self.authService.isGuestModeEnabled)
-    }
-
-    private func validateAuthIdentity(
-        authenticated: Bool,
-        generation: UInt64?,
-        allowGuestAuthentication: Bool
-    ) throws {
-        guard authenticated else { return }
-        guard let generation,
-              generation == self.authService.accountIdentityGeneration,
-              self.canUseAuthenticatedSession(allowGuestAuthentication: allowGuestAuthentication)
-        else {
-            throw CancellationError()
-        }
     }
 
     /// Resolves the current YouTube Music web client API key without storing a concrete key in source.
     private func resolveAPIKey() async throws -> String {
         try await self.apiKeyResolver.resolve()
-    }
-
-    // MARK: - Nonisolated Network Helper
-
-    /// Result type for network request to avoid throwing across actor boundaries.
-    /// Uses Data (which is Sendable) instead of parsed JSON.
-    private enum NetworkResult {
-        case success(Data)
-        case authError(statusCode: Int)
-        case httpError(statusCode: Int)
-        case networkError(Error)
-    }
-
-    // Performs network request off the main thread.
-    // Returns raw Data to be parsed on the caller's actor.
-    // swiftformat:disable:next modifierOrder
-    nonisolated private static func performNetworkRequest(
-        request: URLRequest,
-        session: URLSession
-    ) async throws -> NetworkResult {
-        do {
-            let (data, response) = try await session.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return .networkError(URLError(.badServerResponse))
-            }
-
-            // Handle auth errors
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                return .authError(statusCode: httpResponse.statusCode)
-            }
-
-            // Handle other HTTP errors
-            guard (200 ... 299).contains(httpResponse.statusCode) else {
-                return .httpError(statusCode: httpResponse.statusCode)
-            }
-
-            return .success(data)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            return .networkError(error)
-        }
     }
 }
 

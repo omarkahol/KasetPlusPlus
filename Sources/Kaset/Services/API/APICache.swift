@@ -245,6 +245,10 @@ final class APICache {
             "next:",
             "like:",
             "playlist/get_add_to_playlist:",
+            "yt:browse:",
+            "yt:next:",
+            "yt:like:",
+            "yt:playlist/get_add_to_playlist:",
         ]
         self.cache = self.cache.filter { entry in
             !mutationPrefixes.contains { entry.key.hasPrefix($0) }

@@ -296,13 +296,7 @@ enum PlaylistParser {
 
     /// Extracts token from singleColumnBrowseResultsRenderer.
     private static func extractTokenFromSingleColumnRenderer(_ contents: [String: Any]) -> String? {
-        guard let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any]
-        else {
+        guard let sectionListRenderer = InnerTubeEnvelope.singleColumnSectionList(in: ["contents": contents]) else {
             return nil
         }
 
@@ -634,14 +628,7 @@ enum PlaylistParser {
 
         var sectionGroups: [[[String: Any]]] = []
 
-        if let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-           let firstTab = tabs.first,
-           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-           let tabContent = tabRenderer["content"] as? [String: Any],
-           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        {
+        if let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) {
             sectionGroups.append(sectionContents)
         }
 
@@ -852,14 +839,7 @@ enum PlaylistParser {
 
         if let contents = data["contents"] as? [String: Any] {
             // Try singleColumnBrowseResultsRenderer path
-            if let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-               let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-               let firstTab = tabs.first,
-               let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-               let tabContent = tabRenderer["content"] as? [String: Any],
-               let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-               let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-            {
+            if let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) {
                 tracks.append(contentsOf: self.parseTracksFromSections(sectionContents, fallbackThumbnailURL: fallbackThumbnailURL))
             }
 
@@ -975,42 +955,10 @@ enum PlaylistParser {
             return nil
         }
 
-        guard let videoId = ParsingHelpers.extractVideoId(from: responsiveRenderer) else {
-            return nil
-        }
-
-        let title = ParsingHelpers.extractTitleFromFlexColumns(responsiveRenderer) ?? "Unknown"
-        let artists = ParsingHelpers.extractArtistsFromFlexColumns(responsiveRenderer)
-        let thumbnailURL = ParsingHelpers.extractThumbnailURL(from: responsiveRenderer) ?? fallbackThumbnailURL
-        let duration = ParsingHelpers.extractDurationFromFlexColumns(responsiveRenderer)
-        let album = ParsingHelpers.extractAlbumFromFlexColumns(responsiveRenderer)
-        let isPlayable = ParsingHelpers.isPlayableMusicItem(from: responsiveRenderer)
-        let isExplicit = ParsingHelpers.extractIsExplicit(from: responsiveRenderer)
-        let playlistSetVideoId = ParsingHelpers.extractPlaylistSetVideoId(from: responsiveRenderer)
-        let musicVideoType = ParsingHelpers.extractMusicVideoType(from: responsiveRenderer)
-
-        // Music-video rows advertise their audio recording through the credits menu.
-        // Ignore the credits ID when it just repeats the row (ordinary audio tracks).
-        let creditsVideoId = ParsingHelpers.extractTrackCreditsVideoId(from: responsiveRenderer)
-        let audioTrackVideoId = creditsVideoId == videoId ? nil : creditsVideoId
-        let menuData = SongMetadataParser.parseMenuData(from: responsiveRenderer)
-
-        return Song(
-            id: videoId,
-            title: title,
-            artists: artists,
-            album: album,
-            duration: duration,
-            thumbnailURL: thumbnailURL,
-            videoId: videoId,
-            isPlayable: isPlayable,
-            musicVideoType: musicVideoType,
-            likeStatus: menuData.likeStatus,
-            isInLibrary: menuData.isInLibrary,
-            feedbackTokens: menuData.feedbackTokens,
-            isExplicit: isExplicit,
-            playlistSetVideoId: playlistSetVideoId,
-            audioTrackVideoId: audioTrackVideoId
+        return ResponsiveTrackParser.parseSong(
+            from: responsiveRenderer,
+            fallbackThumbnailURL: fallbackThumbnailURL,
+            includeMenuAndCredits: true
         )
     }
 
@@ -1281,16 +1229,14 @@ enum PlaylistParser {
         }
         guard albumId.hasPrefix("MPRE") else { return nil }
 
-        let headerRendererNames = [
+        let headerRendererNames: Set<String> = [
             "musicResponsiveHeaderRenderer",
             "musicDetailHeaderRenderer",
             "musicImmersiveHeaderRenderer",
             "musicVisualHeaderRenderer",
         ]
-        for rendererName in headerRendererNames {
-            if let headerRenderer = ResponseTreeSearch.firstDictionary(named: rendererName, in: data),
-               let targetId = ParsingHelpers.extractAlbumLibraryTargetId(from: headerRenderer)
-            {
+        for match in ResponseTreeSearch.dictionaries(namedOneOf: headerRendererNames, in: data) {
+            if let targetId = ParsingHelpers.extractAlbumLibraryTargetId(from: match.dictionary) {
                 return targetId
             }
         }
@@ -1437,16 +1383,7 @@ enum PlaylistParser {
 
     /// Extracts the playlistPanelVideoRenderer from queue content.
     private static func extractQueueRenderer(from content: [String: Any]) -> [String: Any]? {
-        if let directRenderer = content["playlistPanelVideoRenderer"] as? [String: Any] {
-            return directRenderer
-        }
-        if let wrapper = content["playlistPanelVideoWrapperRenderer"] as? [String: Any],
-           let primaryRenderer = wrapper["primaryRenderer"] as? [String: Any],
-           let wrappedRenderer = primaryRenderer["playlistPanelVideoRenderer"] as? [String: Any]
-        {
-            return wrappedRenderer
-        }
-        return nil
+        PanelVideoRendererParser.unwrap(content)
     }
 
     /// Extracts artist ID from runs array.

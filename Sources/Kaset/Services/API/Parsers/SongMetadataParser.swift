@@ -63,82 +63,30 @@ enum SongMetadataParser {
             throw YTMusicError.parseError(message: "Failed to parse song metadata for \(videoId)")
         }
 
-        // Handle both direct and wrapped renderer structures
-        // Direct: firstItem.playlistPanelVideoRenderer
-        // Wrapped: firstItem.playlistPanelVideoWrapperRenderer.primaryRenderer.playlistPanelVideoRenderer
-        if let direct = firstItem["playlistPanelVideoRenderer"] as? [String: Any] {
-            return direct
-        } else if let wrapper = firstItem["playlistPanelVideoWrapperRenderer"] as? [String: Any],
-                  let primary = wrapper["primaryRenderer"] as? [String: Any],
-                  let wrapped = primary["playlistPanelVideoRenderer"] as? [String: Any]
-        {
-            return wrapped
+        guard let unwrapped = PanelVideoRendererParser.unwrap(firstItem) else {
+            throw YTMusicError.parseError(message: "Failed to parse song metadata for \(videoId)")
         }
-
-        throw YTMusicError.parseError(message: "Failed to parse song metadata for \(videoId)")
+        return unwrapped
     }
 
     /// Parses the song title from the panel video renderer.
     static func parseTitle(from renderer: [String: Any]) -> String {
-        if let titleData = renderer["title"] as? [String: Any],
-           let runs = titleData["runs"] as? [[String: Any]],
-           let firstRun = runs.first,
-           let text = firstRun["text"] as? String
-        {
-            return text
-        }
-        return "Unknown"
+        PanelVideoRendererParser.parseTitle(from: renderer)
     }
 
     /// Parses artists from the panel video renderer's longBylineText.
     static func parseArtists(from renderer: [String: Any]) -> [Artist] {
-        var artists: [Artist] = []
-        guard let bylineData = renderer["longBylineText"] as? [String: Any],
-              let runs = bylineData["runs"] as? [[String: Any]]
-        else { return artists }
-
-        for run in runs {
-            guard let text = run["text"] as? String else { continue }
-            if text == " • " || text == " · " {
-                break
-            }
-            guard text != " & ", text != ", " else { continue }
-
-            let artistId: String = if let navEndpoint = run["navigationEndpoint"] as? [String: Any],
-                                      let browseEndpoint = navEndpoint["browseEndpoint"] as? [String: Any],
-                                      let browseId = browseEndpoint["browseId"] as? String
-            {
-                browseId
-            } else {
-                // Generate stable ID from artist name when no browse ID available
-                ParsingHelpers.stableId(title: "artist", components: text)
-            }
-            artists.append(Artist(id: artistId, name: text))
-        }
-        return artists
+        PanelVideoRendererParser.parseArtists(from: renderer)
     }
 
     /// Parses the thumbnail URL from the panel video renderer.
     static func parseThumbnail(from renderer: [String: Any]) -> URL? {
-        guard let thumbnail = renderer["thumbnail"] as? [String: Any],
-              let thumbnails = thumbnail["thumbnails"] as? [[String: Any]],
-              let lastThumb = thumbnails.last,
-              let urlString = lastThumb["url"] as? String
-        else { return nil }
-
-        let normalizedURL = urlString.hasPrefix("//") ? "https:" + urlString : urlString
-        return URL(string: normalizedURL)
+        PanelVideoRendererParser.parseThumbnail(from: renderer)
     }
 
     /// Parses the duration from the panel video renderer.
     static func parseDuration(from renderer: [String: Any]) -> TimeInterval? {
-        guard let lengthText = renderer["lengthText"] as? [String: Any],
-              let runs = lengthText["runs"] as? [[String: Any]],
-              let firstRun = runs.first,
-              let text = firstRun["text"] as? String
-        else { return nil }
-
-        return ParsingHelpers.parseDuration(text)
+        PanelVideoRendererParser.parseDuration(from: renderer)
     }
 
     /// Parses the music video type from the panel video renderer's navigation endpoint.

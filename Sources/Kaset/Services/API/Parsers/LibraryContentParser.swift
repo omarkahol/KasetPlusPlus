@@ -106,20 +106,20 @@ enum LibraryContentParser {
 
     /// Parses albums from the dedicated saved-albums browse response.
     static func parseLibraryAlbums(_ data: [String: Any]) -> [Album] {
-        let pageAlbums = self.parseLibraryAlbumsPage(data).albums
-        return self.mergedLibraryAlbums(
-            dedicated: pageAlbums,
-            fallback: self.parseLibraryContent(data).albums
-        )
+        self.parseLibraryAlbumsPage(data).albums
     }
 
     /// Parses the first saved-albums page and its continuation token.
     static func parseLibraryAlbumsPage(_ data: [String: Any]) -> LibraryAlbumsPage {
         let genericAlbums = self.parseLibraryContent(data).albums
-        let rendererInputs = ResponseTreeSearch.dictionaries(named: "gridRenderer", in: data).map {
-            AlbumRendererInput(renderer: $0, itemsKey: "items")
-        } + ResponseTreeSearch.dictionaries(named: "musicShelfRenderer", in: data).map {
-            AlbumRendererInput(renderer: $0, itemsKey: "contents")
+        let rendererInputs = ResponseTreeSearch.dictionaries(
+            namedOneOf: ["gridRenderer", "musicShelfRenderer"],
+            in: data
+        ).map { match in
+            AlbumRendererInput(
+                renderer: match.dictionary,
+                itemsKey: match.key == "gridRenderer" ? "items" : "contents"
+            )
         }
 
         if !rendererInputs.isEmpty {
@@ -146,55 +146,31 @@ enum LibraryContentParser {
 
     /// Parses a saved-albums continuation response in legacy or append-action format.
     static func parseLibraryAlbumsContinuation(_ data: [String: Any]) -> LibraryAlbumsPage {
-        if let gridContinuation = ResponseTreeSearch.firstDictionary(named: "gridContinuation", in: data) {
-            guard let items = gridContinuation["items"] as? [[String: Any]] else {
-                return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
-            }
-            let parsedItems = Self.parseRecognizedAlbumItems(items)
-            let nextPage = Self.nextPage(from: gridContinuation, itemsKey: "items")
-            let hasContinuationSentinel = items.contains { $0["continuationItemRenderer"] != nil }
-            let advertisesContinuation = hasContinuationSentinel || gridContinuation["continuations"] != nil
-            return LibraryAlbumsPage(
-                albums: parsedItems.albums,
-                nextPage: nextPage,
-                isRecognized: parsedItems.isRecognized
-                    && (!advertisesContinuation || nextPage != nil)
-            )
+        let continuationSpecs: [(key: String, itemsKey: String)] = [
+            ("gridContinuation", "items"),
+            ("musicShelfContinuation", "contents"),
+            ("appendContinuationItemsAction", "continuationItems"),
+        ]
+        guard let match = ResponseTreeSearch.firstDictionary(
+            namedOneOf: continuationSpecs.map(\.key),
+            in: data
+        ),
+            let itemsKey = continuationSpecs.first(where: { $0.key == match.key })?.itemsKey,
+            let items = match.dictionary[itemsKey] as? [[String: Any]]
+        else {
+            return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
         }
 
-        if let shelfContinuation = ResponseTreeSearch.firstDictionary(named: "musicShelfContinuation", in: data) {
-            guard let items = shelfContinuation["contents"] as? [[String: Any]] else {
-                return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
-            }
-            let parsedItems = Self.parseRecognizedAlbumItems(items)
-            let nextPage = Self.nextPage(from: shelfContinuation, itemsKey: "contents")
-            let hasContinuationSentinel = items.contains { $0["continuationItemRenderer"] != nil }
-            let advertisesContinuation = hasContinuationSentinel || shelfContinuation["continuations"] != nil
-            return LibraryAlbumsPage(
-                albums: parsedItems.albums,
-                nextPage: nextPage,
-                isRecognized: parsedItems.isRecognized
-                    && (!advertisesContinuation || nextPage != nil)
-            )
-        }
-
-        if let appendAction = ResponseTreeSearch.firstDictionary(named: "appendContinuationItemsAction", in: data) {
-            guard let items = appendAction["continuationItems"] as? [[String: Any]] else {
-                return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
-            }
-            let parsedItems = Self.parseRecognizedAlbumItems(items)
-            let nextPage = Self.nextPage(from: appendAction, itemsKey: "continuationItems")
-            let hasContinuationSentinel = items.contains { $0["continuationItemRenderer"] != nil }
-            let advertisesContinuation = hasContinuationSentinel || appendAction["continuations"] != nil
-            return LibraryAlbumsPage(
-                albums: parsedItems.albums,
-                nextPage: nextPage,
-                isRecognized: parsedItems.isRecognized
-                    && (!advertisesContinuation || nextPage != nil)
-            )
-        }
-
-        return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
+        let parsedItems = Self.parseRecognizedAlbumItems(items)
+        let nextPage = Self.nextPage(from: match.dictionary, itemsKey: itemsKey)
+        let hasContinuationSentinel = items.contains { $0["continuationItemRenderer"] != nil }
+        let advertisesContinuation = hasContinuationSentinel || match.dictionary["continuations"] != nil
+        return LibraryAlbumsPage(
+            albums: parsedItems.albums,
+            nextPage: nextPage,
+            isRecognized: parsedItems.isRecognized
+                && (!advertisesContinuation || nextPage != nil)
+        )
     }
 
     /// Parses library content from browse response, returning playlists, albums, artists, and podcast shows.
@@ -289,19 +265,7 @@ enum LibraryContentParser {
     }
 
     private static func extractLibrarySections(from data: [String: Any]) -> [[String: Any]] {
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-              let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        else {
-            return []
-        }
-
-        return sectionContents
+        InnerTubeEnvelope.singleColumnSections(in: data) ?? []
     }
 
     private static func appendLibraryItems(

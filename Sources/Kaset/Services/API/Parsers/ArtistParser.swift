@@ -27,15 +27,7 @@ enum ArtistParser { // swiftlint:disable:this type_body_length
         let headerResult = self.parseArtistHeader(data, artistId: artistId)
 
         // Parse content sections
-        if let contents = data["contents"] as? [String: Any],
-           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-           let firstTab = tabs.first,
-           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-           let tabContent = tabRenderer["content"] as? [String: Any],
-           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        {
+        if let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) {
             for sectionData in sectionContents {
                 // Parse songs from musicShelfRenderer.
                 if let shelfRenderer = sectionData["musicShelfRenderer"] as? [String: Any],
@@ -253,15 +245,7 @@ enum ArtistParser { // swiftlint:disable:this type_body_length
     /// Latest-episodes carousel, so `parseEpisodeFromMultiRowRenderer` does the
     /// per-item work.
     static func parseArtistEpisodesGrid(_ data: [String: Any]) -> [ArtistEpisode] {
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumn = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumn["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionList = tabContent["sectionListRenderer"] as? [String: Any],
-              let sections = sectionList["contents"] as? [[String: Any]]
-        else {
+        guard let sections = InnerTubeEnvelope.singleColumnSections(in: data) else {
             return []
         }
 
@@ -288,15 +272,7 @@ enum ArtistParser { // swiftlint:disable:this type_body_length
     /// Parses a discography browse response — a `gridRenderer` of
     /// `musicTwoRowItemRenderer` album cards.
     static func parseArtistDiscography(_ data: [String: Any]) -> [Album] {
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumn = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumn["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionList = tabContent["sectionListRenderer"] as? [String: Any],
-              let sections = sectionList["contents"] as? [[String: Any]]
-        else {
+        guard let sections = InnerTubeEnvelope.singleColumnSections(in: data) else {
             return []
         }
 
@@ -683,38 +659,21 @@ enum ArtistParser { // swiftlint:disable:this type_body_length
 
     /// Parses songs from artist songs browse response.
     static func parseArtistSongs(_ data: [String: Any]) -> [Song] {
-        var songs: [Song] = []
+        guard let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) else {
+            return []
+        }
 
-        // Try parsing from musicShelfRenderer in sectionListRenderer
-        if let contents = data["contents"] as? [String: Any],
-           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-           let firstTab = tabs.first,
-           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-           let tabContent = tabRenderer["content"] as? [String: Any],
-           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        {
-            for sectionData in sectionContents {
-                if let shelfRenderer = sectionData["musicShelfRenderer"] as? [String: Any],
-                   let shelfContents = shelfRenderer["contents"] as? [[String: Any]]
-                {
-                    songs.append(contentsOf: self.parseTracksFromItems(shelfContents))
-                }
+        var songs: [Song] = []
+        for sectionData in sectionContents {
+            if let shelfRenderer = sectionData["musicShelfRenderer"] as? [String: Any],
+               let shelfContents = shelfRenderer["contents"] as? [[String: Any]]
+            {
+                songs.append(contentsOf: self.parseTracksFromItems(shelfContents))
             }
         }
 
         // Try parsing from musicPlaylistShelfRenderer (alternative format)
-        if songs.isEmpty,
-           let contents = data["contents"] as? [String: Any],
-           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-           let firstTab = tabs.first,
-           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-           let tabContent = tabRenderer["content"] as? [String: Any],
-           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        {
+        if songs.isEmpty {
             for sectionData in sectionContents {
                 if let playlistRenderer = sectionData["musicPlaylistShelfRenderer"] as? [String: Any],
                    let playlistContents = playlistRenderer["contents"] as? [[String: Any]]
@@ -728,41 +687,12 @@ enum ArtistParser { // swiftlint:disable:this type_body_length
     }
 
     private static func parseTracksFromItems(_ items: [[String: Any]], fallbackThumbnailURL: URL? = nil) -> [Song] {
-        var tracks: [Song] = []
-        tracks.reserveCapacity(items.count)
-
-        for itemData in items {
+        items.compactMap { itemData in
             guard let responsiveRenderer = itemData["musicResponsiveListItemRenderer"] as? [String: Any] else {
-                continue
+                return nil
             }
-
-            guard let videoId = ParsingHelpers.extractVideoId(from: responsiveRenderer) else {
-                continue
-            }
-
-            let title = ParsingHelpers.extractTitleFromFlexColumns(responsiveRenderer) ?? "Unknown"
-            let artists = ParsingHelpers.extractArtistsFromFlexColumns(responsiveRenderer)
-            let thumbnailURL = ParsingHelpers.extractThumbnailURL(from: responsiveRenderer) ?? fallbackThumbnailURL
-            let duration = ParsingHelpers.extractDurationFromFlexColumns(responsiveRenderer)
-            let album = ParsingHelpers.extractAlbumFromFlexColumns(responsiveRenderer)
-            let isPlayable = ParsingHelpers.isPlayableMusicItem(from: responsiveRenderer)
-            let isExplicit = ParsingHelpers.extractIsExplicit(from: responsiveRenderer)
-
-            let track = Song(
-                id: videoId,
-                title: title,
-                artists: artists,
-                album: album,
-                duration: duration,
-                thumbnailURL: thumbnailURL,
-                videoId: videoId,
-                isPlayable: isPlayable,
-                isExplicit: isExplicit
-            )
-            tracks.append(track)
+            return ResponsiveTrackParser.parseSong(from: responsiveRenderer, fallbackThumbnailURL: fallbackThumbnailURL)
         }
-
-        return tracks
     }
 
     private enum CarouselItem {

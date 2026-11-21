@@ -12,15 +12,7 @@ enum PodcastParser {
         var sections: [PodcastSection] = []
 
         // Navigate to contents
-        guard let contents = data["contents"] as? [String: Any],
-              let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-              let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-              let firstTab = tabs.first,
-              let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-              let tabContent = tabRenderer["content"] as? [String: Any],
-              let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-              let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
-        else {
+        guard let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data) else {
             Self.logger.debug("PodcastParser: No standard structure found. Top keys: \(data.keys.sorted())")
             return []
         }
@@ -455,14 +447,7 @@ enum PodcastParser {
 
         // Fallback: Parse episodes from singleColumnBrowseResultsRenderer (old format)
         if episodes.isEmpty,
-           let contents = data["contents"] as? [String: Any],
-           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
-           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
-           let firstTab = tabs.first,
-           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
-           let tabContent = tabRenderer["content"] as? [String: Any],
-           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
-           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
+           let sectionContents = InnerTubeEnvelope.singleColumnSections(in: data)
         {
             for sectionData in sectionContents {
                 if let shelfRenderer = sectionData["musicShelfRenderer"] as? [String: Any],
@@ -630,31 +615,5 @@ enum PodcastParser {
     /// Checks if a browse ID is a podcast show.
     static func isPodcastShow(_ browseId: String) -> Bool {
         browseId.hasPrefix("MPSPP")
-    }
-
-    /// Checks if content data contains podcast indicators.
-    static func isPodcastContent(_ data: [String: Any]) -> Bool {
-        // Check for multiRowListItemRenderer (podcast-specific)
-        if data["musicMultiRowListItemRenderer"] != nil {
-            return true
-        }
-
-        // Check for playbackProgress field
-        if let multiRow = data["musicMultiRowListItemRenderer"] as? [String: Any],
-           multiRow["playbackProgress"] != nil
-        {
-            return true
-        }
-
-        // Check for MPSPP browse ID
-        if let navigationEndpoint = data["navigationEndpoint"] as? [String: Any],
-           let browseEndpoint = navigationEndpoint["browseEndpoint"] as? [String: Any],
-           let browseId = browseEndpoint["browseId"] as? String,
-           browseId.hasPrefix("MPSPP")
-        {
-            return true
-        }
-
-        return false
     }
 }
