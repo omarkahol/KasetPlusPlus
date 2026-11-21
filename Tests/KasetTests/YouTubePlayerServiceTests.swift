@@ -140,9 +140,12 @@ final class MockYouTubeWatchPlaybackController: YouTubeWatchPlaybackControlling 
     var audioTracks: [YouTubeAudioTrack] = []
     var activeAudioTrackId: String?
     private(set) var selectedAudioTrackId: String?
+    private(set) var selectedAudioTrackHistory: [String] = []
+    var onAvailableAudioTracks: (() -> [YouTubeAudioTrack])?
+    var onSetAudioTrack: ((String) -> Void)?
 
     func availableAudioTracks() async -> [YouTubeAudioTrack] {
-        self.audioTracks
+        self.onAvailableAudioTracks?() ?? self.audioTracks
     }
 
     func currentAudioTrackId() async -> String? {
@@ -151,6 +154,8 @@ final class MockYouTubeWatchPlaybackController: YouTubeWatchPlaybackControlling 
 
     func setAudioTrack(id: String) {
         self.selectedAudioTrackId = id
+        self.selectedAudioTrackHistory.append(id)
+        self.onSetAudioTrack?(id)
     }
 
     var storyboardSpecResponse: String?
@@ -2338,6 +2343,210 @@ extension YouTubePlayerServiceTests {
             boundVideoId: "another-video"
         ))
         #expect(self.controller.playCount == 2)
+    }
+
+    @Test("Force original audio ignores preroll ad and applies once real content starts")
+    func forceOriginalAudioIgnoresPrerollAd() async {
+        let controller = MockYouTubeWatchPlaybackController()
+        controller.captionTracks = [YouTubeCaptionTrack(languageCode: "en", displayName: "English")]
+        controller.audioTracks = [
+            YouTubeAudioTrack(id: "0", displayName: "English (auto-dubbed)", isOriginal: false),
+            YouTubeAudioTrack(id: "1", displayName: "Japanese (Original)", isOriginal: true),
+        ]
+        controller.activeAudioTrackId = "0"
+        controller.onSetAudioTrack = { id in
+            controller.activeAudioTrackId = id
+        }
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            shouldForceOriginalAudioLanguage: { true },
+            prefersNativeVideoStreaming: false
+        )
+        let video = MockYouTubeClient.makeVideo(videoId: "vid-preroll")
+        service.play(video: video)
+
+        // Preroll ad plays first: must NOT latch playbackOptionsVideoId or select audio during ad.
+        service.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 1,
+            duration: 15,
+            hasReadyMedia: true,
+            videoId: "vid-preroll",
+            boundVideoId: "vid-preroll",
+            isAd: true
+        ))
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(controller.selectedAudioTrackId == nil)
+
+        // Ad ends and real content plays: original audio must now be selected.
+        service.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 0,
+            duration: 120,
+            hasReadyMedia: true,
+            videoId: "vid-preroll",
+            boundVideoId: "vid-preroll",
+            isAd: false
+        ))
+        for _ in 0 ..< 20 where controller.selectedAudioTrackId != "1" {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(controller.selectedAudioTrackId == "1")
+        #expect(service.activeAudioTrackId == "1")
+    }
+
+    @Test("Force original audio re-applies after midroll ad ends")
+    func forceOriginalAudioReappliesAfterMidrollAd() async {
+        let controller = MockYouTubeWatchPlaybackController()
+        controller.captionTracks = [YouTubeCaptionTrack(languageCode: "en", displayName: "English")]
+        controller.audioTracks = [
+            YouTubeAudioTrack(id: "0", displayName: "English (auto-dubbed)", isOriginal: false),
+            YouTubeAudioTrack(id: "1", displayName: "Spanish (Original)", isOriginal: true),
+        ]
+        controller.activeAudioTrackId = "0"
+        controller.onSetAudioTrack = { id in
+            controller.activeAudioTrackId = id
+        }
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            shouldForceOriginalAudioLanguage: { true },
+            prefersNativeVideoStreaming: false
+        )
+        let video = MockYouTubeClient.makeVideo(videoId: "vid-midroll")
+        service.play(video: video)
+
+        service.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 5,
+            duration: 120,
+            hasReadyMedia: true,
+            videoId: "vid-midroll",
+            boundVideoId: "vid-midroll",
+            isAd: false
+        ))
+        for _ in 0 ..< 20 where controller.selectedAudioTrackHistory.count < 1 {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(controller.selectedAudioTrackId == "1")
+
+        // Midroll ad starts and YouTube resets audio back to dubbed "0".
+        service.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 2,
+            duration: 15,
+            hasReadyMedia: true,
+            videoId: "vid-midroll",
+            boundVideoId: "vid-midroll",
+            isAd: true
+        ))
+        controller.activeAudioTrackId = "0"
+
+        // Midroll ad finishes: must re-apply original track "1".
+        service.updatePlaybackState(.init(
+            isPlaying: true,
+            progress: 30,
+            duration: 120,
+            hasReadyMedia: true,
+            videoId: "vid-midroll",
+            boundVideoId: "vid-midroll",
+            isAd: false
+        ))
+        for _ in 0 ..< 20 where controller.selectedAudioTrackHistory.count < 2 {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(controller.selectedAudioTrackHistory == ["1", "1"])
+        #expect(service.activeAudioTrackId == "1")
+    }
+
+    @Test("Force original audio retries when captions load before audio tracks")
+    func forceOriginalAudioRetriesWhenCaptionsLoadBeforeAudioTracks() async {
+        let controller = MockYouTubeWatchPlaybackController()
+        controller.captionTracks = [YouTubeCaptionTrack(languageCode: "en", displayName: "English")]
+        controller.activeAudioTrackId = "0"
+        var pollCount = 0
+        controller.onAvailableAudioTracks = {
+            pollCount += 1
+            if pollCount == 1 {
+                return []
+            }
+            return [
+                YouTubeAudioTrack(id: "0", displayName: "English (auto-dubbed)", isOriginal: false),
+                YouTubeAudioTrack(id: "1", displayName: "Korean (Original)", isOriginal: true),
+            ]
+        }
+        controller.onSetAudioTrack = { id in
+            controller.activeAudioTrackId = id
+        }
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            shouldForceOriginalAudioLanguage: { true },
+            prefersNativeVideoStreaming: false
+        )
+        let video = MockYouTubeClient.makeVideo(videoId: "vid-delayed-audio")
+        service.play(video: video)
+
+        await service.refreshPlaybackOptions()
+        #expect(pollCount >= 2)
+        #expect(controller.selectedAudioTrackId == "1")
+        #expect(service.activeAudioTrackId == "1")
+    }
+
+    @Test("Force original audio re-applies if player reverts track after initial selection")
+    func forceOriginalAudioReappliesIfReverted() async {
+        let controller = MockYouTubeWatchPlaybackController()
+        controller.captionTracks = [YouTubeCaptionTrack(languageCode: "en", displayName: "English")]
+        controller.audioTracks = [
+            YouTubeAudioTrack(id: "0", displayName: "English (auto-dubbed)", isOriginal: false),
+            YouTubeAudioTrack(id: "1", displayName: "French (Original)", isOriginal: true),
+        ]
+        controller.activeAudioTrackId = "0"
+        var setCalls = 0
+        controller.onSetAudioTrack = { id in
+            setCalls += 1
+            // First setAudioTrack is ignored/reverted by YouTube; second sticks.
+            if setCalls >= 2 {
+                controller.activeAudioTrackId = id
+            }
+        }
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            shouldForceOriginalAudioLanguage: { true },
+            prefersNativeVideoStreaming: false
+        )
+        let video = MockYouTubeClient.makeVideo(videoId: "vid-revert")
+        service.play(video: video)
+
+        await service.refreshPlaybackOptions()
+        #expect(setCalls == 2)
+        #expect(controller.selectedAudioTrackHistory == ["1", "1"])
+        #expect(service.activeAudioTrackId == "1")
+    }
+
+    @Test("Manual audio track selection is not overridden by force original audio")
+    func manualAudioSelectionNotOverridden() async {
+        let controller = MockYouTubeWatchPlaybackController()
+        controller.captionTracks = [YouTubeCaptionTrack(languageCode: "en", displayName: "English")]
+        controller.audioTracks = [
+            YouTubeAudioTrack(id: "0", displayName: "English (auto-dubbed)", isOriginal: false),
+            YouTubeAudioTrack(id: "1", displayName: "Japanese (Original)", isOriginal: true),
+        ]
+        controller.activeAudioTrackId = "0"
+        controller.onSetAudioTrack = { id in
+            controller.activeAudioTrackId = id
+        }
+        let service = YouTubePlayerService(
+            playbackController: controller,
+            shouldForceOriginalAudioLanguage: { true },
+            prefersNativeVideoStreaming: false
+        )
+        let video = MockYouTubeClient.makeVideo(videoId: "vid-manual")
+        service.play(video: video)
+
+        service.selectAudioTrack(id: "0")
+        await service.refreshPlaybackOptions()
+
+        #expect(controller.selectedAudioTrackHistory == ["0"])
+        #expect(service.activeAudioTrackId == "0")
     }
 }
 

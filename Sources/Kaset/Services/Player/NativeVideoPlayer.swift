@@ -298,7 +298,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
             guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId else { return }
             guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else { return }
             guard self.player?.currentItem === item, self.currentVideoId == videoId else { return }
-            if let matching = group.options.first(where: { Self.mediaOptionCode($0) == id }) {
+            if let matching = Self.matchingAudibleOption(for: id, in: group.options) {
                 item.select(matching, in: group)
             }
         }
@@ -333,6 +333,28 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         option.extendedLanguageTag ?? option.locale?.identifier ?? option.displayName
     }
 
+    /// Returns a stable, unique identifier for an audible option even when two
+    /// tracks share the same language tag (e.g. "English" vs "English (Original)").
+    private static func audibleTrackId(
+        for option: AVMediaSelectionOption,
+        at index: Int,
+        in options: [AVMediaSelectionOption]
+    ) -> String {
+        let code = Self.mediaOptionCode(option)
+        let hasDuplicate = options.count(where: { Self.mediaOptionCode($0) == code }) > 1
+        return hasDuplicate ? "\(code)#\(index)" : code
+    }
+
+    private static func matchingAudibleOption(
+        for id: String,
+        in options: [AVMediaSelectionOption]
+    ) -> AVMediaSelectionOption? {
+        for (index, option) in options.enumerated() where Self.audibleTrackId(for: option, at: index, in: options) == id {
+            return option
+        }
+        return options.first { Self.mediaOptionCode($0) == id }
+    }
+
     private func resolveMediaSelectionOptions(for item: AVPlayerItem, videoId: String?) {
         Task { @MainActor [weak self, weak item] in
             guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId else { return }
@@ -350,7 +372,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
                 }
             }
             if let audioId = self.preferredAudioTrackId, let audibleGroup,
-               let match = audibleGroup.options.first(where: { Self.mediaOptionCode($0) == audioId })
+               let match = Self.matchingAudibleOption(for: audioId, in: audibleGroup.options)
             {
                 item.select(match, in: audibleGroup)
             }
@@ -371,7 +393,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
                 $0.hasMediaCharacteristic(.isOriginalContent)
                     || $0.displayName.localizedCaseInsensitiveContains("original")
             }
-            let audioTracks: [YouTubeAudioTrack] = audibleOptions.map { option in
+            let audioTracks: [YouTubeAudioTrack] = audibleOptions.enumerated().map { index, option in
                 let isOriginal = if hasExplicitOriginalAudio {
                     option.hasMediaCharacteristic(.isOriginalContent)
                         || option.displayName.localizedCaseInsensitiveContains("original")
@@ -379,13 +401,18 @@ final class NativeVideoPlayer: BaseAVPlayerController {
                     audibleGroup?.defaultOption == option
                 }
                 return YouTubeAudioTrack(
-                    id: Self.mediaOptionCode(option),
+                    id: Self.audibleTrackId(for: option, at: index, in: audibleOptions),
                     displayName: option.displayName,
                     isOriginal: isOriginal
                 )
             }
-            let activeAudioId = audibleGroup.flatMap { group in
-                currentSelection.selectedMediaOption(in: group).map { Self.mediaOptionCode($0) }
+            let activeAudioId: String? = if let audibleGroup,
+                let selected = currentSelection.selectedMediaOption(in: audibleGroup),
+                let index = audibleGroup.options.firstIndex(where: { $0 == selected })
+            {
+                Self.audibleTrackId(for: selected, at: index, in: audibleGroup.options)
+            } else {
+                nil
             }
 
             self.onMediaSelectionOptionsResolved?(captionTracks, activeCaptionCode, audioTracks, activeAudioId)

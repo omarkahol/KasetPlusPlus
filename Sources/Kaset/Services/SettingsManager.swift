@@ -3,6 +3,10 @@ import Foundation
 import Observation
 import SwiftUI
 
+extension Notification.Name {
+    static let forceOriginalAudioLanguageEnabled = Notification.Name("com.sertacozercan.kaset.forceOriginalAudioLanguageEnabled")
+}
+
 /// Manages user preferences persisted via UserDefaults.
 @MainActor
 @Observable
@@ -685,6 +689,9 @@ final class SettingsManager {
     var forceOriginalAudioLanguage: Bool {
         didSet {
             self.defaults.set(self.forceOriginalAudioLanguage, forKey: Keys.forceOriginalAudioLanguage)
+            if self.forceOriginalAudioLanguage, !oldValue {
+                NotificationCenter.default.post(name: .forceOriginalAudioLanguageEnabled, object: nil)
+            }
         }
     }
 

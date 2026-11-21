@@ -396,9 +396,9 @@ final class YouTubePlayerService {
     /// Id of the active audio track (nil until resolved).
     private(set) var activeAudioTrackId: String?
 
-    /// Tracks the video ID for which we already applied the "Force Original
-    /// Language" preference so manual track changes aren't overridden.
-    private var didAutoSelectOriginalAudioForVideoId: String?
+    /// Tracks the video ID for which the user manually selected an audio track
+    /// so automatic "Force Original Language" enforcement does not override it.
+    private var userSelectedAudioTrackVideoId: String?
 
     /// Quality levels available on the current watch page.
     private(set) var qualityLevels: [String] = []
@@ -429,6 +429,9 @@ final class YouTubePlayerService {
 
     /// The video whose playback options were last fetched.
     private var playbackOptionsVideoId: String?
+
+    /// In-flight task refreshing captions, quality levels, and audio tracks.
+    private var playbackOptionsTask: Task<Void, Never>?
 
     /// Client used by rating actions from the playback controls.
     /// Set once by KasetApp; optional so unit tests don't need it.
@@ -474,11 +477,19 @@ final class YouTubePlayerService {
     /// so the user's setting takes effect mid-session; injected for tests.
     private let shouldKeepPlayingOnNavigateAway: @MainActor () -> Bool
 
+    /// Whether the user enabled "Force Original Language" for YouTube videos.
+    /// Read live so the setting takes effect mid-session; injected for tests.
+    private let shouldForceOriginalAudioLanguage: @MainActor () -> Bool
+
+    /// Notification observer token for mid-playback settings toggle.
+    @ObservationIgnored nonisolated(unsafe) private var forceOriginalAudioObserver: NSObjectProtocol?
+
     init(
         webKitManager: WebKitManager = .shared,
         playbackController: (any YouTubeWatchPlaybackControlling)? = nil,
         shouldPopOutOnNavigateAway: @escaping @MainActor () -> Bool = { SettingsManager.shared.popOutVideoOnNavigateAway },
         shouldKeepPlayingOnNavigateAway: @escaping @MainActor () -> Bool = { SettingsManager.shared.keepPlayingVideoOnNavigateAway },
+        shouldForceOriginalAudioLanguage: @escaping @MainActor () -> Bool = { SettingsManager.shared.forceOriginalAudioLanguage },
         playbackLoadingTimeout: Duration = .seconds(15),
         prefersNativeVideoStreaming: Bool = true,
         streamURLResolver: (@MainActor @Sendable (String) async -> URL?)? = nil,
@@ -489,6 +500,7 @@ final class YouTubePlayerService {
         self.playbackController = playbackController ?? YouTubeWatchWebView.shared
         self.shouldPopOutOnNavigateAway = shouldPopOutOnNavigateAway
         self.shouldKeepPlayingOnNavigateAway = shouldKeepPlayingOnNavigateAway
+        self.shouldForceOriginalAudioLanguage = shouldForceOriginalAudioLanguage
         self.playbackLoadingTimeout = playbackLoadingTimeout
         self.prefersNativeVideoStreaming = prefersNativeVideoStreaming
         self.streamURLResolver = streamURLResolver ?? { videoId in
@@ -555,6 +567,22 @@ final class YouTubePlayerService {
             guard let self, self.isPlayingNativeVideo, !levels.isEmpty else { return }
             self.qualityLevels = levels.contains("auto") ? levels : levels + ["auto"]
             self.currentQuality = self.userPinnedQuality ?? "auto"
+        }
+
+        self.forceOriginalAudioObserver = NotificationCenter.default.addObserver(
+            forName: .forceOriginalAudioLanguageEnabled,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.enforceOriginalAudioIfNeeded()
+            }
+        }
+    }
+
+    deinit {
+        if let observer = self.forceOriginalAudioObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 
@@ -1375,7 +1403,9 @@ final class YouTubePlayerService {
         self.activeCaptionLanguageCode = nil
         self.audioTracks = []
         self.activeAudioTrackId = nil
-        self.didAutoSelectOriginalAudioForVideoId = nil
+        self.userSelectedAudioTrackVideoId = nil
+        self.playbackOptionsTask?.cancel()
+        self.playbackOptionsTask = nil
         self.qualityLevels = []
         self.currentQuality = nil
         self.userPinnedQuality = nil
@@ -1446,12 +1476,13 @@ final class YouTubePlayerService {
             return
         }
         let videoId = self.currentVideo?.videoId
-        for attempt in 0 ..< 3 {
+        for attempt in 0 ..< 4 {
             let tracks = await self.playbackController.availableCaptionTracks()
-            guard self.currentVideo?.videoId == videoId else { return }
+            guard !Task.isCancelled, self.currentVideo?.videoId == videoId, !self.isShowingAd else { return }
 
             self.captionTracks = tracks
             let levels = await self.playbackController.availableQualityLevels()
+            guard !Task.isCancelled, self.currentVideo?.videoId == videoId, !self.isShowingAd else { return }
             // The player accepts "auto" even when it does not advertise it, and
             // the menu needs that row to represent an unpinned quality.
             self.qualityLevels = levels.isEmpty || levels.contains("auto")
@@ -1462,16 +1493,29 @@ final class YouTubePlayerService {
             self.activeCaptionLanguageCode = Self.normalizedCaptionLanguageCode(rawCaptionCode)
             self.audioTracks = await self.playbackController.availableAudioTracks()
             self.activeAudioTrackId = await self.playbackController.currentAudioTrackId()
-            self.applyPreferredOriginalAudioTrackIfNeeded(
+            guard !Task.isCancelled, self.currentVideo?.videoId == videoId, !self.isShowingAd else { return }
+
+            let didSwitchAudio = self.applyPreferredOriginalAudioTrackIfNeeded(
                 videoId: videoId,
                 tracks: self.audioTracks,
                 activeTrackId: self.activeAudioTrackId
             )
 
-            if !tracks.isEmpty || attempt == 2 {
+            // Retry if:
+            // 1. We just switched to the original audio track (verify it stuck).
+            // 2. Captions aren't ready yet (up to attempt 2).
+            // 3. Force-original-audio is enabled and audio tracks aren't populated yet (up to attempt 2).
+            let shouldVerifyAudioSwitch = didSwitchAudio && attempt < 3
+            let shouldWaitForAudioTracks = self.audioTracks.isEmpty
+                && self.shouldForceOriginalAudioLanguage()
+                && attempt < 2
+            let shouldWaitForCaptions = tracks.isEmpty && attempt < 2
+
+            guard shouldVerifyAudioSwitch || shouldWaitForAudioTracks || shouldWaitForCaptions else {
                 return
             }
-            try? await Task.sleep(for: .milliseconds(1500))
+            try? await Task.sleep(for: .milliseconds(1000))
+            guard !Task.isCancelled, self.currentVideo?.videoId == videoId, !self.isShowingAd else { return }
         }
     }
 
@@ -1544,34 +1588,78 @@ final class YouTubePlayerService {
 
     /// Selects an alternate audio track (dubbed language) by id.
     func selectAudioTrack(id: String) {
-        self.didAutoSelectOriginalAudioForVideoId = self.currentVideo?.videoId
+        self.userSelectedAudioTrackVideoId = self.currentVideo?.videoId
+        self.applyAudioTrackSelection(id: id)
+        HapticService.toggle()
+    }
+
+    /// Re-evaluates and applies the "Force Original Language" preference for
+    /// the current video (e.g. when the user enables the setting mid-playback).
+    func enforceOriginalAudioIfNeeded() {
+        self.userSelectedAudioTrackVideoId = nil
+        guard self.shouldForceOriginalAudioLanguage(),
+              let videoId = self.currentVideo?.videoId
+        else { return }
+        if self.isPlayingNativeVideo {
+            _ = self.applyPreferredOriginalAudioTrackIfNeeded(
+                videoId: videoId,
+                tracks: self.audioTracks,
+                activeTrackId: self.activeAudioTrackId
+            )
+        } else if !self.isShowingAd {
+            _ = self.applyPreferredOriginalAudioTrackIfNeeded(
+                videoId: videoId,
+                tracks: self.audioTracks,
+                activeTrackId: self.activeAudioTrackId
+            )
+            self.playbackOptionsVideoId = videoId
+            self.schedulePlaybackOptionsRefresh()
+        }
+    }
+
+    private func applyAudioTrackSelection(id: String) {
         self.activeAudioTrackId = id
         if self.isPlayingNativeVideo {
             NativeVideoPlayer.shared.selectAudioTrack(id: id)
         } else {
             self.playbackController.setAudioTrack(id: id)
         }
-        HapticService.toggle()
     }
 
-    /// Switches to the original audio track once per video when the user has
-    /// enabled "Force Original Language" in YouTube settings.
+    /// Switches to the original audio track when the user has enabled
+    /// "Force Original Language" in YouTube settings and has not manually
+    /// overridden the audio track for this video.
+    ///
+    /// - Returns: `true` if an automatic switch was issued.
+    @discardableResult
     private func applyPreferredOriginalAudioTrackIfNeeded(
         videoId: String?,
         tracks: [YouTubeAudioTrack],
         activeTrackId: String?
-    ) {
-        guard SettingsManager.shared.forceOriginalAudioLanguage,
+    ) -> Bool {
+        guard self.shouldForceOriginalAudioLanguage(),
               let videoId,
-              self.didAutoSelectOriginalAudioForVideoId != videoId,
+              self.userSelectedAudioTrackVideoId != videoId,
               tracks.count > 1,
               let originalTrack = tracks.first(where: \.isOriginal)
         else {
-            return
+            return false
         }
-        self.didAutoSelectOriginalAudioForVideoId = videoId
-        if activeTrackId != originalTrack.id {
-            self.selectAudioTrack(id: originalTrack.id)
+        guard activeTrackId != originalTrack.id else {
+            return false
+        }
+        self.applyAudioTrackSelection(id: originalTrack.id)
+        return true
+    }
+
+    private func schedulePlaybackOptionsRefresh(delay: Duration? = nil) {
+        self.playbackOptionsTask?.cancel()
+        self.playbackOptionsTask = Task { [weak self] in
+            if let delay {
+                try? await Task.sleep(for: delay)
+            }
+            guard !Task.isCancelled, let self else { return }
+            await self.refreshPlaybackOptions()
         }
     }
 
@@ -1584,6 +1672,11 @@ final class YouTubePlayerService {
             NativeVideoPlayer.shared.setQualityLevel(level)
         } else {
             self.playbackController.setQualityLevel(level)
+            if self.shouldForceOriginalAudioLanguage(), !self.isShowingAd {
+                // Quality switches in YouTube's HTML5 player can reset the audio
+                // track back to the default dubbed track; re-verify shortly after.
+                self.schedulePlaybackOptionsRefresh(delay: .milliseconds(600))
+            }
         }
         HapticService.toggle()
     }
@@ -1790,9 +1883,14 @@ extension YouTubePlayerService {
         self.isIdentityReloadInFlight = false
         self.acknowledgeExplicitStartTarget(with: update)
         self.acknowledgePendingUserSeek(with: update)
+        let wasShowingAd = self.isShowingAd
         self.applyPlaybackSnapshot(update, effectiveIsPlaying: effectiveIsPlaying)
         self.reopenConcludedWatchIfNeeded(update, effectiveIsPlaying: effectiveIsPlaying)
-        self.refreshPlaybackMetadataIfNeeded(update, effectiveIsPlaying: effectiveIsPlaying)
+        self.refreshPlaybackMetadataIfNeeded(
+            update,
+            effectiveIsPlaying: effectiveIsPlaying,
+            didFinishAd: wasShowingAd && !update.isAd
+        )
         self.followPageDriftIfNeeded(update)
         self.finishPlaybackLoadingIfReady(update)
         self.ensureWebPlaybackStartsIfNeeded(update)
@@ -2047,18 +2145,26 @@ extension YouTubePlayerService {
 
     private func refreshPlaybackMetadataIfNeeded(
         _ update: PlaybackUpdate,
-        effectiveIsPlaying: Bool
+        effectiveIsPlaying: Bool,
+        didFinishAd: Bool
     ) {
-        // Fetch captions/quality options once per video, after playback starts
-        // (the player APIs aren't ready before that).
+        if didFinishAd {
+            self.playbackOptionsTask?.cancel()
+            self.playbackOptionsTask = nil
+            self.playbackOptionsVideoId = nil
+        }
+
+        // Fetch captions/quality/audio options once real content playback starts
+        // (never during a preroll ad, whose player state lacks the video's
+        // audio tracks and would otherwise poison `playbackOptionsVideoId`),
+        // and re-fetch when an ad ends.
         if effectiveIsPlaying,
+           !update.isAd,
            let videoId = self.currentVideo?.videoId,
            self.playbackOptionsVideoId != videoId
         {
             self.playbackOptionsVideoId = videoId
-            Task {
-                await self.refreshPlaybackOptions()
-            }
+            self.schedulePlaybackOptionsRefresh()
         }
 
         // Fetch Return YouTube Dislikes once per video

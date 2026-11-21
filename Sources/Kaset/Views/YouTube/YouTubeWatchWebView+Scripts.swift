@@ -1476,6 +1476,7 @@ extension YouTubeWatchWebView {
             try {
                 const p = document.getElementById('movie_player');
                 if (!p || typeof p.getAvailableAudioTracks !== 'function') { return '[]'; }
+                if (p.classList && p.classList.contains('ad-showing')) { return '[]'; }
                 let tracks = [];
                 try { tracks = p.getAvailableAudioTracks() || []; } catch (e) { return '[]'; }
                 if (tracks.length < 2) { return '[]'; }
@@ -1484,7 +1485,16 @@ extension YouTubeWatchWebView {
                     if (typeof p.getPlayerResponse === 'function') {
                         try { const r = p.getPlayerResponse(); if (r) { return r; } } catch (e) {}
                     }
-                    return window.ytInitialPlayerResponse || null;
+                    const init = window.ytInitialPlayerResponse || null;
+                    if (init && init.videoDetails && init.videoDetails.videoId) {
+                        let currentId = '';
+                        try {
+                            const vd = typeof p.getVideoData === 'function' ? p.getVideoData() : null;
+                            currentId = (vd && (vd.video_id || vd.videoId)) || '';
+                        } catch (e) {}
+                        if (currentId && init.videoDetails.videoId !== currentId) { return null; }
+                    }
+                    return init;
                 }
                 const responseTracks = [];
                 const seenName = {};
@@ -1498,7 +1508,8 @@ extension YouTubeWatchWebView {
                         responseTracks.push({
                             name: dn,
                             id: at.id || '',
-                            isDefault: Boolean(at.audioIsDefault)
+                            isDefault: Boolean(at.audioIsDefault),
+                            isAutoDubbed: Boolean(at.isAutoDubbed)
                         });
                     }
                 });
@@ -1507,21 +1518,29 @@ extension YouTubeWatchWebView {
                     let name = '';
                     let trackId = '';
                     let trackIsDefault = false;
-                    try {
-                        for (const k in track) {
-                            const v = track[k];
-                            if (v && typeof v === 'object') {
-                                if (!name) {
-                                    if (typeof v.name === 'string' && v.name) { name = v.name; }
-                                    else if (v.name && typeof v.name.simpleText === 'string' && v.name.simpleText) {
-                                        name = v.name.simpleText;
-                                    }
-                                }
-                                if (!trackId && typeof v.id === 'string' && v.id) { trackId = v.id; }
-                                if (v.isDefault === true || v.audioIsDefault === true || v.isOriginal === true) {
-                                    trackIsDefault = true;
-                                }
+                    let trackIsAutoDubbed = false;
+                    function inspect(obj) {
+                        if (!obj || typeof obj !== 'object') { return; }
+                        if (!name) {
+                            if (typeof obj.name === 'string' && obj.name) { name = obj.name; }
+                            else if (obj.name && typeof obj.name.simpleText === 'string' && obj.name.simpleText) {
+                                name = obj.name.simpleText;
+                            } else if (typeof obj.displayName === 'string' && obj.displayName) {
+                                name = obj.displayName;
                             }
+                        }
+                        if (!trackId && typeof obj.id === 'string' && obj.id) { trackId = obj.id; }
+                        if (obj.isDefault === true || obj.audioIsDefault === true || obj.isOriginal === true) {
+                            trackIsDefault = true;
+                        }
+                        if (obj.isAutoDubbed === true) {
+                            trackIsAutoDubbed = true;
+                        }
+                    }
+                    try {
+                        inspect(track);
+                        for (const k in track) {
+                            inspect(track[k]);
                         }
                     } catch (e) {}
                     if (!name && responseTracks[i]) { name = responseTracks[i].name; }
@@ -1530,9 +1549,12 @@ extension YouTubeWatchWebView {
                     const matchedResp = responseTracks.find(function(rt) {
                         return (trackId && rt.id === trackId) || rt.name === name;
                     }) || responseTracks[i];
-                    const isOriginal = /\\boriginal\\b/i.test(name)
+                    const isAutoDubbed = trackIsAutoDubbed || Boolean(matchedResp && matchedResp.isAutoDubbed);
+                    const isOriginal = !isAutoDubbed && (
+                        /\\boriginal\\b/i.test(name)
                         || trackIsDefault
-                        || Boolean(matchedResp && (matchedResp.isDefault || /\\boriginal\\b/i.test(matchedResp.name)));
+                        || Boolean(matchedResp && (matchedResp.isDefault || /\\boriginal\\b/i.test(matchedResp.name)))
+                    );
 
                     return { name: name, isOriginal: isOriginal };
                 }
