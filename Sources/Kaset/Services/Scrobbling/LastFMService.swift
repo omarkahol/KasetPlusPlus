@@ -12,6 +12,8 @@ final class LastFMService: ScrobbleServiceProtocol {
     /// Current authentication state.
     private(set) var authState: ScrobbleAuthState = .disconnected
 
+    nonisolated private static let requestTimeout: TimeInterval = 30
+
     private let credentialStore: KeychainCredentialStore
     private let session: URLSession
     private let logger = DiagnosticsLogger.scrobbling
@@ -54,7 +56,10 @@ final class LastFMService: ScrobbleServiceProtocol {
             self.workerBaseURL = url
         } else {
             // Placeholder — must be configured before use
-            self.workerBaseURL = URL(string: "https://kaset-lastfm.sozercan.workers.dev")!
+            guard let fallbackURL = URL(string: "https://kaset-lastfm.sozercan.workers.dev") else {
+                preconditionFailure("Invalid default Last.fm worker URL")
+            }
+            self.workerBaseURL = fallbackURL
         }
     }
 
@@ -192,14 +197,17 @@ final class LastFMService: ScrobbleServiceProtocol {
 
         do {
             let response = try await self.postJSON(endpoint: "auth/validate", bodyData: bodyData, baseURL: self.workerBaseURL)
-            // Check for Last.fm error in response body
-            if response["error"] != nil {
-                self.logger.warning("Session validation failed")
-                return false
-            }
+            try self.checkForErrors(response)
             return true
-        } catch {
+        } catch ScrobbleError.invalidCredentials, ScrobbleError.sessionExpired {
+            self.logger.warning("Last.fm session validation failed: invalid or expired credentials")
             return false
+        } catch let error as ScrobbleError {
+            self.logger.warning("Last.fm session validation encountered error: \(error.localizedDescription)")
+            throw error
+        } catch let urlError as URLError {
+            self.logger.warning("Last.fm session validation network error: \(urlError.localizedDescription)")
+            throw ScrobbleError.networkError(underlying: urlError.localizedDescription)
         }
     }
 
@@ -207,7 +215,8 @@ final class LastFMService: ScrobbleServiceProtocol {
 
     private func getAuthToken() async throws -> String {
         let url = self.workerBaseURL.appendingPathComponent("auth/token")
-        let (data, _) = try await self.session.data(from: url)
+        let (data, httpResponse) = try await self.session.data(for: Self.makeRequest(url: url))
+        try Self.checkHTTPStatus(httpResponse)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let token = json["token"] as? String
@@ -223,7 +232,8 @@ final class LastFMService: ScrobbleServiceProtocol {
             .appendingPathComponent("auth/url")
             .appending(queryItems: [URLQueryItem(name: "token", value: token)])
 
-        let (data, _) = try await self.session.data(from: url)
+        let (data, httpResponse) = try await self.session.data(for: Self.makeRequest(url: url))
+        try Self.checkHTTPStatus(httpResponse)
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let urlString = json["url"] as? String,
@@ -256,7 +266,14 @@ final class LastFMService: ScrobbleServiceProtocol {
                     .appendingPathComponent("auth/session")
                     .appending(queryItems: [URLQueryItem(name: "token", value: token)])
 
-                let (data, _) = try await self.session.data(from: url)
+                let (data, httpResponse) = try await self.session.data(for: Self.makeRequest(url: url))
+                if let response = httpResponse as? HTTPURLResponse,
+                   !(200 ... 299).contains(response.statusCode),
+                   response.statusCode != 400
+                {
+                    self.logger.debug("Auth polling attempt \(attempts) received HTTP \(response.statusCode)")
+                    continue
+                }
 
                 guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     continue
@@ -272,8 +289,16 @@ final class LastFMService: ScrobbleServiceProtocol {
                    let key = session["key"] as? String,
                    let name = session["name"] as? String
                 {
-                    try self.credentialStore.saveLastFMSessionKey(key)
-                    try self.credentialStore.saveLastFMUsername(name)
+                    do {
+                        try self.credentialStore.saveLastFMSessionKey(key)
+                        try self.credentialStore.saveLastFMUsername(name)
+                    } catch {
+                        self.credentialStore.removeLastFMCredentials()
+                        self.sessionKey = nil
+                        self.authState = .error("Failed to save Last.fm credentials.")
+                        self.logger.error("Failed to persist Last.fm credentials: \(error.localizedDescription)")
+                        return
+                    }
                     self.sessionKey = key
                     self.authState = .connected(username: name)
                     self.logger.info("Successfully authenticated as: \(name)")
@@ -305,17 +330,61 @@ final class LastFMService: ScrobbleServiceProtocol {
     // MARK: - Network Helpers
 
     // swiftformat:disable modifierOrder
+    nonisolated private static func makeRequest(url: URL, method: String = "GET", bodyData: Data? = nil) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = Self.requestTimeout
+        if let bodyData {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = bodyData
+        }
+        return request
+    }
+
+    nonisolated private static func checkHTTPStatus(_ httpResponse: URLResponse) throws {
+        guard let response = httpResponse as? HTTPURLResponse else {
+            throw ScrobbleError.invalidResponse("Non-HTTP response")
+        }
+        switch response.statusCode {
+        case 200 ... 299:
+            return
+        case 401, 403:
+            throw ScrobbleError.invalidCredentials
+        case 429:
+            let retryAfter = response.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+            throw ScrobbleError.rateLimited(retryAfter: retryAfter)
+        case 500 ... 599:
+            throw ScrobbleError.serviceUnavailable
+        default:
+            throw ScrobbleError.invalidResponse("HTTP error (status \(response.statusCode))")
+        }
+    }
+
     nonisolated private func postJSON(endpoint: String, bodyData: Data, baseURL: URL) async throws -> [String: Any] {
         let url = baseURL.appendingPathComponent(endpoint)
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = bodyData
+        let request = Self.makeRequest(url: url, method: "POST", bodyData: bodyData)
 
         let (data, httpResponse) = try await self.session.data(for: request)
 
         guard let response = httpResponse as? HTTPURLResponse else {
             throw ScrobbleError.invalidResponse("Non-HTTP response")
+        }
+
+        switch response.statusCode {
+        case 200 ... 299:
+            break
+        case 401, 403:
+            throw ScrobbleError.invalidCredentials
+        case 429:
+            let retryAfter = response.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+            throw ScrobbleError.rateLimited(retryAfter: retryAfter)
+        case 500 ... 599:
+            throw ScrobbleError.serviceUnavailable
+        default:
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                return json
+            }
+            throw ScrobbleError.invalidResponse("HTTP error (status \(response.statusCode))")
         }
 
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -373,7 +442,9 @@ final class LastFMService: ScrobbleServiceProtocol {
         } else if let array = scrobblesWrapper["scrobble"] as? [[String: Any]] {
             scrobbleEntries = array
         } else {
-            return tracks.map { ScrobbleResult(track: $0, accepted: true) }
+            return tracks.map {
+                ScrobbleResult(track: $0, accepted: false, errorMessage: "Malformed response: missing scrobble entries")
+            }
         }
 
         var results: [ScrobbleResult] = []
@@ -403,7 +474,13 @@ final class LastFMService: ScrobbleServiceProtocol {
                     errorMessage: accepted ? nil : (ignoredText?.isEmpty == false ? ignoredText : "Ignored (code \(ignoredCode ?? "unknown"))")
                 ))
             } else {
-                results.append(ScrobbleResult(track: track, accepted: true))
+                results.append(
+                    ScrobbleResult(
+                        track: track,
+                        accepted: false,
+                        errorMessage: "Missing scrobble result at index \(index)"
+                    )
+                )
             }
         }
 

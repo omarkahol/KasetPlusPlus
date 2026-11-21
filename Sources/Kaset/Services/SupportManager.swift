@@ -26,11 +26,18 @@ final class SupportManager {
     private(set) var tier: Tier
 
     /// Fork's Ko-fi tip page (one-time), grants supporter status in the app.
-    static let forkKofiURL = URL(string: "https://ko-fi.com/yodddd")!
+    static let forkKofiURL = SupportManager.staticURL("https://ko-fi.com/yodddd")
     /// Fork's Ko-fi memberships (recurring) page.
-    static let forkMembershipURL = URL(string: "https://ko-fi.com/yodddd/tiers")!
+    static let forkMembershipURL = SupportManager.staticURL("https://ko-fi.com/yodddd/tiers")
     /// Upstream Kaset's Ko-fi — supporting it is appreciated but grants NO status here.
-    static let baseKofiURL = URL(string: "https://ko-fi.com/sozercan")!
+    static let baseKofiURL = SupportManager.staticURL("https://ko-fi.com/sozercan")
+
+    private static func staticURL(_ string: String) -> URL {
+        guard let url = URL(string: string) else {
+            preconditionFailure("Invalid static URL: \(string)")
+        }
+        return url
+    }
 
     private static let defaultsKey = "support.tier"
     private static let untilKey = "support.tier.until"

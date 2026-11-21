@@ -13,6 +13,14 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
 
     private(set) var authState: ScrobbleAuthState = .disconnected
 
+    nonisolated private static let requestTimeout: TimeInterval = 30
+    private static let defaultAPIBaseURL: URL = {
+        guard let url = URL(string: "https://api.listenbrainz.org") else {
+            preconditionFailure("Invalid default ListenBrainz API URL")
+        }
+        return url
+    }()
+
     private let credentialStore: KeychainCredentialStore
     private let session: URLSession
     private let apiBaseURL: URL
@@ -23,7 +31,7 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
 
     init(
         credentialStore: KeychainCredentialStore = KeychainCredentialStore(),
-        apiBaseURL: URL = URL(string: "https://api.listenbrainz.org")!,
+        apiBaseURL: URL = ListenBrainzService.defaultAPIBaseURL,
         session: URLSession = .shared
     ) {
         self.credentialStore = credentialStore
@@ -57,7 +65,12 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
         do {
             let username = try await self.validate(token: trimmed)
             try self.credentialStore.saveListenBrainzToken(trimmed)
-            try self.credentialStore.saveListenBrainzUsername(username)
+            do {
+                try self.credentialStore.saveListenBrainzUsername(username)
+            } catch {
+                self.credentialStore.removeListenBrainzCredentials()
+                throw error
+            }
             self.token = trimmed
             self.authState = .connected(username: username)
             // Connecting a token implies the user wants it on.
@@ -83,8 +96,15 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
         do {
             _ = try await self.validate(token: token)
             return true
-        } catch {
+        } catch ScrobbleError.invalidCredentials, ScrobbleError.sessionExpired {
+            self.logger.warning("ListenBrainz session validation failed: invalid credentials")
             return false
+        } catch let error as ScrobbleError {
+            self.logger.warning("ListenBrainz session validation encountered error: \(error.localizedDescription)")
+            throw error
+        } catch let urlError as URLError {
+            self.logger.warning("ListenBrainz session validation network error: \(urlError.localizedDescription)")
+            throw ScrobbleError.networkError(underlying: urlError.localizedDescription)
         }
     }
 
@@ -158,6 +178,7 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
     nonisolated private func submit(_ bodyData: Data, token: String) async throws {
         var request = URLRequest(url: self.apiBaseURL.appendingPathComponent("1/submit-listens"))
         request.httpMethod = "POST"
+        request.timeoutInterval = Self.requestTimeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Token \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = bodyData
@@ -169,6 +190,7 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
     /// Validates a token and returns the associated username.
     nonisolated private func validate(token: String) async throws -> String {
         var request = URLRequest(url: self.apiBaseURL.appendingPathComponent("1/validate-token"))
+        request.timeoutInterval = Self.requestTimeout
         request.setValue("Token \(token)", forHTTPHeaderField: "Authorization")
 
         let (data, response) = try await self.session.data(for: request)

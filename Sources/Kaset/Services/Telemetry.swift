@@ -15,23 +15,10 @@ import Foundation
 /// device identifier.
 @MainActor
 enum Telemetry {
-    /// Reuses the same Worker the support/Last.fm features already resolve, so
-    /// there's nothing extra to configure.
-    // ponytail: same 4-candidate lookup as SupportManager; not worth a shared
-    // helper for two call sites.
-    private static let baseURL: URL? = {
-        let env = ProcessInfo.processInfo.environment
-        let candidates = [
-            env["KASET_SUPPORT_WORKER_URL"],
-            Bundle.main.object(forInfoDictionaryKey: "SupportWorkerURL") as? String,
-            Bundle.main.object(forInfoDictionaryKey: "LastFMWorkerURL") as? String,
-            env["KASET_LASTFM_WORKER_URL"],
-        ]
-        for case let string? in candidates {
-            if let url = URL(string: string) { return url }
-        }
-        return nil
-    }()
+    /// Reuses the same Worker URL resolved by `SupportManager`.
+    private static var baseURL: URL? {
+        SupportManager.workerBaseURL
+    }
 
     /// Anonymous, stable-per-install id (a throwaway UUID — not the device).
     private static let installID: String = {

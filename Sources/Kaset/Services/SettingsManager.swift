@@ -9,6 +9,8 @@ import SwiftUI
 final class SettingsManager {
     static let shared = SettingsManager()
 
+    private let defaults: UserDefaults
+
     // MARK: - Settings Keys
 
     enum Keys {
@@ -404,7 +406,7 @@ final class SettingsManager {
     /// The active content source (YouTube Music or regular YouTube).
     var appSource: AppSource {
         didSet {
-            UserDefaults.standard.set(self.appSource.rawValue, forKey: Keys.appSource)
+            self.defaults.set(self.appSource.rawValue, forKey: Keys.appSource)
         }
     }
 
@@ -413,7 +415,7 @@ final class SettingsManager {
     /// in the player, watch page, etc.). Defaults to the KasetPlus brand color.
     var accentColor: Color {
         didSet {
-            UserDefaults.standard.set(Self.hex(from: self.accentColor), forKey: Keys.accentColorHex)
+            self.defaults.set(Self.hex(from: self.accentColor), forKey: Keys.accentColorHex)
         }
     }
 
@@ -422,16 +424,16 @@ final class SettingsManager {
 
     /// Whether a custom accent (different from the brand default) is in effect.
     var isUsingCustomAccent: Bool {
-        UserDefaults.standard.string(forKey: Keys.accentColorHex) != nil
+        self.defaults.string(forKey: Keys.accentColorHex) != nil
     }
 
     /// Restores the brand accent and forgets any custom choice.
     func resetAccentColor() {
-        UserDefaults.standard.removeObject(forKey: Keys.accentColorHex)
+        self.defaults.removeObject(forKey: Keys.accentColorHex)
         // Assigning re-persists the hex; remove it again so `isUsingCustomAccent`
         // reflects "default" and a fresh install stays keyless.
         self.accentColor = Self.defaultAccentColor
-        UserDefaults.standard.removeObject(forKey: Keys.accentColorHex)
+        self.defaults.removeObject(forKey: Keys.accentColorHex)
     }
 
     /// Serializes a color to a `#RRGGBB` sRGB hex string for persistence.
@@ -461,7 +463,7 @@ final class SettingsManager {
     /// app stays on regular YouTube (feature request #8).
     var youTubeMusicEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.youTubeMusicEnabled, forKey: Keys.youTubeMusicEnabled)
+            self.defaults.set(self.youTubeMusicEnabled, forKey: Keys.youTubeMusicEnabled)
             if !self.youTubeMusicEnabled, self.appSource == .music {
                 self.appSource = .video
             }
@@ -471,40 +473,40 @@ final class SettingsManager {
     /// Whether to show system notifications when the track changes.
     var showNowPlayingNotifications: Bool {
         didSet {
-            UserDefaults.standard.set(self.showNowPlayingNotifications, forKey: Keys.showNowPlayingNotifications)
+            self.defaults.set(self.showNowPlayingNotifications, forKey: Keys.showNowPlayingNotifications)
         }
     }
 
     /// The default page to show when the app launches.
     var defaultLaunchPage: LaunchPage {
         didSet {
-            UserDefaults.standard.set(self.defaultLaunchPage.rawValue, forKey: Keys.defaultLaunchPage)
+            self.defaults.set(self.defaultLaunchPage.rawValue, forKey: Keys.defaultLaunchPage)
         }
     }
 
     /// Whether haptic feedback is enabled.
     var hapticFeedbackEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.hapticFeedbackEnabled, forKey: Keys.hapticFeedbackEnabled)
+            self.defaults.set(self.hapticFeedbackEnabled, forKey: Keys.hapticFeedbackEnabled)
         }
     }
 
     /// Whether anonymous breakage telemetry is sent (see `Telemetry`). Opt-out.
     var telemetryEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.telemetryEnabled, forKey: Keys.telemetryEnabled)
+            self.defaults.set(self.telemetryEnabled, forKey: Keys.telemetryEnabled)
         }
     }
 
     /// Whether to remember shuffle/repeat settings across app restarts.
     var rememberPlaybackSettings: Bool {
         didSet {
-            UserDefaults.standard.set(self.rememberPlaybackSettings, forKey: Keys.rememberPlaybackSettings)
+            self.defaults.set(self.rememberPlaybackSettings, forKey: Keys.rememberPlaybackSettings)
             // Clear stale values when setting is disabled to prevent unexpected restoration
             if !self.rememberPlaybackSettings {
-                UserDefaults.standard.removeObject(forKey: "playerShuffleEnabled")
-                UserDefaults.standard.removeObject(forKey: "playerShuffleMode")
-                UserDefaults.standard.removeObject(forKey: "playerRepeatMode")
+                self.defaults.removeObject(forKey: "playerShuffleEnabled")
+                self.defaults.removeObject(forKey: "playerShuffleMode")
+                self.defaults.removeObject(forKey: "playerRepeatMode")
             }
         }
     }
@@ -512,21 +514,21 @@ final class SettingsManager {
     /// Which buttons to show in the Now Playing widget: skip forward/backward or next/previous track.
     var mediaControlStyle: MediaControlStyle {
         didSet {
-            UserDefaults.standard.set(self.mediaControlStyle.rawValue, forKey: Keys.mediaControlStyle)
+            self.defaults.set(self.mediaControlStyle.rawValue, forKey: Keys.mediaControlStyle)
         }
     }
 
     /// Preferred audio quality for playback through the YouTube Music WebView.
     var playbackAudioQuality: PlaybackAudioQuality {
         didSet {
-            UserDefaults.standard.set(self.playbackAudioQuality.rawValue, forKey: Keys.playbackAudioQuality)
+            self.defaults.set(self.playbackAudioQuality.rawValue, forKey: Keys.playbackAudioQuality)
         }
     }
 
     /// Per-service enabled flags stored as a dictionary.
     private var enabledServices: [String: Bool] {
         didSet {
-            UserDefaults.standard.set(self.enabledServices, forKey: Keys.enabledServices)
+            self.defaults.set(self.enabledServices, forKey: Keys.enabledServices)
         }
     }
 
@@ -549,56 +551,56 @@ final class SettingsManager {
     /// Percentage of track duration required before scrobbling (0.0–1.0).
     var scrobblePercentThreshold: Double {
         didSet {
-            UserDefaults.standard.set(self.scrobblePercentThreshold, forKey: Keys.scrobblePercentThreshold)
+            self.defaults.set(self.scrobblePercentThreshold, forKey: Keys.scrobblePercentThreshold)
         }
     }
 
     /// Minimum seconds of play time before scrobbling (overrides percentage for long tracks).
     var scrobbleMinSeconds: TimeInterval {
         didSet {
-            UserDefaults.standard.set(self.scrobbleMinSeconds, forKey: Keys.scrobbleMinSeconds)
+            self.defaults.set(self.scrobbleMinSeconds, forKey: Keys.scrobbleMinSeconds)
         }
     }
 
     /// The last page the user was on (for "Last Used" option).
     var lastUsedPage: LaunchPage {
         didSet {
-            UserDefaults.standard.set(self.lastUsedPage.rawValue, forKey: Keys.lastUsedPage)
+            self.defaults.set(self.lastUsedPage.rawValue, forKey: Keys.lastUsedPage)
         }
     }
 
     /// Whether synced lyrics are preferred.
     var syncedLyricsEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.syncedLyricsEnabled, forKey: Keys.syncedLyricsEnabled)
+            self.defaults.set(self.syncedLyricsEnabled, forKey: Keys.syncedLyricsEnabled)
         }
     }
 
     /// Whether romanization of non-Latin lyrics is enabled.
     var romanizationEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.romanizationEnabled, forKey: Keys.romanizationEnabled)
+            self.defaults.set(self.romanizationEnabled, forKey: Keys.romanizationEnabled)
         }
     }
 
     /// Whether the mini player floats above other windows.
     var keepMiniPlayerOnTop: Bool {
         didSet {
-            UserDefaults.standard.set(self.keepMiniPlayerOnTop, forKey: Keys.keepMiniPlayerOnTop)
+            self.defaults.set(self.keepMiniPlayerOnTop, forKey: Keys.keepMiniPlayerOnTop)
         }
     }
 
     /// Whether the popped-out YouTube video window floats above standard windows.
     var keepYouTubeVideoOnTop: Bool {
         didSet {
-            UserDefaults.standard.set(self.keepYouTubeVideoOnTop, forKey: Keys.keepYouTubeVideoOnTop)
+            self.defaults.set(self.keepYouTubeVideoOnTop, forKey: Keys.keepYouTubeVideoOnTop)
         }
     }
 
     /// Whether to show the native menu bar extra player item.
     var showMenuBarExtra: Bool {
         didSet {
-            UserDefaults.standard.set(self.showMenuBarExtra, forKey: Keys.showMenuBarExtra)
+            self.defaults.set(self.showMenuBarExtra, forKey: Keys.showMenuBarExtra)
         }
     }
 
@@ -624,7 +626,7 @@ final class SettingsManager {
     /// Whether Smart Shuffle (the third shuffle state) is available from the shuffle button.
     var smartShuffleEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.smartShuffleEnabled, forKey: Keys.smartShuffleEnabled)
+            self.defaults.set(self.smartShuffleEnabled, forKey: Keys.smartShuffleEnabled)
         }
     }
 
@@ -635,7 +637,7 @@ final class SettingsManager {
             if clamped != self.smartShuffleSuggestEveryN {
                 self.smartShuffleSuggestEveryN = clamped
             }
-            UserDefaults.standard.set(clamped, forKey: Keys.smartShuffleSuggestEveryN)
+            self.defaults.set(clamped, forKey: Keys.smartShuffleSuggestEveryN)
         }
     }
 
@@ -646,7 +648,7 @@ final class SettingsManager {
             if clamped != self.smartShuffleBurst {
                 self.smartShuffleBurst = clamped
             }
-            UserDefaults.standard.set(clamped, forKey: Keys.smartShuffleBurst)
+            self.defaults.set(clamped, forKey: Keys.smartShuffleBurst)
         }
     }
 
@@ -657,7 +659,7 @@ final class SettingsManager {
             if clamped != self.smartShuffleSuggestionsAhead {
                 self.smartShuffleSuggestionsAhead = clamped
             }
-            UserDefaults.standard.set(clamped, forKey: Keys.smartShuffleSuggestionsAhead)
+            self.defaults.set(clamped, forKey: Keys.smartShuffleSuggestionsAhead)
         }
     }
 
@@ -665,7 +667,7 @@ final class SettingsManager {
     /// Applies to regular YouTube videos only, not the Music experience.
     var ambientBackdropEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.ambientBackdropEnabled, forKey: Keys.ambientBackdropEnabled)
+            self.defaults.set(self.ambientBackdropEnabled, forKey: Keys.ambientBackdropEnabled)
         }
     }
 
@@ -673,7 +675,7 @@ final class SettingsManager {
     /// instead of the docked bar, on the YouTube watch page.
     var controlsOnVideoEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.controlsOnVideoEnabled, forKey: Keys.controlsOnVideo)
+            self.defaults.set(self.controlsOnVideoEnabled, forKey: Keys.controlsOnVideo)
         }
     }
 
@@ -681,14 +683,14 @@ final class SettingsManager {
     /// instead of auto-dubbed tracks when multiple audio tracks are available.
     var forceOriginalAudioLanguage: Bool {
         didSet {
-            UserDefaults.standard.set(self.forceOriginalAudioLanguage, forKey: Keys.forceOriginalAudioLanguage)
+            self.defaults.set(self.forceOriginalAudioLanguage, forKey: Keys.forceOriginalAudioLanguage)
         }
     }
 
     /// The chosen ambient backdrop style when the feature is enabled.
     var ambientBackdropStyle: AmbientBackdropStyle {
         didSet {
-            UserDefaults.standard.set(self.ambientBackdropStyle.rawValue, forKey: Keys.ambientBackdropStyle)
+            self.defaults.set(self.ambientBackdropStyle.rawValue, forKey: Keys.ambientBackdropStyle)
         }
     }
 
@@ -698,7 +700,7 @@ final class SettingsManager {
     /// Music experience.
     var popOutVideoOnNavigateAway: Bool {
         didSet {
-            UserDefaults.standard.set(self.popOutVideoOnNavigateAway, forKey: Keys.popOutVideoOnNavigateAway)
+            self.defaults.set(self.popOutVideoOnNavigateAway, forKey: Keys.popOutVideoOnNavigateAway)
         }
     }
 
@@ -710,21 +712,21 @@ final class SettingsManager {
     /// videos only, not the Music experience.
     var keepPlayingVideoOnNavigateAway: Bool {
         didSet {
-            UserDefaults.standard.set(self.keepPlayingVideoOnNavigateAway, forKey: Keys.keepPlayingVideoOnNavigateAway)
+            self.defaults.set(self.keepPlayingVideoOnNavigateAway, forKey: Keys.keepPlayingVideoOnNavigateAway)
         }
     }
 
     /// Whether SponsorBlock auto-skip is enabled for YouTube videos.
     var sponsorBlockEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.sponsorBlockEnabled, forKey: Keys.sponsorBlockEnabled)
+            self.defaults.set(self.sponsorBlockEnabled, forKey: Keys.sponsorBlockEnabled)
         }
     }
 
     /// SponsorBlock categories to skip (e.g. sponsor, selfpromo, intro).
     var sponsorBlockCategories: [String] {
         didSet {
-            UserDefaults.standard.set(self.sponsorBlockCategories, forKey: Keys.sponsorBlockCategories)
+            self.defaults.set(self.sponsorBlockCategories, forKey: Keys.sponsorBlockCategories)
         }
     }
 
@@ -732,7 +734,7 @@ final class SettingsManager {
     /// in all WebViews and auto-skips YouTube in-video ads.
     var adBlockEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.adBlockEnabled, forKey: Keys.adBlockEnabled)
+            self.defaults.set(self.adBlockEnabled, forKey: Keys.adBlockEnabled)
         }
     }
 
@@ -740,7 +742,7 @@ final class SettingsManager {
     /// fetched from the RYD API next to the dislike button in the player bar.
     var returnYouTubeDislikesEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.returnYouTubeDislikesEnabled, forKey: Keys.returnYouTubeDislikesEnabled)
+            self.defaults.set(self.returnYouTubeDislikesEnabled, forKey: Keys.returnYouTubeDislikesEnabled)
         }
     }
 
@@ -748,7 +750,7 @@ final class SettingsManager {
     /// or video to the local Discord client over its IPC socket (issue #34).
     var discordRichPresenceEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.discordRichPresenceEnabled, forKey: Keys.discordRichPresenceEnabled)
+            self.defaults.set(self.discordRichPresenceEnabled, forKey: Keys.discordRichPresenceEnabled)
         }
     }
 
@@ -756,7 +758,7 @@ final class SettingsManager {
     /// community-submitted accurate titles from the DeArrow API.
     var dearrowEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.dearrowEnabled, forKey: Keys.dearrowEnabled)
+            self.defaults.set(self.dearrowEnabled, forKey: Keys.dearrowEnabled)
         }
     }
 
@@ -764,7 +766,7 @@ final class SettingsManager {
     /// the YouTube watch page so only the video and its metadata remain.
     var distractionFreeEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.distractionFreeEnabled, forKey: Keys.distractionFreeEnabled)
+            self.defaults.set(self.distractionFreeEnabled, forKey: Keys.distractionFreeEnabled)
         }
     }
 
@@ -773,7 +775,7 @@ final class SettingsManager {
     /// end (YouTube's own autonav is always disabled).
     var youtubeAutoplayEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.youtubeAutoplayEnabled, forKey: Keys.youtubeAutoplayEnabled)
+            self.defaults.set(self.youtubeAutoplayEnabled, forKey: Keys.youtubeAutoplayEnabled)
         }
     }
 
@@ -783,7 +785,7 @@ final class SettingsManager {
     /// changelog (What's New), without the addons step.
     var hasCompletedInitialOnboarding: Bool {
         didSet {
-            UserDefaults.standard.set(self.hasCompletedInitialOnboarding, forKey: Keys.hasCompletedInitialOnboarding)
+            self.defaults.set(self.hasCompletedInitialOnboarding, forKey: Keys.hasCompletedInitialOnboarding)
         }
     }
 
@@ -808,7 +810,7 @@ final class SettingsManager {
     /// The language used for the app interface and API content.
     var contentLanguage: ContentLanguage {
         didSet {
-            UserDefaults.standard.set(self.contentLanguage.rawValue, forKey: Keys.contentLanguage)
+            self.defaults.set(self.contentLanguage.rawValue, forKey: Keys.contentLanguage)
             AppLocalization.setLanguage(self.contentLanguage.languageCode)
             APICache.shared.invalidateAll()
         }
@@ -818,7 +820,7 @@ final class SettingsManager {
         /// Debug-only switch that forces the app to render macOS 15 fallback UI on newer OS versions.
         var useLegacyMacOS15UI: Bool {
             didSet {
-                UserDefaults.standard.set(self.useLegacyMacOS15UI, forKey: Keys.useLegacyMacOS15UI)
+                self.defaults.set(self.useLegacyMacOS15UI, forKey: Keys.useLegacyMacOS15UI)
             }
         }
     #else
@@ -829,21 +831,21 @@ final class SettingsManager {
     /// Preferred audio quality/format for offline downloads.
     var downloadAudioFormat: DownloadAudioFormat {
         didSet {
-            UserDefaults.standard.set(self.downloadAudioFormat.rawValue, forKey: Keys.downloadAudioFormat)
+            self.defaults.set(self.downloadAudioFormat.rawValue, forKey: Keys.downloadAudioFormat)
         }
     }
 
     /// Preferred video quality for offline downloads.
     var videoDownloadQuality: VideoDownloadQuality {
         didSet {
-            UserDefaults.standard.set(self.videoDownloadQuality.rawValue, forKey: Keys.videoDownloadQuality)
+            self.defaults.set(self.videoDownloadQuality.rawValue, forKey: Keys.videoDownloadQuality)
         }
     }
 
     /// Custom download directory path on disk.
     var downloadDirectoryPath: String {
         didSet {
-            UserDefaults.standard.set(self.downloadDirectoryPath, forKey: Keys.downloadDirectoryPath)
+            self.defaults.set(self.downloadDirectoryPath, forKey: Keys.downloadDirectoryPath)
         }
     }
 
@@ -855,14 +857,14 @@ final class SettingsManager {
     /// User-specified custom path to yt-dlp binary (if any).
     var customYtdlpPath: String {
         didSet {
-            UserDefaults.standard.set(self.customYtdlpPath, forKey: Keys.customYtdlpPath)
+            self.defaults.set(self.customYtdlpPath, forKey: Keys.customYtdlpPath)
         }
     }
 
     /// User-specified custom path to ffmpeg binary (if any).
     var customFfmpegPath: String {
         didSet {
-            UserDefaults.standard.set(self.customFfmpegPath, forKey: Keys.customFfmpegPath)
+            self.defaults.set(self.customFfmpegPath, forKey: Keys.customFfmpegPath)
         }
     }
 
@@ -873,92 +875,93 @@ final class SettingsManager {
             if clamped != self.maxConcurrentDownloads {
                 self.maxConcurrentDownloads = clamped
             }
-            UserDefaults.standard.set(clamped, forKey: Keys.maxConcurrentDownloads)
+            self.defaults.set(clamped, forKey: Keys.maxConcurrentDownloads)
         }
     }
 
     /// Whether Offline Mode is enabled. When enabled, only downloaded tracks will play natively via AVPlayer.
     var isOfflineModeEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.isOfflineModeEnabled, forKey: Keys.isOfflineModeEnabled)
+            self.defaults.set(self.isOfflineModeEnabled, forKey: Keys.isOfflineModeEnabled)
         }
     }
 
     /// Whether fast native audio streaming (bypassing WebView via yt-dlp) is enabled.
     var isFastNativeStreamingEnabled: Bool {
         didSet {
-            UserDefaults.standard.set(self.isFastNativeStreamingEnabled, forKey: Keys.isFastNativeStreamingEnabled)
+            self.defaults.set(self.isFastNativeStreamingEnabled, forKey: Keys.isFastNativeStreamingEnabled)
         }
     }
 
     // MARK: - Initialization
 
-    private init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
         // Load persisted settings or use defaults
-        self.showNowPlayingNotifications = UserDefaults.standard.object(forKey: Keys.showNowPlayingNotifications) as? Bool ?? true
-        self.isOfflineModeEnabled = UserDefaults.standard.object(forKey: Keys.isOfflineModeEnabled) as? Bool ?? false
-        self.isFastNativeStreamingEnabled = UserDefaults.standard.object(forKey: Keys.isFastNativeStreamingEnabled) as? Bool ?? false
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.lastUsedPage),
+        self.showNowPlayingNotifications = defaults.object(forKey: Keys.showNowPlayingNotifications) as? Bool ?? true
+        self.isOfflineModeEnabled = defaults.object(forKey: Keys.isOfflineModeEnabled) as? Bool ?? false
+        self.isFastNativeStreamingEnabled = defaults.object(forKey: Keys.isFastNativeStreamingEnabled) as? Bool ?? false
+        if let rawValue = defaults.string(forKey: Keys.lastUsedPage),
            let page = LaunchPage(rawValue: rawValue)
         {
             self.lastUsedPage = page
         } else {
             self.lastUsedPage = .home
         }
-        self.hapticFeedbackEnabled = UserDefaults.standard.object(forKey: Keys.hapticFeedbackEnabled) as? Bool ?? true
-        self.telemetryEnabled = UserDefaults.standard.object(forKey: Keys.telemetryEnabled) as? Bool ?? true
-        self.rememberPlaybackSettings = UserDefaults.standard.object(forKey: Keys.rememberPlaybackSettings) as? Bool ?? false
+        self.hapticFeedbackEnabled = defaults.object(forKey: Keys.hapticFeedbackEnabled) as? Bool ?? true
+        self.telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? true
+        self.rememberPlaybackSettings = defaults.object(forKey: Keys.rememberPlaybackSettings) as? Bool ?? false
 
         // Load per-service enabled flags, migrating from legacy lastFMEnabled if needed
-        if let stored = UserDefaults.standard.dictionary(forKey: Keys.enabledServices) as? [String: Bool] {
+        if let stored = defaults.dictionary(forKey: Keys.enabledServices) as? [String: Bool] {
             self.enabledServices = stored
-        } else if let legacyEnabled = UserDefaults.standard.object(forKey: Keys.lastFMEnabled) as? Bool {
+        } else if let legacyEnabled = defaults.object(forKey: Keys.lastFMEnabled) as? Bool {
             // Migrate from single-service flag to dictionary
             self.enabledServices = ["Last.fm": legacyEnabled]
         } else {
             self.enabledServices = [:]
         }
-        self.scrobblePercentThreshold = UserDefaults.standard.object(forKey: Keys.scrobblePercentThreshold) as? Double ?? 0.5
-        self.scrobbleMinSeconds = UserDefaults.standard.object(forKey: Keys.scrobbleMinSeconds) as? Double ?? 240
-        self.syncedLyricsEnabled = UserDefaults.standard.object(forKey: Keys.syncedLyricsEnabled) as? Bool ?? true
-        self.romanizationEnabled = UserDefaults.standard.object(forKey: Keys.romanizationEnabled) as? Bool ?? true
-        self.keepMiniPlayerOnTop = UserDefaults.standard.object(forKey: Keys.keepMiniPlayerOnTop) as? Bool ?? false
+        self.scrobblePercentThreshold = defaults.object(forKey: Keys.scrobblePercentThreshold) as? Double ?? 0.5
+        self.scrobbleMinSeconds = defaults.object(forKey: Keys.scrobbleMinSeconds) as? Double ?? 240
+        self.syncedLyricsEnabled = defaults.object(forKey: Keys.syncedLyricsEnabled) as? Bool ?? true
+        self.romanizationEnabled = defaults.object(forKey: Keys.romanizationEnabled) as? Bool ?? true
+        self.keepMiniPlayerOnTop = defaults.object(forKey: Keys.keepMiniPlayerOnTop) as? Bool ?? false
         // Default on: the fork's pop-out has always floated on top; the toggle lets users turn it off.
-        self.keepYouTubeVideoOnTop = UserDefaults.standard.object(forKey: Keys.keepYouTubeVideoOnTop) as? Bool ?? true
-        self.showMenuBarExtra = UserDefaults.standard.object(forKey: Keys.showMenuBarExtra) as? Bool ?? true
-        self.smartShuffleEnabled = UserDefaults.standard.object(forKey: Keys.smartShuffleEnabled) as? Bool ?? true
+        self.keepYouTubeVideoOnTop = defaults.object(forKey: Keys.keepYouTubeVideoOnTop) as? Bool ?? true
+        self.showMenuBarExtra = defaults.object(forKey: Keys.showMenuBarExtra) as? Bool ?? true
+        self.smartShuffleEnabled = defaults.object(forKey: Keys.smartShuffleEnabled) as? Bool ?? true
         // Property observers do not fire for assignments in init, so clamp persisted values here too.
         self.smartShuffleSuggestEveryN = Self.clamp(
-            UserDefaults.standard.object(forKey: Keys.smartShuffleSuggestEveryN) as? Int ?? Self.smartShuffleSuggestEveryNDefault,
+            defaults.object(forKey: Keys.smartShuffleSuggestEveryN) as? Int ?? Self.smartShuffleSuggestEveryNDefault,
             to: Self.smartShuffleSuggestEveryNRange
         )
         self.smartShuffleBurst = Self.clamp(
-            UserDefaults.standard.object(forKey: Keys.smartShuffleBurst) as? Int ?? Self.smartShuffleBurstDefault,
+            defaults.object(forKey: Keys.smartShuffleBurst) as? Int ?? Self.smartShuffleBurstDefault,
             to: Self.smartShuffleBurstRange
         )
         self.smartShuffleSuggestionsAhead = Self.clamp(
-            UserDefaults.standard.object(forKey: Keys.smartShuffleSuggestionsAhead) as? Int ?? Self.smartShuffleSuggestionsAheadDefault,
+            defaults.object(forKey: Keys.smartShuffleSuggestionsAhead) as? Int ?? Self.smartShuffleSuggestionsAheadDefault,
             to: Self.smartShuffleSuggestionsAheadRange
         )
-        self.ambientBackdropEnabled = UserDefaults.standard.object(forKey: Keys.ambientBackdropEnabled) as? Bool ?? true
-        self.controlsOnVideoEnabled = UserDefaults.standard.object(forKey: Keys.controlsOnVideo) as? Bool ?? true
-        self.forceOriginalAudioLanguage = UserDefaults.standard.object(forKey: Keys.forceOriginalAudioLanguage) as? Bool ?? false
-        self.popOutVideoOnNavigateAway = UserDefaults.standard.object(forKey: Keys.popOutVideoOnNavigateAway) as? Bool ?? true
-        self.keepPlayingVideoOnNavigateAway = UserDefaults.standard.object(forKey: Keys.keepPlayingVideoOnNavigateAway) as? Bool ?? false
-        self.sponsorBlockEnabled = UserDefaults.standard.object(forKey: Keys.sponsorBlockEnabled) as? Bool ?? false
-        self.sponsorBlockCategories = UserDefaults.standard.object(forKey: Keys.sponsorBlockCategories) as? [String] ?? ["sponsor", "selfpromo", "interaction"]
-        self.adBlockEnabled = UserDefaults.standard.object(forKey: Keys.adBlockEnabled) as? Bool ?? false
-        self.returnYouTubeDislikesEnabled = UserDefaults.standard.object(forKey: Keys.returnYouTubeDislikesEnabled) as? Bool ?? false
-        self.dearrowEnabled = UserDefaults.standard.object(forKey: Keys.dearrowEnabled) as? Bool ?? false
-        self.discordRichPresenceEnabled = UserDefaults.standard.object(forKey: Keys.discordRichPresenceEnabled) as? Bool ?? false
-        self.hasCompletedInitialOnboarding = UserDefaults.standard.object(forKey: Keys.hasCompletedInitialOnboarding) as? Bool ?? false
-        self.distractionFreeEnabled = UserDefaults.standard.object(forKey: Keys.distractionFreeEnabled) as? Bool ?? false
-        self.youtubeAutoplayEnabled = UserDefaults.standard.object(forKey: Keys.youtubeAutoplayEnabled) as? Bool ?? false
+        self.ambientBackdropEnabled = defaults.object(forKey: Keys.ambientBackdropEnabled) as? Bool ?? true
+        self.controlsOnVideoEnabled = defaults.object(forKey: Keys.controlsOnVideo) as? Bool ?? true
+        self.forceOriginalAudioLanguage = defaults.object(forKey: Keys.forceOriginalAudioLanguage) as? Bool ?? false
+        self.popOutVideoOnNavigateAway = defaults.object(forKey: Keys.popOutVideoOnNavigateAway) as? Bool ?? true
+        self.keepPlayingVideoOnNavigateAway = defaults.object(forKey: Keys.keepPlayingVideoOnNavigateAway) as? Bool ?? false
+        self.sponsorBlockEnabled = defaults.object(forKey: Keys.sponsorBlockEnabled) as? Bool ?? false
+        self.sponsorBlockCategories = defaults.object(forKey: Keys.sponsorBlockCategories) as? [String] ?? ["sponsor", "selfpromo", "interaction"]
+        self.adBlockEnabled = defaults.object(forKey: Keys.adBlockEnabled) as? Bool ?? false
+        self.returnYouTubeDislikesEnabled = defaults.object(forKey: Keys.returnYouTubeDislikesEnabled) as? Bool ?? false
+        self.dearrowEnabled = defaults.object(forKey: Keys.dearrowEnabled) as? Bool ?? false
+        self.discordRichPresenceEnabled = defaults.object(forKey: Keys.discordRichPresenceEnabled) as? Bool ?? false
+        self.hasCompletedInitialOnboarding = defaults.object(forKey: Keys.hasCompletedInitialOnboarding) as? Bool ?? false
+        self.distractionFreeEnabled = defaults.object(forKey: Keys.distractionFreeEnabled) as? Bool ?? false
+        self.youtubeAutoplayEnabled = defaults.object(forKey: Keys.youtubeAutoplayEnabled) as? Bool ?? false
         #if DEBUG
-            self.useLegacyMacOS15UI = UserDefaults.standard.object(forKey: Keys.useLegacyMacOS15UI) as? Bool ?? false
+            self.useLegacyMacOS15UI = defaults.object(forKey: Keys.useLegacyMacOS15UI) as? Bool ?? false
         #endif
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.mediaControlStyle),
+        if let rawValue = defaults.string(forKey: Keys.mediaControlStyle),
            let style = MediaControlStyle(rawValue: rawValue)
         {
             self.mediaControlStyle = style
@@ -966,7 +969,7 @@ final class SettingsManager {
             self.mediaControlStyle = .nextPreviousTrack
         }
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.playbackAudioQuality),
+        if let rawValue = defaults.string(forKey: Keys.playbackAudioQuality),
            let quality = PlaybackAudioQuality(rawValue: rawValue)
         {
             self.playbackAudioQuality = quality
@@ -974,7 +977,7 @@ final class SettingsManager {
             self.playbackAudioQuality = .auto
         }
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.downloadAudioFormat),
+        if let rawValue = defaults.string(forKey: Keys.downloadAudioFormat),
            let format = DownloadAudioFormat(rawValue: rawValue)
         {
             self.downloadAudioFormat = format
@@ -982,7 +985,7 @@ final class SettingsManager {
             self.downloadAudioFormat = .bestAudio
         }
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.videoDownloadQuality),
+        if let rawValue = defaults.string(forKey: Keys.videoDownloadQuality),
            let quality = VideoDownloadQuality(rawValue: rawValue)
         {
             self.videoDownloadQuality = quality
@@ -990,12 +993,12 @@ final class SettingsManager {
             self.videoDownloadQuality = .best
         }
 
-        self.downloadDirectoryPath = UserDefaults.standard.string(forKey: Keys.downloadDirectoryPath) ?? Self.defaultDownloadDirectory.path
-        self.customYtdlpPath = UserDefaults.standard.string(forKey: Keys.customYtdlpPath) ?? ""
-        self.customFfmpegPath = UserDefaults.standard.string(forKey: Keys.customFfmpegPath) ?? ""
-        self.maxConcurrentDownloads = UserDefaults.standard.object(forKey: Keys.maxConcurrentDownloads) as? Int ?? 3
+        self.downloadDirectoryPath = defaults.string(forKey: Keys.downloadDirectoryPath) ?? Self.defaultDownloadDirectory.path
+        self.customYtdlpPath = defaults.string(forKey: Keys.customYtdlpPath) ?? ""
+        self.customFfmpegPath = defaults.string(forKey: Keys.customFfmpegPath) ?? ""
+        self.maxConcurrentDownloads = defaults.object(forKey: Keys.maxConcurrentDownloads) as? Int ?? 3
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.ambientBackdropStyle),
+        if let rawValue = defaults.string(forKey: Keys.ambientBackdropStyle),
            let style = AmbientBackdropStyle(rawValue: rawValue)
         {
             // Persist every choice, including `.off` — previously `.off` was
@@ -1005,7 +1008,7 @@ final class SettingsManager {
             self.ambientBackdropStyle = .live
         }
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.defaultLaunchPage),
+        if let rawValue = defaults.string(forKey: Keys.defaultLaunchPage),
            let page = LaunchPage(rawValue: rawValue)
         {
             self.defaultLaunchPage = page
@@ -1013,7 +1016,7 @@ final class SettingsManager {
             self.defaultLaunchPage = .home
         }
 
-        if let rawValue = UserDefaults.standard.string(forKey: Keys.contentLanguage),
+        if let rawValue = defaults.string(forKey: Keys.contentLanguage),
            let language = ContentLanguage(rawValue: rawValue)
         {
             self.contentLanguage = language
@@ -1021,13 +1024,13 @@ final class SettingsManager {
             self.contentLanguage = .system
         }
 
-        let musicEnabled = UserDefaults.standard.object(forKey: Keys.youTubeMusicEnabled) as? Bool ?? true
+        let musicEnabled = defaults.object(forKey: Keys.youTubeMusicEnabled) as? Bool ?? true
         self.youTubeMusicEnabled = musicEnabled
 
         if !musicEnabled {
             // Music disabled → always land on YouTube regardless of the saved source.
             self.appSource = .video
-        } else if let rawValue = UserDefaults.standard.string(forKey: Keys.appSource),
+        } else if let rawValue = defaults.string(forKey: Keys.appSource),
                   let source = AppSource(rawValue: rawValue)
         {
             self.appSource = source
@@ -1035,7 +1038,7 @@ final class SettingsManager {
             self.appSource = .music
         }
 
-        if let hex = UserDefaults.standard.string(forKey: Keys.accentColorHex),
+        if let hex = defaults.string(forKey: Keys.accentColorHex),
            let color = Self.color(fromHex: hex)
         {
             self.accentColor = color
@@ -1046,11 +1049,11 @@ final class SettingsManager {
         AppLocalization.setLanguage(self.contentLanguage.languageCode)
 
         // Persist migration from legacy lastFMEnabled key (must run after all properties initialized)
-        if UserDefaults.standard.object(forKey: Keys.enabledServices) == nil,
-           UserDefaults.standard.object(forKey: Keys.lastFMEnabled) != nil
+        if defaults.object(forKey: Keys.enabledServices) == nil,
+           defaults.object(forKey: Keys.lastFMEnabled) != nil
         {
-            UserDefaults.standard.set(self.enabledServices, forKey: Keys.enabledServices)
-            UserDefaults.standard.removeObject(forKey: Keys.lastFMEnabled)
+            defaults.set(self.enabledServices, forKey: Keys.enabledServices)
+            defaults.removeObject(forKey: Keys.lastFMEnabled)
         }
     }
 

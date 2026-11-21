@@ -85,7 +85,10 @@ final class GitHubAuthService {
     // MARK: - Device flow
 
     private func requestDeviceCode() async throws -> DeviceCode {
-        var request = URLRequest(url: URL(string: "https://github.com/login/device/code")!)
+        guard let deviceCodeURL = URL(string: "https://github.com/login/device/code") else {
+            throw GitHubError.deviceCodeFailed
+        }
+        var request = URLRequest(url: deviceCodeURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -134,7 +137,10 @@ final class GitHubAuthService {
 
     /// Returns the token on success, nil while pending, or throws on error.
     private func exchangeToken(deviceCode: String) async throws -> String? {
-        var request = URLRequest(url: URL(string: "https://github.com/login/oauth/access_token")!)
+        guard let accessTokenURL = URL(string: "https://github.com/login/oauth/access_token") else {
+            throw GitHubError.tokenExchangeFailed
+        }
+        var request = URLRequest(url: accessTokenURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -156,9 +162,9 @@ final class GitHubAuthService {
 
     /// Loads the authenticated user for the stored token.
     private func restoreSession() async {
-        guard let token else { return }
+        guard let token, let userURL = URL(string: "https://api.github.com/user") else { return }
         do {
-            var request = URLRequest(url: URL(string: "https://api.github.com/user")!)
+            var request = URLRequest(url: userURL)
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -183,4 +189,20 @@ enum GitHubError: Error {
     case tokenExchangeFailed
     case requestFailed(Int)
     case decodingFailed
+}
+
+private extension KeychainCredentialStore {
+    private static let gitHubTokenKey = "gitHubToken"
+
+    func saveGitHubToken(_ token: String) throws {
+        try self.save(key: Self.gitHubTokenKey, value: token)
+    }
+
+    func getGitHubToken() -> String? {
+        self.get(key: Self.gitHubTokenKey)
+    }
+
+    func removeGitHubToken() {
+        self.delete(key: Self.gitHubTokenKey)
+    }
 }

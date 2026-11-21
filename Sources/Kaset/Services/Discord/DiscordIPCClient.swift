@@ -107,6 +107,17 @@ actor DiscordIPCClient {
             socklen_t(MemoryLayout<Int32>.size)
         )
 
+        // Bound blocking reads (e.g. handshake response) so a stalled Discord
+        // socket cannot hang the actor indefinitely.
+        var receiveTimeout = timeval(tv_sec: 5, tv_usec: 0)
+        _ = setsockopt(
+            descriptor,
+            SOL_SOCKET,
+            SO_RCVTIMEO,
+            &receiveTimeout,
+            socklen_t(MemoryLayout<timeval>.size)
+        )
+
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
         let capacity = MemoryLayout.size(ofValue: address.sun_path)
@@ -213,9 +224,12 @@ actor DiscordIPCClient {
         let body = try JSONSerialization.data(withJSONObject: payload)
         let frame = Self.encodeFrame(opcode: opcode, body: body)
         try frame.withUnsafeBytes { buffer in
+            guard let baseAddress = buffer.baseAddress else {
+                throw DiscordIPCError.writeFailed(errno: EINVAL)
+            }
             var offset = 0
             while offset < buffer.count {
-                let written = Darwin.write(descriptor, buffer.baseAddress!.advanced(by: offset), buffer.count - offset)
+                let written = Darwin.write(descriptor, baseAddress.advanced(by: offset), buffer.count - offset)
                 guard written > 0 else { throw DiscordIPCError.writeFailed(errno: errno) }
                 offset += written
             }
@@ -235,8 +249,9 @@ actor DiscordIPCClient {
         var buffer = [UInt8](repeating: 0, count: count)
         var offset = 0
         while offset < count {
-            let read = buffer.withUnsafeMutableBytes { pointer in
-                Darwin.read(descriptor, pointer.baseAddress!.advanced(by: offset), count - offset)
+            let read = buffer.withUnsafeMutableBytes { pointer -> Int in
+                guard let baseAddress = pointer.baseAddress else { return -1 }
+                return Darwin.read(descriptor, baseAddress.advanced(by: offset), count - offset)
             }
             guard read > 0 else { throw DiscordIPCError.connectionClosed }
             offset += read

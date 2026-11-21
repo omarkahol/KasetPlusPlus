@@ -90,6 +90,10 @@ final class ScrobblingCoordinator {
     /// Monotonic token that prevents stale flush tasks from clearing newer scheduled work.
     private var flushTaskGeneration = 0
 
+    /// Consecutive transient flush failures used for exponential backoff.
+    private var consecutiveFlushFailures = 0
+    private static let maxFlushBackoffSeconds = 900
+
     /// Now-playing tasks, cancelled in stopMonitoring/deinit.
     var nowPlayingTasks: [Task<Void, Never>] = []
     // swiftformat:enable modifierOrder
@@ -221,6 +225,7 @@ final class ScrobblingCoordinator {
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, self.isMonitoring(generation: generation) else { return }
+                self.consecutiveFlushFailures = 0
                 self.pollPlayerState()
                 self.scheduleQueueFlushIfNeeded()
                 self.observeMonitoringEligibilityChanges(generation: generation)
@@ -830,10 +835,12 @@ final class ScrobblingCoordinator {
             }
 
             guard let self, self.isMonitoring, self.flushTaskGeneration == generation else { return }
-            await self.flushQueue()
+            let retryDelay = await self.performQueueFlush()
             guard self.isMonitoring, self.flushTaskGeneration == generation else { return }
             self.flushTask = nil
-            self.scheduleQueueFlushIfNeeded()
+            if let retryDelay {
+                self.scheduleQueueFlushIfNeeded(after: retryDelay)
+            }
         }
     }
 
@@ -843,32 +850,57 @@ final class ScrobblingCoordinator {
         return !flushTask.isCancelled
     }
 
+    private static func backoffDelay(attempt: Int) -> Duration {
+        let shift = min(max(attempt - 1, 0), 5)
+        let seconds = min(30 * (1 << shift), Self.maxFlushBackoffSeconds)
+        return .seconds(seconds)
+    }
+
     /// Flushes pending scrobbles from the queue to all enabled services.
-    /// Services deduplicate naturally (e.g., Last.fm ignores duplicate artist+track+timestamp).
     func flushQueue() async {
-        guard self.hasAnyEnabledConnectedService else { return }
-        guard !self.queue.isEmpty else { return }
+        _ = await self.performQueueFlush()
+    }
+
+    private func performQueueFlush() async -> Duration? {
+        guard self.hasAnyEnabledConnectedService else { return nil }
+        guard !self.queue.isEmpty else {
+            self.consecutiveFlushFailures = 0
+            return nil
+        }
 
         // Prune expired entries first
         self.queue.pruneExpired()
+        guard !self.queue.isEmpty else {
+            self.consecutiveFlushFailures = 0
+            return nil
+        }
 
-        let batch = self.queue.dequeue(limit: 50)
-        guard !batch.isEmpty else { return }
+        let activeServices = self.enabledConnectedServices
+        let requiredServices = Set(activeServices.map(\.serviceName))
 
-        self.logger.debug("Flushing \(batch.count) scrobbles from queue")
+        var hadTransientFailure = false
+        var hadPermanentAuthFailure = false
+        var hadNonAuthAttempt = false
+        var maxRetryAfter: TimeInterval?
 
-        // Submit to all enabled+connected services. Services deduplicate, so
-        // re-submitting to a service that already accepted is safe (Option A).
-        var acceptedIds = Set<UUID>()
+        for service in activeServices {
+            let batch = self.queue.pendingTracks(for: service.serviceName, limit: 50)
+            guard !batch.isEmpty else { continue }
 
-        for service in self.enabledConnectedServices {
+            self.logger.debug("Flushing \(batch.count) scrobbles to \(service.serviceName)")
+
             do {
                 let results = try await service.scrobble(batch)
+                hadNonAuthAttempt = true
 
-                let accepted = results.filter(\.accepted)
-                if !accepted.isEmpty {
-                    acceptedIds.formUnion(accepted.map(\.track.id))
-                    self.logger.info("Flushed \(accepted.count)/\(batch.count) scrobbles to \(service.serviceName)")
+                let acceptedIds = Set(results.filter(\.accepted).map(\.track.id))
+                if !acceptedIds.isEmpty {
+                    self.queue.markCompleted(
+                        acceptedIds,
+                        for: service.serviceName,
+                        requiredServices: requiredServices
+                    )
+                    self.logger.info("Flushed \(acceptedIds.count)/\(batch.count) scrobbles to \(service.serviceName)")
                 }
 
                 // Log rejected scrobbles
@@ -877,24 +909,46 @@ final class ScrobblingCoordinator {
                     self.logger.warning("Scrobble rejected by \(service.serviceName): \(result.track.title) - \(result.errorMessage ?? "unknown reason")")
                 }
             } catch is CancellationError {
-                return
+                return nil
             } catch let error as ScrobbleError {
                 switch error {
-                case .rateLimited:
-                    self.logger.warning("\(service.serviceName) rate limited during flush, will retry next cycle")
-                case .sessionExpired:
-                    self.logger.warning("\(service.serviceName) session expired during flush, scrobbles kept in queue")
-                default:
+                case let .rateLimited(retryAfter):
+                    hadTransientFailure = true
+                    if let retryAfter {
+                        maxRetryAfter = max(maxRetryAfter ?? 0, retryAfter)
+                    }
+                    self.logger.warning("\(service.serviceName) rate limited during flush")
+                case .invalidCredentials, .sessionExpired:
+                    hadPermanentAuthFailure = true
+                    self.logger.warning("\(service.serviceName) credentials invalid/expired during flush; pausing automatic retries until re-authenticated")
+                case .networkError, .serviceUnavailable, .invalidResponse:
+                    hadTransientFailure = true
                     self.logger.error("\(service.serviceName) flush failed: \(error.localizedDescription)")
                 }
             } catch {
+                hadTransientFailure = true
                 self.logger.error("\(service.serviceName) flush failed with unexpected error: \(error.localizedDescription)")
             }
         }
 
-        // Only mark accepted tracks as completed; rejected tracks remain in the queue for retry.
-        if !acceptedIds.isEmpty {
-            self.queue.markCompleted(acceptedIds)
+        guard !self.queue.isEmpty else {
+            self.consecutiveFlushFailures = 0
+            return nil
         }
+
+        if hadTransientFailure {
+            self.consecutiveFlushFailures += 1
+            if let retryAfter = maxRetryAfter {
+                return .seconds(max(1, Int(retryAfter.rounded(.up))))
+            }
+            return Self.backoffDelay(attempt: self.consecutiveFlushFailures)
+        }
+
+        if hadPermanentAuthFailure, !hadNonAuthAttempt {
+            return nil
+        }
+
+        self.consecutiveFlushFailures = 0
+        return .seconds(30)
     }
 }

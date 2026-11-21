@@ -6,11 +6,8 @@ import Observation
 /// Manages Favorites persistence and state, scoped per account.
 @MainActor
 @Observable
-final class FavoritesManager { // swiftlint:disable:this type_body_length
-    private struct ScopeMergeKey: Hashable {
-        let sourceScopeID: String
-        let targetScopeID: String
-    }
+final class FavoritesManager {
+    private typealias ScopeMergeKey = FavoritesPersistenceStore.ScopeMergeKey
 
     static let shared = FavoritesManager()
     private static let guestScopeID = "guest"
@@ -19,7 +16,8 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
     private(set) var activeScopeID: String?
 
     private let skipPersistence: Bool
-    let storageDirectory: URL
+    private let store: FavoritesPersistenceStore
+    var storageDirectory: URL { self.store.storageDirectory }
     /// In-memory store for `skipPersistence` test instances.
     private var itemsByScope: [String: [FavoriteItem]] = [:]
     /// Latest snapshots that could not be written during a scope transition.
@@ -38,7 +36,7 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
     private init() {
         let isUITest = UITestConfig.isUITestMode
         self.skipPersistence = isUITest || UITestConfig.isRunningUnitTests
-        self.storageDirectory = Self.defaultStorageDirectory
+        self.store = FavoritesPersistenceStore(storageDirectory: Self.defaultStorageDirectory)
 
         if isUITest {
             self.loadMockData()
@@ -48,13 +46,13 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
     /// Test/preview initializer — skips disk I/O when `skipLoad` is true.
     init(skipLoad: Bool) {
         self.skipPersistence = skipLoad
-        self.storageDirectory = Self.defaultStorageDirectory
+        self.store = FavoritesPersistenceStore(storageDirectory: Self.defaultStorageDirectory)
     }
 
     /// Disk-backed initializer for persistence tests using an isolated directory.
     init(storageDirectory: URL) {
         self.skipPersistence = false
-        self.storageDirectory = storageDirectory
+        self.store = FavoritesPersistenceStore(storageDirectory: storageDirectory)
     }
 
     /// Switches the signed-in account scope. `nil` clears visible favorites without deleting files.
@@ -409,7 +407,7 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
             self.itemsByScope[activeScopeID] = self.items
             return true
         } else {
-            let didWrite = Self.write(self.items, to: self.fileURL(for: activeScopeID))
+            let didWrite = self.store.write(self.items, for: activeScopeID)
             if didWrite {
                 self.pendingItemsByScope.removeValue(forKey: activeScopeID)
             } else {
@@ -435,17 +433,15 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
             return
         }
 
-        let fileURL = self.fileURL(for: scopeID)
         do {
-            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            if let loaded = try self.store.loadItems(for: scopeID) {
+                self.items = loaded
+                self.canPersistActiveSnapshot = true
+                DiagnosticsLogger.ui.info("Loaded \(self.items.count) favorite items")
+            } else {
                 self.items = []
                 self.canPersistActiveSnapshot = true
-                return
             }
-            let data = try Data(contentsOf: fileURL)
-            self.items = try JSONDecoder().decode([FavoriteItem].self, from: data)
-            self.canPersistActiveSnapshot = true
-            DiagnosticsLogger.ui.info("Loaded \(self.items.count) favorite items")
         } catch {
             DiagnosticsLogger.ui.error("Failed to load favorites: \(error.localizedDescription)")
             self.items = []
@@ -464,11 +460,11 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
 
         self.saveTask?.cancel()
         let itemsSnapshot = self.items
-        let targetURL = self.fileURL(for: activeScopeID)
+        let store = self.store
         self.saveTask = Task(priority: .utility) {
             try? await Task.sleep(for: .milliseconds(100))
             guard !Task.isCancelled else { return }
-            if Self.write(itemsSnapshot, to: targetURL) {
+            if store.write(itemsSnapshot, for: activeScopeID) {
                 self.pendingItemsByScope.removeValue(forKey: activeScopeID)
             } else {
                 self.pendingItemsByScope[activeScopeID] = itemsSnapshot
@@ -476,54 +472,26 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
         }
     }
 
-    private func fileURL(for scopeID: String) -> URL {
-        self.storageDirectory.appendingPathComponent("favorites-\(scopeID).json")
-    }
-
-    private var ownerStateBackupURL: URL {
-        self.storageDirectory.appendingPathComponent(".favorites-owner-state.json")
-    }
-
     func loadOwnerStateBackup() -> Data? {
-        guard !self.skipPersistence,
-              FileManager.default.fileExists(atPath: self.ownerStateBackupURL.path)
-        else { return nil }
-
-        do {
-            return try Data(contentsOf: self.ownerStateBackupURL)
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to load favorites owner-state backup: \(error.localizedDescription)")
-            return nil
-        }
+        guard !self.skipPersistence else { return nil }
+        return self.store.loadOwnerStateBackup()
     }
 
     @discardableResult
     func saveOwnerStateBackup(_ data: Data) -> Bool {
         guard !self.skipPersistence else { return true }
-
-        do {
-            try FileManager.default.createDirectory(
-                at: self.storageDirectory,
-                withIntermediateDirectories: true
-            )
-            try data.write(to: self.ownerStateBackupURL, options: .atomic)
-            return true
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to save favorites owner-state backup: \(error.localizedDescription)")
-            return false
-        }
+        return self.store.saveOwnerStateBackup(data)
     }
 
     private func materializePendingItemsIfNeeded(for scopeID: String) -> Bool {
         guard let pendingItems = self.pendingItemsByScope[scopeID] else { return true }
-        guard Self.write(pendingItems, to: self.fileURL(for: scopeID)) else { return false }
+        guard self.store.write(pendingItems, for: scopeID) else { return false }
         self.pendingItemsByScope.removeValue(forKey: scopeID)
         return true
     }
 
     private func migrateLegacyFavoritesIfNeeded(toScopeID targetScopeID: String) -> LegacyMigrationResult {
-        let legacyURL = self.storageDirectory.appendingPathComponent("favorites.json")
-        return self.migrateLegacyFileIfNeeded(from: legacyURL, toScopeID: targetScopeID)
+        self.migrateLegacyFileIfNeeded(from: self.store.legacyFavoritesURL, toScopeID: targetScopeID)
     }
 
     private func migrateLegacyAccountFavoritesIfNeeded(
@@ -540,83 +508,7 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
     ) -> LegacyMigrationResult {
         guard self.reserveLegacySource(legacyURL, for: targetScopeID) else { return .deferred }
         defer { self.releaseLegacySourceIfBoundOrAbsent(legacyURL, from: targetScopeID) }
-
-        let targetURL = self.fileURL(for: targetScopeID)
-        guard legacyURL != targetURL else { return .completed }
-
-        let claimURL = self.legacyClaimURL(for: legacyURL, boundTo: targetScopeID)
-        guard FileManager.default.fileExists(atPath: legacyURL.path)
-            || FileManager.default.fileExists(atPath: claimURL.path)
-        else { return .completed }
-
-        do {
-            try FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
-
-            if FileManager.default.fileExists(atPath: claimURL.path) {
-                let result = self.commitLegacyClaim(at: claimURL, to: targetURL)
-                guard result == .completed else { return result }
-            }
-
-            guard FileManager.default.fileExists(atPath: legacyURL.path) else { return .completed }
-            guard FileManager.default.fileExists(atPath: targetURL.path) else {
-                try FileManager.default.moveItem(at: legacyURL, to: targetURL)
-                return .completed
-            }
-
-            // Consume the globally discoverable name before changing an existing destination.
-            // A failed commit or cleanup can then only be resumed by this destination scope.
-            try FileManager.default.moveItem(at: legacyURL, to: claimURL)
-            return self.commitLegacyClaim(at: claimURL, to: targetURL)
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to migrate favorites: \(error.localizedDescription)")
-            return .requiresReadOnlyRetry
-        }
-    }
-
-    private func commitLegacyClaim(at claimURL: URL, to targetURL: URL) -> LegacyMigrationResult {
-        guard FileManager.default.fileExists(atPath: targetURL.path) else {
-            do {
-                try FileManager.default.moveItem(at: claimURL, to: targetURL)
-                return .completed
-            } catch {
-                DiagnosticsLogger.ui.error("Failed to promote favorites claim: \(error.localizedDescription)")
-                return .requiresReadOnlyRetry
-            }
-        }
-
-        let claimData: Data
-        do {
-            claimData = try Data(contentsOf: claimURL)
-        } catch {
-            DiagnosticsLogger.ui.error("Cannot read legacy favorites claim: \(error.localizedDescription)")
-            return .requiresReadOnlyRetry
-        }
-
-        let claimedItems: [FavoriteItem]
-        do {
-            claimedItems = try JSONDecoder().decode([FavoriteItem].self, from: claimData)
-        } catch {
-            DiagnosticsLogger.ui.error("Deferring malformed legacy favorites claim: \(error.localizedDescription)")
-            return .deferred
-        }
-
-        let existingItems: [FavoriteItem]
-        do {
-            existingItems = try JSONDecoder().decode([FavoriteItem].self, from: Data(contentsOf: targetURL))
-        } catch {
-            DiagnosticsLogger.ui.error("Cannot merge favorites into an invalid target: \(error.localizedDescription)")
-            return .requiresReadOnlyRetry
-        }
-
-        do {
-            try JSONEncoder().encode(Self.merging(existingItems, appending: claimedItems))
-                .write(to: targetURL, options: .atomic)
-            try FileManager.default.removeItem(at: claimURL)
-            return .completed
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to commit favorites claim: \(error.localizedDescription)")
-            return .requiresReadOnlyRetry
-        }
+        return self.store.migrateLegacyFileIfNeeded(from: legacyURL, toScopeID: targetScopeID)
     }
 
     private func canFinalizeScopeMerge(
@@ -634,28 +526,12 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
         }
 
         guard self.materializePendingItemsIfNeeded(for: targetScopeID) else { return false }
-        let targetURL = self.fileURL(for: targetScopeID)
-        if FileManager.default.fileExists(atPath: targetURL.path) {
-            do {
-                _ = try JSONDecoder().decode([FavoriteItem].self, from: Data(contentsOf: targetURL))
-                return true
-            } catch {
-                DiagnosticsLogger.ui.error("Cannot finalize favorites migration with an invalid target: \(error.localizedDescription)")
-                return false
-            }
-        }
-
-        // Empty accounts legitimately have no source, prepared merge, claims, or
-        // target file. They must not block finalization of other migrated scopes.
-        let recoveryURLs = [
-            self.fileURL(for: sourceScopeID),
-            self.preparedMergeURL(for: mergeKey),
-        ] + self.legacyClaimURLs(
-            boundTo: sourceScopeID,
-            legacyAccountID: legacyAccountID
+        return self.store.canFinalizeScopeMerge(
+            from: sourceScopeID,
+            into: targetScopeID,
+            legacyAccountID: legacyAccountID,
+            pendingItemsByScope: self.pendingItemsByScope
         )
-        return self.pendingItemsByScope[sourceScopeID] == nil
-            && recoveryURLs.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) }
     }
 
     private func prepareStoredScopeMerge(
@@ -681,74 +557,12 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
             return true
         }
 
-        let sourceURL = self.fileURL(for: sourceScopeID)
-        let targetURL = self.fileURL(for: targetScopeID)
-        let baselineURL = self.mergeBaselineURL(for: mergeKey)
-        let preparedURL = self.preparedMergeURL(for: mergeKey)
-
-        do {
-            try FileManager.default.createDirectory(at: self.storageDirectory, withIntermediateDirectories: true)
-            var sourceItems: [FavoriteItem]?
-            if let pendingSourceItems = self.pendingItemsByScope[sourceScopeID] {
-                sourceItems = pendingSourceItems
-            } else if FileManager.default.fileExists(atPath: sourceURL.path) {
-                sourceItems = try JSONDecoder().decode(
-                    [FavoriteItem].self,
-                    from: Data(contentsOf: sourceURL)
-                )
-            }
-            for claimURL in self.legacyClaimURLs(
-                boundTo: sourceScopeID,
-                legacyAccountID: legacyAccountID
-            ) where FileManager.default.fileExists(atPath: claimURL.path) {
-                // Claims remain source-owned until owner migration commits and finalizes.
-                let claimItems = try JSONDecoder().decode(
-                    [FavoriteItem].self,
-                    from: Data(contentsOf: claimURL)
-                )
-                sourceItems = Self.merging(sourceItems ?? [], appending: claimItems)
-            }
-            guard let sourceItems else { return true }
-
-            let currentTargetItems: [FavoriteItem] = if let pendingTargetItems = self.pendingItemsByScope[targetScopeID] {
-                pendingTargetItems
-            } else if FileManager.default.fileExists(atPath: targetURL.path) {
-                try JSONDecoder().decode(
-                    [FavoriteItem].self,
-                    from: Data(contentsOf: targetURL)
-                )
-            } else {
-                []
-            }
-
-            let baselineItems: [FavoriteItem]
-            if FileManager.default.fileExists(atPath: baselineURL.path) {
-                baselineItems = try JSONDecoder().decode(
-                    [FavoriteItem].self,
-                    from: Data(contentsOf: baselineURL)
-                )
-            } else {
-                baselineItems = currentTargetItems
-                try JSONEncoder().encode(baselineItems).write(to: baselineURL, options: .atomic)
-            }
-            let previousPreparedItems: [FavoriteItem]? = if FileManager.default.fileExists(atPath: preparedURL.path) {
-                try JSONDecoder().decode([FavoriteItem].self, from: Data(contentsOf: preparedURL))
-            } else {
-                nil
-            }
-            let targetOwnedItems = Self.targetOwnedItems(
-                baselineItems: baselineItems,
-                currentTargetItems: currentTargetItems,
-                previousPreparedItems: previousPreparedItems
-            )
-            try JSONEncoder().encode(targetOwnedItems).write(to: baselineURL, options: .atomic)
-            try JSONEncoder().encode(Self.merging(targetOwnedItems, appending: sourceItems))
-                .write(to: preparedURL, options: .atomic)
-            return true
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to merge favorites scopes: \(error.localizedDescription)")
-            return false
-        }
+        return self.store.prepareScopeMerge(
+            from: sourceScopeID,
+            into: targetScopeID,
+            legacyAccountID: legacyAccountID,
+            pendingItemsByScope: self.pendingItemsByScope
+        )
     }
 
     private func commitPreparedScopeMerge(from sourceScopeID: String, into targetScopeID: String) -> Bool {
@@ -763,21 +577,14 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
             return true
         }
 
-        let preparedURL = self.preparedMergeURL(for: mergeKey)
-        guard FileManager.default.fileExists(atPath: preparedURL.path) else { return true }
-        let targetURL = self.fileURL(for: targetScopeID)
-        do {
-            let preparedData = try Data(contentsOf: preparedURL)
-            try preparedData.write(to: targetURL, options: .atomic)
-            self.pendingItemsByScope.removeValue(forKey: targetScopeID)
-            if self.activeScopeID == targetScopeID {
-                self.load(scopeID: targetScopeID)
-            }
-            return true
-        } catch {
-            DiagnosticsLogger.ui.error("Failed to commit favorites scope merge: \(error.localizedDescription)")
+        guard self.store.commitScopeMerge(from: sourceScopeID, into: targetScopeID) else {
             return false
         }
+        self.pendingItemsByScope.removeValue(forKey: targetScopeID)
+        if self.activeScopeID == targetScopeID {
+            self.load(scopeID: targetScopeID)
+        }
+        return true
     }
 
     private func cleanupPreparedScopeMerge(
@@ -795,35 +602,10 @@ final class FavoritesManager { // swiftlint:disable:this type_body_length
             return true
         }
 
-        var didCleanup = true
-        let cleanupURLs = [
-            self.fileURL(for: sourceScopeID),
-            self.mergeBaselineURL(for: mergeKey),
-            self.preparedMergeURL(for: mergeKey),
-        ] + self.legacyClaimURLs(
-            boundTo: sourceScopeID,
+        return self.store.cleanupScopeMerge(
+            from: sourceScopeID,
+            into: targetScopeID,
             legacyAccountID: legacyAccountID
-        )
-        for url in cleanupURLs where FileManager.default.fileExists(atPath: url.path) {
-            do {
-                try FileManager.default.removeItem(at: url)
-            } catch {
-                didCleanup = false
-                DiagnosticsLogger.ui.error("Failed to clean up migrated favorites scope: \(error.localizedDescription)")
-            }
-        }
-        return didCleanup
-    }
-
-    private func mergeBaselineURL(for key: ScopeMergeKey) -> URL {
-        self.storageDirectory.appendingPathComponent(
-            ".favorites-merge-\(key.sourceScopeID)-to-\(key.targetScopeID)-baseline.json"
-        )
-    }
-
-    private func preparedMergeURL(for key: ScopeMergeKey) -> URL {
-        self.storageDirectory.appendingPathComponent(
-            ".favorites-merge-\(key.sourceScopeID)-to-\(key.targetScopeID)-prepared.json"
         )
     }
 
