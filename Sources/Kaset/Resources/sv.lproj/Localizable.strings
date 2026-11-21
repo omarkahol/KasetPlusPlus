@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"Live\" skiftar färgerna medan videon spelas; de andra förblir oförändrade";
 "%@ %@" = "%1$@ %2$@";
 "%@, %@, %@" = "%1$@, %2$@, %3$@";
@@ -7,7 +8,12 @@
 "%lld" = "%lld";
 "%lld songs" = "%lld låtar";
 "%lld songs listened today" = "%lld låtar lyssnade på idag";
+"1 Hour" = "1 timme";
+"15 Minutes" = "15 minuter";
+"30 Minutes" = "30 minuter";
+"45 Minutes" = "45 minuter";
 "A soft color glow drawn from the video plays behind the player. Applies to YouTube videos, not Music." = "Ett mjukt färgskimmer från videon visas bakom spelaren. Gäller YouTube-videor, inte Music.";
+"A vote is already in progress. Please wait a moment and try again." = "A vote is already in progress. Please wait a moment and try again.";
 "AI responses follow your system language settings." = "AI-svar följer systemets språkinställningar.";
 "AI summary needs macOS 26." = "AI-sammanfattning behöver macOS 26.";
 "About" = "Om";
@@ -50,6 +56,7 @@
 "Apple Intelligence is downloading. This may take a few minutes." = "Apple Intelligence laddas ned. Det kan ta några minuter.";
 "Apple Intelligence is not available" = "Apple Intelligence är inte tillgänglig";
 "Apple Intelligence is ready to use" = "Apple Intelligence är redo att användas";
+"Application ID" = "Application ID";
 "Apply Changes" = "Verkställ ändringar";
 "Artist" = "Artist";
 "Artist not found" = "Artist hittades inte";
@@ -110,6 +117,9 @@
 "Clear the entire queue and stop playback." = "Rensa hela kön och stoppa uppspelningen.";
 "Clearing..." = "Rensar…";
 "Clears the AI session state. Use this if responses seem off or stuck." = "Rensar AI-sessionens tillstånd. Använd detta om svaren verkar felaktiga eller har fastnat.";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch." = "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.";
 "Close" = "Stäng";
 "Close comments" = "Stäng kommentarer";
 "Close side panel" = "Stäng sidopanelen";
@@ -124,12 +134,14 @@
 "Connect" = "Anslut";
 "Connected as %@" = "Ansluten som %@";
 "Connected as %arg" = "Ansluten som %arg";
+"Connected to Discord." = "Connected to Discord.";
 "Content Language" = "Innehållsspråk";
 "Content may not be available in your region." = "Innehållet kanske inte är tillgängligt i din region.";
 "Continue" = "Fortsätt";
 "Continue Watching" = "Fortsätt titta";
 "Control playback with your keyboard" = "Styr uppspelningen med tangentbordet";
 "Could not create AI session" = "Kunde inte skapa AI-session";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
 "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings." = "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings.";
 "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings." = "Det gick inte att fånga Kaset++s ljud (status %d). Kontrollera behörigheten för skärm- och systemljudinspelning i Systeminställningar.";
 "Couldn't configure the audio unit (%lld)." = "Kunde inte konfigurera ljudenheten (%lld).";
@@ -149,13 +161,21 @@
 "Custom" = "Anpassad";
 "Dance" = "Dans";
 "DeArrow" = "DeArrow";
+"DeArrow Titles" = "DeArrow Titles";
+"DeArrow Titles & Voting" = "DeArrow Titles & Voting";
+"DeArrow rejected the vote request." = "DeArrow rejected the vote request.";
+"DeArrow rejected the vote request: %@" = "DeArrow rejected the vote request: %@";
+"DeArrow server returned an error (HTTP %lld)." = "DeArrow server returned an error (HTTP %lld).";
 "Debug" = "Felsökning";
 "Deep" = "Djup";
+"Default" = "Default";
 "Default Page on Launch" = "Standardsida vid start";
 "Delete Playlist…" = "Radera spellista…";
 "Description" = "Beskrivning";
 "Disables Liquid Glass, the Command Bar, and Apple Intelligence UI surfaces until toggled off." = "Stänger av Liquid Glass, kommandofältet och Apple Intelligence-gränssnitt tills det stängs av igen.";
 "Disconnect" = "Koppla från";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
 "Discover" = "Upptäck";
 "Discussion title" = "Diskussionens titel";
 "Dislike" = "Ogilla";
@@ -172,6 +192,7 @@
 "Download" = "Hämta";
 "Download failed. Is yt-dlp installed? Try: brew install yt-dlp" = "Nedladdningen misslyckades. Är yt-dlp installerad? Prova: brygg installera yt-dlp";
 "Downloading" = "Laddar ned";
+"Downvote title" = "Downvote title";
 "Drag to reorder" = "Dra för att ändra ordning";
 "E" = "E";
 "Edit" = "Redigera";
@@ -179,6 +200,7 @@
 "Enable %@ Scrobbling" = "Aktivera %@-scrobbling";
 "Enable AI Features" = "Aktivera AI-funktioner";
 "Enable Apple Intelligence in System Settings to use AI features." = "Aktivera Apple Intelligence i Systeminställningar för att använda AI-funktioner.";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
 "Enable Equalizer" = "Aktivera equalizer";
 "Enable Smart Shuffle" = "Aktivera smart blandning";
 "Enable Synced Lyrics" = "Aktivera synkroniserad sångtext";
@@ -211,6 +233,7 @@
 "Find songs, albums, artists, and playlists" = "Hitta låtar, album, artister och spellistor";
 "Find videos, channels, and playlists." = "Hitta videor, kanaler och spellistor.";
 "Flat" = "Platt";
+"Float on Top" = "Float on Top";
 "Follow artists on YouTube Music to see them here." = "Följ artister i YouTube Music för att se dem här.";
 "For you" = "För dig";
 "Force macOS 15 fallback views and materials while running on macOS 26+ for compatibility debugging" = "Tvingar reservvyer och material från macOS 15 när appen körs på macOS 26+ för kompatibilitetsfelsökning";
@@ -266,6 +289,8 @@
 "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections." = "Kaset++ fungerar utan inloggning för offentlig YouTube-sökning, upptäckt och uppspelning. Logga in för att komma åt personliga videosamlingar.";
 "Kaset++ works without login for public browsing, search, and playback. Sign in to access personal music collections." = "Kaset++ fungerar utan inloggning för offentlig bläddring, sökning och uppspelning. Logga in för att komma åt personliga musiksamlingar.";
 "Keep Mini Player on Top" = "Håll minispelaren överst";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
 "Keep a playing video in a floating window when you leave the page. When off, the video stops instead." = "Behåll en spelande video i ett flytande fönster när du lämnar sidan. När det är av stannar videon i stället.";
 "Keep listening even when the window is closed" = "Fortsätt lyssna även när fönstret är stängt";
 "Keep suggestions queued ahead" = "Håll förslag i kön framför";
@@ -292,6 +317,7 @@
 "Live (follows video)" = "Live (följer videon)";
 "Live stream" = "Livesändning";
 "Load More" = "Läs in fler";
+"Loading DeArrow titles..." = "Loading DeArrow titles...";
 "Loading Playlists…" = "Läser in spellistor…";
 "Loading account" = "Läser in konto";
 "Loading account…" = "Läser in konto…";
@@ -310,6 +336,7 @@
 "Loading your library..." = "Läser in ditt bibliotek…";
 "Loading..." = "Läser in…";
 "Loading…" = "Läser in…";
+"Locked" = "Locked";
 "Loudness" = "Ljudstyrka";
 "Lounge" = "Vardagsrum";
 "Lyrics" = "Sångtext";
@@ -338,6 +365,7 @@
 "Next/Previous Track" = "Nästa/föregående spår";
 "No Connection" = "Ingen anslutning";
 "No Content Available" = "Inget innehåll tillgängligt";
+"No DeArrow Titles" = "No DeArrow Titles";
 "No Extensions Added" = "Inga tillägg har lagts till";
 "No Lyrics Available" = "Ingen sångtext tillgänglig";
 "No Moods & Genres Available" = "Inga stämningar och genrer tillgängliga";
@@ -352,6 +380,7 @@
 "No captions available to summarize this video." = "Inga bildtexter tillgängliga för att sammanfatta denna video.";
 "No changes suggested. The playlist looks good!" = "Inga ändringar föreslagna. Spellistan ser bra ut!";
 "No comments yet." = "Inga kommentarer än.";
+"No community titles have been submitted for this video yet." = "No community titles have been submitted for this video yet.";
 "No discussions yet" = "Inga diskussioner ännu";
 "No formats available. Is yt-dlp installed?" = "Inga format tillgängliga. Är yt-dlp installerad?";
 "No history" = "Ingen historik";
@@ -399,10 +428,13 @@
 "Open queue in side panel" = "Öppna kön i sidopanelen";
 "Open the command bar to control music with natural language. Try saying \"play something chill\" or \"add jazz to queue\"." = "Öppna kommandofältet för att styra musik med naturligt språk. Prova att säga \"play something chill\" eller \"add jazz to queue\".";
 "Options…" = "Alternativ…";
+"Original" = "Original";
 "Original Kaset" = "Original Kaset";
+"Original YouTube Title" = "Original YouTube Title";
 "Output" = "Utgång";
 "Outro" = "Outro";
 "Pause" = "Pausa";
+"Paused" = "Paused";
 "Paused:" = "Pausad:";
 "Permission needed" = "Behörighet krävs";
 "Piano" = "Piano";
@@ -448,9 +480,11 @@
 "Profile" = "Profil";
 "Profiles" = "Profiler";
 "Provide tactile feedback for actions on Force Touch trackpads" = "Ge taktil feedback för åtgärder på Force Touch-styrplattor";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
 "Queue" = "Kö";
 "Quick Access" = "Snabbåtkomst";
 "R&B" = "R&B";
+"Received an invalid response from DeArrow." = "Received an invalid response from DeArrow.";
 "Redo" = "Gör om";
 "Redo the last undone queue change." = "Gör om den senast ångrade köändringen.";
 "Refine" = "Förfina";
@@ -484,6 +518,7 @@
 "Retry Loading Playlists" = "Försök läsa in spellistor igen";
 "Return YouTube Dislikes" = "Returnera YouTube Ogillningar";
 "Return to Kaset++" = "Återgå till Kaset++";
+"Return to video" = "Return to video";
 "Rock" = "Sten";
 "Romanize Lyrics" = "Romanisera sångtext";
 "Save albums on YouTube Music to see them here." = "Spara album i YouTube Music för att se dem här.";
@@ -492,6 +527,8 @@
 "Save shuffle and repeat settings across app restarts" = "Spara inställningar för blandning och upprepning mellan omstarter";
 "Save the current queue as a new private playlist." = "Spara den aktuella kön som en ny privat spellista.";
 "Save to Playlist" = "Spara i spellista";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
 "Saving queue as playlist…" = "Sparar kön som spellista…";
 "Scrobbling" = "Scrobbling";
 "Scroll %@ left" = "Rulla %1$@ åt vänster";
@@ -535,6 +572,7 @@
 "Show original title" = "Visa originaltitel";
 "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom." = "Visa uppspelningskontroller överlagrade på videon (på hovrar) istället för i den dockade baren längst ned.";
 "Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics" = "Visa romaniserad text (romaji, pinyin m.m.) under icke-latinsk sångtext";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
 "Showing" = "Visar";
 "Shows dislike counts on videos." = "Visar olika konton på videor.";
 "Shuffle" = "Blanda";
@@ -558,6 +596,7 @@
 "Singles & EPs" = "Singlar och EP";
 "Skip Forward/Backward" = "Hoppa framåt/bakåt";
 "Skipped" = "Överhoppad";
+"Sleep Timer" = "Sovtimer";
 "Small Speakers" = "Små högtalare";
 "Smart" = "Smart";
 "Smart Shuffle" = "Smart blandning";
@@ -616,6 +655,7 @@
 "Try asking:" = "Prova att fråga:";
 "Try commands like:" = "Prova kommandon som:";
 "Try searching for something else" = "Prova att söka efter något annat";
+"Turn Off Sleep Timer" = "Stäng av sovtimer";
 "Unable to determine availability" = "Kunde inte fastställa tillgänglighet";
 "Unable to load artist" = "Kunde inte läsa in artist";
 "Unable to load content" = "Kunde inte läsa in innehåll";
@@ -633,6 +673,7 @@
 "Upload songs to YouTube Music to browse them here." = "Ladda upp låtar till YouTube Music för att bläddra bland dem här.";
 "Uploads" = "Uppladdningar";
 "Upvote the ideas that matter to you" = "Uppmuntra de idéer som är viktiga för dig";
+"Upvote title" = "Upvote title";
 "Use Legacy macOS 15 UI" = "Använd legacy-gränssnitt för macOS 15";
 "Verification isn’t available yet." = "Verifieringen är inte tillgänglig ännu.";
 "Verified — thank you! 💗" = "Verifierat — tack! 💗";
@@ -655,6 +696,9 @@
 "Volume" = "Volym";
 "Volume Down" = "Sänk volym";
 "Volume Up" = "Höj volym";
+"Voting is not permitted for this title." = "Voting is not permitted for this title.";
+"Voting is not permitted for this title: %@" = "Voting is not permitted for this title: %@";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";
 "Waiting for authorization…" = "Väntar på auktorisering…";
 "Waiting for playback" = "Väntar på uppspelning";
 "Watch Later" = "Titta senare";
@@ -665,6 +709,7 @@
 "What would you like to do with your queue?" = "Vad vill du göra med din kö?";
 "What would you like to do?" = "Vad vill du göra?";
 "What's New in Kaset++" = "Nytt i Kaset++";
+"When Current Song Ends" = "När aktuell låt tar slut";
 "When enabled, Kaset++ can add richer queue analysis, AI-powered playlist refinement, and lyrics explanations." = "När det är aktiverat kan Kaset++ lägga till mer omfattande köanalys, AI-driven förfining av spellistor och förklaringar av sångtext.";
 "When enabled, you can use natural language commands, AI-powered playlist refinement, and lyrics explanations." = "När det är aktiverat kan du använda kommandon på naturligt språk, AI-driven förfining av spellistor och förklaringar av sångtext.";
 "When off, navigating back from a playing video stops it instead of opening the floating player. The pop-out and full-view buttons still work." = "När det är avstängt stoppas en spelande video när du går tillbaka i stället för att öppna den flytande spelaren. Knapparna för pop-out och full vy fungerar fortfarande.";
@@ -683,35 +728,3 @@
 "yt-dlp not found." = "yt-dlp hittades inte.";
 "•" = "•";
 "⌘K" = "<unk> K";
-
-/* Sleep Timer */
-"Sleep Timer" = "Sovtimer";
-"15 Minutes" = "15 minuter";
-"30 Minutes" = "30 minuter";
-"45 Minutes" = "45 minuter";
-"1 Hour" = "1 timme";
-"When Current Song Ends" = "När aktuell låt tar slut";
-"Turn Off Sleep Timer" = "Stäng av sovtimer";
-
-/* Synced missing keys from Localizable.xcstrings */
-"" = "";
-"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
-"Application ID" = "Application ID";
-"Click to collapse" = "Click to collapse";
-"Click to show the full description" = "Click to show the full description";
-"Connected to Discord." = "Connected to Discord.";
-"Could not reach Discord: %@" = "Could not reach Discord: %@";
-"Default" = "Default";
-"Discord Rich Presence" = "Discord Rich Presence";
-"Discord refused the connection: %@" = "Discord refused the connection: %@";
-"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
-"Float on Top" = "Float on Top";
-"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
-"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
-"Paused" = "Paused";
-"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
-"Return to video" = "Return to video";
-"Save to library" = "Save to library";
-"Saved" = "Saved";
-"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
-"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

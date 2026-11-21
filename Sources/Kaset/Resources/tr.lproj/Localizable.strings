@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"Canlı\", video oynatıldıkça renkleri değiştirir; diğerleri sabit kalır";
 "%@ %@" = "%1$@ %2$@";
 "%@, %@, %@" = "%1$@, %2$@, %3$@";
@@ -7,7 +8,12 @@
 "%lld" = "%lld";
 "%lld songs" = "%lld şarkı";
 "%lld songs listened today" = "Bugün %lld şarkı dinlendi";
+"1 Hour" = "1 Saat";
+"15 Minutes" = "15 Dakika";
+"30 Minutes" = "30 Dakika";
+"45 Minutes" = "45 Dakika";
 "A soft color glow drawn from the video plays behind the player. Applies to YouTube videos, not Music." = "Oynatıcının arkasında videodan alınan yumuşak bir renk parıltısı görünür. YouTube videoları için geçerlidir, Music için değil.";
+"A vote is already in progress. Please wait a moment and try again." = "A vote is already in progress. Please wait a moment and try again.";
 "AI responses follow your system language settings." = "Yapay zeka yanıtları sistem dil ayarlarınıza uyar.";
 "AI summary needs macOS 26." = "AI summary needs macOS 26.";
 "About" = "Hakkında";
@@ -50,6 +56,7 @@
 "Apple Intelligence is downloading. This may take a few minutes." = "Apple Intelligence indiriliyor. Bu işlem birkaç dakika sürebilir.";
 "Apple Intelligence is not available" = "Apple Intelligence kullanılamıyor";
 "Apple Intelligence is ready to use" = "Apple Intelligence kullanıma hazır";
+"Application ID" = "Application ID";
 "Apply Changes" = "Değişiklikleri Uygula";
 "Artist" = "Sanatçı";
 "Artist not found" = "Sanatçı bulunamadı";
@@ -110,6 +117,9 @@
 "Clear the entire queue and stop playback." = "Tüm kuyruğu temizleyin ve oynatmayı durdurun.";
 "Clearing..." = "Temizleniyor...";
 "Clears the AI session state. Use this if responses seem off or stuck." = "Yapay zeka oturum durumunu temizler. Yanıtlar garip görünüyorsa veya takılı kaldıysa bunu kullanın.";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch." = "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.";
 "Close" = "Kapat";
 "Close comments" = "Close comments";
 "Close side panel" = "Yan paneli kapat";
@@ -124,12 +134,14 @@
 "Connect" = "Bağlan";
 "Connected as %@" = "%@ olarak bağlı";
 "Connected as %arg" = "Connected as %arg";
+"Connected to Discord." = "Connected to Discord.";
 "Content Language" = "İçerik Dili";
 "Content may not be available in your region." = "İçerik bölgenizde kullanılamıyor olabilir.";
 "Continue" = "Devam Et";
 "Continue Watching" = "İzlemeye devam et";
 "Control playback with your keyboard" = "Oynatmayı klavyenizle denetleyin";
 "Could not create AI session" = "Yapay zeka oturumu oluşturulamadı";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
 "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings." = "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings.";
 "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings." = "Kaset++'in sesi yakalanamadı (durum %d). Sistem Ayarları'nda Ekran ve Sistem Sesi Kaydı iznini denetleyin.";
 "Couldn't configure the audio unit (%lld)." = "Ses birimi yapılandırılamadı (%lld).";
@@ -149,13 +161,21 @@
 "Custom" = "Özel";
 "Dance" = "Dans";
 "DeArrow" = "DeArrow";
+"DeArrow Titles" = "DeArrow Titles";
+"DeArrow Titles & Voting" = "DeArrow Titles & Voting";
+"DeArrow rejected the vote request." = "DeArrow rejected the vote request.";
+"DeArrow rejected the vote request: %@" = "DeArrow rejected the vote request: %@";
+"DeArrow server returned an error (HTTP %lld)." = "DeArrow server returned an error (HTTP %lld).";
 "Debug" = "Hata Ayıklama";
 "Deep" = "Derin";
+"Default" = "Default";
 "Default Page on Launch" = "Açılışta Varsayılan Sayfa";
 "Delete Playlist…" = "Çalma listesini sil…";
 "Description" = "Description";
 "Disables Liquid Glass, the Command Bar, and Apple Intelligence UI surfaces until toggled off." = "Kapatılana kadar Liquid Glass'ı, Komut Çubuğu'nu ve Apple Intelligence arayüzlerini devre dışı bırakır.";
 "Disconnect" = "Bağlantıyı Kes";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
 "Discover" = "Keşif";
 "Discussion title" = "Discussion title";
 "Dislike" = "Olumsuz Oy";
@@ -172,6 +192,7 @@
 "Download" = "Download";
 "Download failed. Is yt-dlp installed? Try: brew install yt-dlp" = "Download failed. Is yt-dlp installed? Try: brew install yt-dlp";
 "Downloading" = "İndiriliyor";
+"Downvote title" = "Downvote title";
 "Drag to reorder" = "Yeniden sıralamak için sürükleyin";
 "E" = "E";
 "Edit" = "Düzenle";
@@ -179,6 +200,7 @@
 "Enable %@ Scrobbling" = "%@ Scrobbling'i Etkinleştir";
 "Enable AI Features" = "Yapay Zeka Özelliklerini Etkinleştir";
 "Enable Apple Intelligence in System Settings to use AI features." = "Yapay zeka özelliklerini kullanmak için Sistem Ayarları'nda Apple Intelligence'ı etkinleştirin.";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
 "Enable Equalizer" = "Ekolayzırı Etkinleştir";
 "Enable Smart Shuffle" = "Akıllı Karıştırmayı Etkinleştir";
 "Enable Synced Lyrics" = "Senkronize Şarkı Sözlerini Etkinleştir";
@@ -211,6 +233,7 @@
 "Find songs, albums, artists, and playlists" = "Şarkıları, albümleri, sanatçıları ve çalma listelerini bulun";
 "Find videos, channels, and playlists." = "Videoları, kanalları ve oynatma listelerini bulun.";
 "Flat" = "Düz";
+"Float on Top" = "Float on Top";
 "Follow artists on YouTube Music to see them here." = "Burada görmek için YouTube Music'te sanatçıları takip edin.";
 "For you" = "Senin için";
 "Force macOS 15 fallback views and materials while running on macOS 26+ for compatibility debugging" = "Uyumluluk hatalarını ayıklamak için macOS 26+ üzerinde çalışırken macOS 15 yedek görünümlerini ve materyallerini zorlar";
@@ -266,6 +289,8 @@
 "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections." = "Kaset++, herkese açık YouTube araması, keşif ve oynatma için giriş yapmadan çalışır. Kişisel video koleksiyonlarına erişmek için giriş yapın.";
 "Kaset++ works without login for public browsing, search, and playback. Sign in to access personal music collections." = "Kaset++, herkese açık gezinme, arama ve oynatma için giriş yapmadan çalışır. Kişisel müzik koleksiyonlarına erişmek için giriş yapın.";
 "Keep Mini Player on Top" = "Mini Oynatıcıyı Üstte Tut";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
 "Keep a playing video in a floating window when you leave the page. When off, the video stops instead." = "Sayfadan ayrıldığınızda oynatılan videoyu kayan bir pencerede tutar. Kapalıysa video bunun yerine durur.";
 "Keep listening even when the window is closed" = "Pencere kapalıyken bile dinlemeye devam edin";
 "Keep suggestions queued ahead" = "Önerileri ileride kuyrukta tut";
@@ -292,6 +317,7 @@
 "Live (follows video)" = "Canlı (videoyu izler)";
 "Live stream" = "Canlı yayın";
 "Load More" = "Daha Fazla Yükle";
+"Loading DeArrow titles..." = "Loading DeArrow titles...";
 "Loading Playlists…" = "Çalma listeleri yükleniyor…";
 "Loading account" = "Hesap yükleniyor";
 "Loading account…" = "Hesap yükleniyor…";
@@ -310,6 +336,7 @@
 "Loading your library..." = "Kitaplığınız yükleniyor...";
 "Loading..." = "Yükleniyor...";
 "Loading…" = "Yükleniyor…";
+"Locked" = "Locked";
 "Loudness" = "Yüksek Ses";
 "Lounge" = "Lounge";
 "Lyrics" = "Şarkı Sözleri";
@@ -338,6 +365,7 @@
 "Next/Previous Track" = "Sonraki/Önceki Parça";
 "No Connection" = "Bağlantı Yok";
 "No Content Available" = "İçerik Yok";
+"No DeArrow Titles" = "No DeArrow Titles";
 "No Extensions Added" = "Hiç uzantı eklenmedi";
 "No Lyrics Available" = "Şarkı Sözü Yok";
 "No Moods & Genres Available" = "Ruh Halleri ve Türler Yok";
@@ -352,6 +380,7 @@
 "No captions available to summarize this video." = "No captions available to summarize this video.";
 "No changes suggested. The playlist looks good!" = "Herhangi bir değişiklik önerilmedi. Çalma listesi iyi görünüyor!";
 "No comments yet." = "Henüz yorum yok.";
+"No community titles have been submitted for this video yet." = "No community titles have been submitted for this video yet.";
 "No discussions yet" = "No discussions yet";
 "No formats available. Is yt-dlp installed?" = "No formats available. Is yt-dlp installed?";
 "No history" = "Geçmiş yok";
@@ -399,10 +428,13 @@
 "Open queue in side panel" = "Sırayı yan panelde aç";
 "Open the command bar to control music with natural language. Try saying \"play something chill\" or \"add jazz to queue\"." = "Müziği doğal dille kontrol etmek için Komut Çubuğu'nu açın. \"play something chill\" veya \"add jazz to queue\" demeyi deneyin.";
 "Options…" = "Seçenekler…";
+"Original" = "Original";
 "Original Kaset" = "Original Kaset";
+"Original YouTube Title" = "Original YouTube Title";
 "Output" = "Çıkış";
 "Outro" = "Outro";
 "Pause" = "Duraklat";
+"Paused" = "Paused";
 "Paused:" = "Paused:";
 "Permission needed" = "İzin gerekli";
 "Piano" = "Piyano";
@@ -448,9 +480,11 @@
 "Profile" = "Profil";
 "Profiles" = "Profiller";
 "Provide tactile feedback for actions on Force Touch trackpads" = "Force Touch izleme dörtgenlerindeki eylemler için dokunsal geri bildirim sağlar";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
 "Queue" = "Sıra";
 "Quick Access" = "Hızlı Erişim";
 "R&B" = "R&B";
+"Received an invalid response from DeArrow." = "Received an invalid response from DeArrow.";
 "Redo" = "Yinele";
 "Redo the last undone queue change." = "Son geri alınan kuyruk değişikliğini yinele.";
 "Refine" = "İyileştir";
@@ -484,6 +518,7 @@
 "Retry Loading Playlists" = "Çalma listelerini yeniden yüklemeyi dene";
 "Return YouTube Dislikes" = "Return YouTube Dislikes";
 "Return to Kaset++" = "Kaset++'e dön";
+"Return to video" = "Return to video";
 "Rock" = "Rock";
 "Romanize Lyrics" = "Şarkı Sözlerini Romanize Et";
 "Save albums on YouTube Music to see them here." = "Burada görmek için YouTube Music'te albümleri kaydedin.";
@@ -492,6 +527,8 @@
 "Save shuffle and repeat settings across app restarts" = "Uygulama yeniden başlatıldığında karıştırma ve tekrar ayarlarını koru";
 "Save the current queue as a new private playlist." = "Geçerli kuyruğu yeni bir özel oynatma listesi olarak kaydet.";
 "Save to Playlist" = "Çalma listesine kaydet";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
 "Saving queue as playlist…" = "Kuyruk çalma listesi olarak kaydediliyor…";
 "Scrobbling" = "Scrobbling";
 "Scroll %@ left" = "%1$@ sola kaydır";
@@ -535,6 +572,7 @@
 "Show original title" = "Show original title";
 "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom." = "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom.";
 "Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics" = "Latin olmayan şarkı sözlerinin altında romanize metni (romaji, pinyin vb.) göster";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
 "Showing" = "Gösteriliyor";
 "Shows dislike counts on videos." = "Shows dislike counts on videos.";
 "Shuffle" = "Karıştır";
@@ -558,6 +596,7 @@
 "Singles & EPs" = "Single'lar ve EP'ler";
 "Skip Forward/Backward" = "İleri/Geri Atla";
 "Skipped" = "Skipped";
+"Sleep Timer" = "Uyku Zamanlayıcısı";
 "Small Speakers" = "Küçük Hoparlörler";
 "Smart" = "Akıllı";
 "Smart Shuffle" = "Akıllı Karıştırma";
@@ -616,6 +655,7 @@
 "Try asking:" = "Şunu sormayı deneyin:";
 "Try commands like:" = "Şunun gibi komutlar deneyin:";
 "Try searching for something else" = "Başka bir şey aramayı deneyin";
+"Turn Off Sleep Timer" = "Uyku Zamanlayıcısını Kapat";
 "Unable to determine availability" = "Kullanılabilirlik belirlenemedi";
 "Unable to load artist" = "Sanatçı yüklenemedi";
 "Unable to load content" = "İçerik yüklenemedi";
@@ -633,6 +673,7 @@
 "Upload songs to YouTube Music to browse them here." = "Şarkıları burada göz atmak için YouTube Music'e yükleyin.";
 "Uploads" = "Yüklemeler";
 "Upvote the ideas that matter to you" = "Upvote the ideas that matter to you";
+"Upvote title" = "Upvote title";
 "Use Legacy macOS 15 UI" = "macOS 15 Eski Arayüzünü Kullan";
 "Verification isn’t available yet." = "Verification isn’t available yet.";
 "Verified — thank you! 💗" = "Verified — thank you! 💗";
@@ -655,6 +696,9 @@
 "Volume" = "Ses";
 "Volume Down" = "Sesi Azalt";
 "Volume Up" = "Sesi Artır";
+"Voting is not permitted for this title." = "Voting is not permitted for this title.";
+"Voting is not permitted for this title: %@" = "Voting is not permitted for this title: %@";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";
 "Waiting for authorization…" = "Yetkilendirme bekleniyor…";
 "Waiting for playback" = "Oynatma bekleniyor";
 "Watch Later" = "Daha Sonra İzle";
@@ -665,6 +709,7 @@
 "What would you like to do with your queue?" = "Sıranızla ne yapmak istersiniz?";
 "What would you like to do?" = "Ne yapmak istersiniz?";
 "What's New in Kaset++" = "Kaset++'teki Yenilikler";
+"When Current Song Ends" = "Mevcut Şarkı Bittiğinde";
 "When enabled, Kaset++ can add richer queue analysis, AI-powered playlist refinement, and lyrics explanations." = "Etkinleştirildiğinde Kaset++; daha zengin kuyruk analizi, yapay zeka destekli çalma listesi iyileştirmesi ve şarkı sözü açıklamaları ekleyebilir.";
 "When enabled, you can use natural language commands, AI-powered playlist refinement, and lyrics explanations." = "Etkinleştirildiğinde doğal dil komutlarını, yapay zeka destekli çalma listesi iyileştirmeyi ve şarkı sözü açıklamalarını kullanabilirsiniz.";
 "When off, navigating back from a playing video stops it instead of opening the floating player. The pop-out and full-view buttons still work." = "Kapalıyken, oynatılan bir videodan geri gitmek kayan oynatıcıyı açmak yerine videoyu durdurur. Açılır pencere ve tam görünüm düğmeleri yine de çalışır.";
@@ -683,35 +728,3 @@
 "yt-dlp not found." = "yt-dlp not found.";
 "•" = "•";
 "⌘K" = "⌘K";
-
-/* Sleep Timer */
-"Sleep Timer" = "Uyku Zamanlayıcısı";
-"15 Minutes" = "15 Dakika";
-"30 Minutes" = "30 Dakika";
-"45 Minutes" = "45 Dakika";
-"1 Hour" = "1 Saat";
-"When Current Song Ends" = "Mevcut Şarkı Bittiğinde";
-"Turn Off Sleep Timer" = "Uyku Zamanlayıcısını Kapat";
-
-/* Synced missing keys from Localizable.xcstrings */
-"" = "";
-"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
-"Application ID" = "Application ID";
-"Click to collapse" = "Click to collapse";
-"Click to show the full description" = "Click to show the full description";
-"Connected to Discord." = "Connected to Discord.";
-"Could not reach Discord: %@" = "Could not reach Discord: %@";
-"Default" = "Default";
-"Discord Rich Presence" = "Discord Rich Presence";
-"Discord refused the connection: %@" = "Discord refused the connection: %@";
-"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
-"Float on Top" = "Float on Top";
-"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
-"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
-"Paused" = "Paused";
-"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
-"Return to video" = "Return to video";
-"Save to library" = "Save to library";
-"Saved" = "Saved";
-"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
-"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

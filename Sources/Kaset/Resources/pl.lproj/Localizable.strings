@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"Na żywo\" zmienia kolory oświetlenia podczas odtwarzania filmu; pozostałe tryby mają stałe oświetlenie";
 "%@ %@" = "%1$@ %2$@";
 "%@, %@, %@" = "%1$@ %2$@, %3$@";
@@ -7,7 +8,12 @@
 "%lld" = "%lld";
 "%lld songs" = "%lld utworów";
 "%lld songs listened today" = "Dziś przesłuchano %lld utworów";
+"1 Hour" = "1 godzina";
+"15 Minutes" = "15 minut";
+"30 Minutes" = "30 minut";
+"45 Minutes" = "45 minut";
 "A soft color glow drawn from the video plays behind the player. Applies to YouTube videos, not Music." = "Za odtwarzaczem pojawia się delikatna poświata w kolorze odtwarzanego filmu. Dotyczy to filmów YouTube, nie Muzyki.";
+"A vote is already in progress. Please wait a moment and try again." = "A vote is already in progress. Please wait a moment and try again.";
 "AI responses follow your system language settings." = "Odpowiedzi AI są w języku systemowym, który został przez ciebie ustawiony.";
 "AI summary needs macOS 26." = "Podsumowanie AI wymaga macOS 26.";
 "About" = "O aplikacji";
@@ -50,6 +56,7 @@
 "Apple Intelligence is downloading. This may take a few minutes." = "Pobieranie Apple Intelligence. Może to potrwać parę minut.";
 "Apple Intelligence is not available" = "Apple Intelligence jest niedostępne";
 "Apple Intelligence is ready to use" = "Apple Intelligence jest gotowe do używania";
+"Application ID" = "Application ID";
 "Apply Changes" = "Zapisz Zmiany";
 "Artist" = "Artysta";
 "Artist not found" = "Nie znaleziono artysty";
@@ -110,6 +117,9 @@
 "Clear the entire queue and stop playback." = "Wyczyść całą kolejkę i zatrzymaj odtwarzanie.";
 "Clearing..." = "Czyszczenie...";
 "Clears the AI session state. Use this if responses seem off or stuck." = "Czyści stan sesji AI. Użyj tego, jeśli odpowiedzi wydają się nieprawidłowe lub utknęły.";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch." = "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.";
 "Close" = "Zamknij";
 "Close comments" = "Zamknij sekcje komentarzy";
 "Close side panel" = "Zamknij panel boczny";
@@ -124,12 +134,14 @@
 "Connect" = "Połącz";
 "Connected as %@" = "Połączono jako %@";
 "Connected as %arg" = "Połączono jako %arg";
+"Connected to Discord." = "Connected to Discord.";
 "Content Language" = "Język treści";
 "Content may not be available in your region." = "Ta treść może być niedostępna w Twoim regionie.";
 "Continue" = "Kontynuuj";
 "Continue Watching" = "Kontynuuj oglądanie";
 "Control playback with your keyboard" = "Kontroluj odtwarzacz za pomocą klawiatury";
 "Could not create AI session" = "Nie udało się utworzyć sesji AI";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
 "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings." = "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings.";
 "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings." = "Nie udało się przechwycić dźwięku Kaset++ (stan %d). Sprawdź uprawnienie Nagrywanie ekranu i dźwięku systemowego w Ustawieniach systemowych.";
 "Couldn't configure the audio unit (%lld)." = "Nie udało się skonfigurować jednostki audio (%lld).";
@@ -149,13 +161,21 @@
 "Custom" = "Własne";
 "Dance" = "Taniec";
 "DeArrow" = "Strzała";
+"DeArrow Titles" = "DeArrow Titles";
+"DeArrow Titles & Voting" = "DeArrow Titles & Voting";
+"DeArrow rejected the vote request." = "DeArrow rejected the vote request.";
+"DeArrow rejected the vote request: %@" = "DeArrow rejected the vote request: %@";
+"DeArrow server returned an error (HTTP %lld)." = "DeArrow server returned an error (HTTP %lld).";
 "Debug" = "Debugowanie";
 "Deep" = "Głębokie";
+"Default" = "Default";
 "Default Page on Launch" = "Domyślna strona po uruchomieniu";
 "Delete Playlist…" = "Usuń playlistę…";
 "Description" = "Opis";
 "Disables Liquid Glass, the Command Bar, and Apple Intelligence UI surfaces until toggled off." = "Wyłącza Liquid Glass, pasek poleceń i interfejs UI Apple Intelligence, dopóki opcja ta nie zostanie wyłączona.";
 "Disconnect" = "Rozłącz";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
 "Discover" = "Odkrywaj";
 "Discussion title" = "Tytuł dyskusji";
 "Dislike" = "Nie podoba mi się";
@@ -172,6 +192,7 @@
 "Download" = "Pobierz";
 "Download failed. Is yt-dlp installed? Try: brew install yt-dlp" = "Pobieranie się nie powiodło. Czy zainstalowałeś yt-dlp? Komenda: brew install yt-dlp";
 "Downloading" = "Pobieranie";
+"Downvote title" = "Downvote title";
 "Drag to reorder" = "Przeciągnij, aby zmienić kolejność";
 "E" = "E";
 "Edit" = "Edytuj";
@@ -179,6 +200,7 @@
 "Enable %@ Scrobbling" = "Włącz Scrobbling %@";
 "Enable AI Features" = "Włącz funkcje AI";
 "Enable Apple Intelligence in System Settings to use AI features." = "Włącz Apple Intelligence w Ustawieniach systemowych, aby skorzystać z funkcji AI.";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
 "Enable Equalizer" = "Włącz korektor dźwięku";
 "Enable Smart Shuffle" = "Włącz inteligentne losowanie";
 "Enable Synced Lyrics" = "Włącz synchronizacje tekstu";
@@ -211,6 +233,7 @@
 "Find songs, albums, artists, and playlists" = "Znajdź utwory, albumy, artystów i playlisty";
 "Find videos, channels, and playlists." = "Znajdź filmy, kanały i playlisty.";
 "Flat" = "Płaski";
+"Float on Top" = "Float on Top";
 "Follow artists on YouTube Music to see them here." = "Obserwuj swoich ulubionych artystów w YouTube Music, aby zobaczyć ich tutaj.";
 "For you" = "Dla Ciebie";
 "Force macOS 15 fallback views and materials while running on macOS 26+ for compatibility debugging" = "Wymusza użycie awaryjnych widoków i materiałów z systemu macOS 15 podczas używania macOS 26+ do celów debugowania kompatybilności";
@@ -266,6 +289,8 @@
 "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections." = "Kaset++ działa bez logowania więc możesz używać wyszukiwarki, odkrywać i odtwarzać media z YouTube. Zaloguj się, aby uzyskać dostęp do osobistych kolekcji wideo.";
 "Kaset++ works without login for public browsing, search, and playback. Sign in to access personal music collections." = "Kaset++ działa bez logowania więc możesz używać wyszukiwarki, odkrywać i odtwarzać media z YouTube. Zaloguj się, aby uzyskać dostęp do osobistych kolekcji wideo.";
 "Keep Mini Player on Top" = "Tworzy miniodtwarzacz na wierzchu ekranu";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
 "Keep a playing video in a floating window when you leave the page. When off, the video stops instead." = "Odtwarza film w miniodtwarzaczu po opuszczeniu strony filmu. Gdy opcja jest wyłączona, film automatycznie się zatrzyma.";
 "Keep listening even when the window is closed" = "Kontynuuj słuchanie nawet po zamknięciu okna";
 "Keep suggestions queued ahead" = "Utrzymuj sugestie w kolejce przed";
@@ -292,6 +317,7 @@
 "Live (follows video)" = "Na żywo (podąża za filmem)";
 "Live stream" = "Transmisja na żywo";
 "Load More" = "Wczytaj więcej";
+"Loading DeArrow titles..." = "Loading DeArrow titles...";
 "Loading Playlists…" = "Wczytywanie playlist…";
 "Loading account" = "Wczytywanie konta";
 "Loading account…" = "Wczytywanie konta…";
@@ -310,6 +336,7 @@
 "Loading your library..." = "Wczytywanie Twojej biblioteki…";
 "Loading..." = "Wczytywanie…";
 "Loading…" = "Wczytywanie…";
+"Locked" = "Locked";
 "Loudness" = "Głośność";
 "Lounge" = "Góra";
 "Lyrics" = "Tekst";
@@ -338,6 +365,7 @@
 "Next/Previous Track" = "Następny/poprzedni utwór";
 "No Connection" = "Brak połączenia";
 "No Content Available" = "Brak dostępnych treści";
+"No DeArrow Titles" = "No DeArrow Titles";
 "No Extensions Added" = "Nie dodano żadnych rozszerzeń";
 "No Lyrics Available" = "Brak dostępnego tekstu";
 "No Moods & Genres Available" = "Brak dostępnych nastrojów i gatunków";
@@ -352,6 +380,7 @@
 "No captions available to summarize this video." = "Brak napisów do podsumowania tego filmu.";
 "No changes suggested. The playlist looks good!" = "Nie zaproponowano zmian. Playlista wygląda dobrze!";
 "No comments yet." = "Nie ma jeszcze komentarzy.";
+"No community titles have been submitted for this video yet." = "No community titles have been submitted for this video yet.";
 "No discussions yet" = "Brak dyskusji";
 "No formats available. Is yt-dlp installed?" = "Brak dostępnych formatów. Czy zainstalowany jest yt-dlp?";
 "No history" = "Brak historii";
@@ -399,10 +428,13 @@
 "Open queue in side panel" = "Otwórz kolejkę w panelu bocznym";
 "Open the command bar to control music with natural language. Try saying \"play something chill\" or \"add jazz to queue\"." = "Otwórz pasek poleceń, aby sterować muzyką językiem naturalnym. Spróbuj powiedzieć \"play something chill\" albo \"add jazz to queue\".";
 "Options…" = "Opcje…";
+"Original" = "Original";
 "Original Kaset" = "Original Kaset";
+"Original YouTube Title" = "Original YouTube Title";
 "Output" = "Wyjście";
 "Outro" = "Outro";
 "Pause" = "Wstrzymaj";
+"Paused" = "Paused";
 "Paused:" = "Wstrzymane:";
 "Permission needed" = "Wymagane uprawnienie";
 "Piano" = "Pianina";
@@ -448,9 +480,11 @@
 "Profile" = "Profil";
 "Profiles" = "Profile";
 "Provide tactile feedback for actions on Force Touch trackpads" = "Zapewniaj dotykową informację zwrotną dla działań na gładzikach Force Touch";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
 "Queue" = "Kolejka";
 "Quick Access" = "Szybki dostęp";
 "R&B" = "R&B";
+"Received an invalid response from DeArrow." = "Received an invalid response from DeArrow.";
 "Redo" = "Ponów";
 "Redo the last undone queue change." = "Ponów ostatnią cofniętą zmianę w kolejce.";
 "Refine" = "Dopracuj";
@@ -484,6 +518,7 @@
 "Retry Loading Playlists" = "Ponów wczytywanie playlist";
 "Return YouTube Dislikes" = "Zwróć nielubi YouTube";
 "Return to Kaset++" = "Wróć do Kaset++";
+"Return to video" = "Return to video";
 "Rock" = "Skała";
 "Romanize Lyrics" = "Romanizuj tekst";
 "Save albums on YouTube Music to see them here." = "Zapisuj albumy w YouTube Music, aby zobaczyć je tutaj.";
@@ -492,6 +527,8 @@
 "Save shuffle and repeat settings across app restarts" = "Zapisuj ustawienia losowania i powtarzania między ponownymi uruchomieniami aplikacji";
 "Save the current queue as a new private playlist." = "Zapisz bieżącą kolejkę jako nową prywatną playlistę.";
 "Save to Playlist" = "Zapisz do playlisty";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
 "Saving queue as playlist…" = "Zapisywanie kolejki jako playlisty…";
 "Scrobbling" = "Scrobbling";
 "Scroll %@ left" = "Przewiń %1$@ w lewo";
@@ -535,6 +572,7 @@
 "Show original title" = "Pokaż oryginalny tytuł";
 "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom." = "Pokaż przyciski odtwarzania nakładane na wideo (po najechaniu na kursor) zamiast na pasku zadokowanym u doku.";
 "Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics" = "Pokazuj zromanizowany tekst (romaji, pinyin itp.) pod tekstami w nielacińskim piśmie";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
 "Showing" = "Wyświetlanie";
 "Shows dislike counts on videos." = "Pokazuje zniżki na filmach.";
 "Shuffle" = "Losowo";
@@ -558,6 +596,7 @@
 "Singles & EPs" = "Single i EP-ki";
 "Skip Forward/Backward" = "Przewiń do przodu/do tyłu";
 "Skipped" = "Pominięto";
+"Sleep Timer" = "Wyłącznik czasowy";
 "Small Speakers" = "Małe głośniki";
 "Smart" = "Inteligentne";
 "Smart Shuffle" = "Inteligentne losowanie";
@@ -616,6 +655,7 @@
 "Try asking:" = "Spróbuj zapytać:";
 "Try commands like:" = "Wypróbuj polecenia takie jak:";
 "Try searching for something else" = "Spróbuj wyszukać coś innego";
+"Turn Off Sleep Timer" = "Wyłącz wyłącznik czasowy";
 "Unable to determine availability" = "Nie można określić dostępności";
 "Unable to load artist" = "Nie można wczytać artysty";
 "Unable to load content" = "Nie można wczytać treści";
@@ -633,6 +673,7 @@
 "Upload songs to YouTube Music to browse them here." = "Prześlij utwory do YouTube Music, aby przeglądać je tutaj.";
 "Uploads" = "Przesłane";
 "Upvote the ideas that matter to you" = "Zagłosuj na pomysły, które są dla Ciebie ważne";
+"Upvote title" = "Upvote title";
 "Use Legacy macOS 15 UI" = "Użyj starszego interfejsu macOS 15";
 "Verification isn’t available yet." = "Weryfikacja nie jest jeszcze dostępna.";
 "Verified — thank you! 💗" = "Zweryfikowano — dziękuję! 💗";
@@ -655,6 +696,9 @@
 "Volume" = "Głośność";
 "Volume Down" = "Ścisz";
 "Volume Up" = "Podgłośnij";
+"Voting is not permitted for this title." = "Voting is not permitted for this title.";
+"Voting is not permitted for this title: %@" = "Voting is not permitted for this title: %@";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";
 "Waiting for authorization…" = "Oczekiwanie na autoryzację…";
 "Waiting for playback" = "Oczekiwanie na odtwarzanie";
 "Watch Later" = "Obejrzyj później";
@@ -665,6 +709,7 @@
 "What would you like to do with your queue?" = "Co chcesz zrobić ze swoją kolejką?";
 "What would you like to do?" = "Co chcesz zrobić?";
 "What's New in Kaset++" = "Co nowego w Kaset++";
+"When Current Song Ends" = "Po zakończeniu bieżącego utworu";
 "When enabled, Kaset++ can add richer queue analysis, AI-powered playlist refinement, and lyrics explanations." = "Po włączeniu Kaset++ może dodawać bogatszą analizę kolejki, dopracowywanie playlist wspomagane przez AI i wyjaśnienia tekstów.";
 "When enabled, you can use natural language commands, AI-powered playlist refinement, and lyrics explanations." = "Po włączeniu możesz używać poleceń w języku naturalnym, dopracowywania playlist wspomaganego przez AI i wyjaśnień tekstów.";
 "When off, navigating back from a playing video stops it instead of opening the floating player. The pop-out and full-view buttons still work." = "Gdy opcja jest wyłączona, cofnięcie się z odtwarzanego filmu zatrzymuje go zamiast otwierać pływający odtwarzacz. Przyciski wysunięcia i pełnego widoku nadal działają.";
@@ -683,35 +728,3 @@
 "yt-dlp not found." = "yt-dlp nie znaleziony.";
 "•" = "•";
 "⌘K" = "<unk> K";
-
-/* Sleep Timer */
-"Sleep Timer" = "Wyłącznik czasowy";
-"15 Minutes" = "15 minut";
-"30 Minutes" = "30 minut";
-"45 Minutes" = "45 minut";
-"1 Hour" = "1 godzina";
-"When Current Song Ends" = "Po zakończeniu bieżącego utworu";
-"Turn Off Sleep Timer" = "Wyłącz wyłącznik czasowy";
-
-/* Synced missing keys from Localizable.xcstrings */
-"" = "";
-"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
-"Application ID" = "Application ID";
-"Click to collapse" = "Click to collapse";
-"Click to show the full description" = "Click to show the full description";
-"Connected to Discord." = "Connected to Discord.";
-"Could not reach Discord: %@" = "Could not reach Discord: %@";
-"Default" = "Default";
-"Discord Rich Presence" = "Discord Rich Presence";
-"Discord refused the connection: %@" = "Discord refused the connection: %@";
-"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
-"Float on Top" = "Float on Top";
-"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
-"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
-"Paused" = "Paused";
-"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
-"Return to video" = "Return to video";
-"Save to library" = "Save to library";
-"Saved" = "Saved";
-"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
-"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

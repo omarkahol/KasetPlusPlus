@@ -127009,6 +127009,1824 @@
           }
         }
       }
+    },
+    "DeArrow Titles": {
+      "comment": "Title of the DeArrow Titles & Voting window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles"
+          }
+        }
+      }
+    },
+    "DeArrow Titles & Voting": {
+      "comment": "Tooltip and accessibility label for the DeArrow titles button next to a video title.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow Titles & Voting"
+          }
+        }
+      }
+    },
+    "Original YouTube Title": {
+      "comment": "Header eyebrow in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original YouTube Title"
+          }
+        }
+      }
+    },
+    "Loading DeArrow titles...": {
+      "comment": "Loading indicator label in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Loading DeArrow titles..."
+          }
+        }
+      }
+    },
+    "No DeArrow Titles": {
+      "comment": "Empty state title in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No DeArrow Titles"
+          }
+        }
+      }
+    },
+    "No community titles have been submitted for this video yet.": {
+      "comment": "Empty state description in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "No community titles have been submitted for this video yet."
+          }
+        }
+      }
+    },
+    "Upvote title": {
+      "comment": "Tooltip and accessibility label for the upvote button in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Upvote title"
+          }
+        }
+      }
+    },
+    "Downvote title": {
+      "comment": "Tooltip and accessibility label for the downvote button in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Downvote title"
+          }
+        }
+      }
+    },
+    "Original": {
+      "comment": "Badge label for the original YouTube title in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original"
+          }
+        }
+      }
+    },
+    "Locked": {
+      "comment": "Badge label for a locked DeArrow title in the DeArrow Titles window.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Locked"
+          }
+        }
+      }
+    },
+    "DeArrow rejected the vote request: %@": {
+      "comment": "Error message when DeArrow returns HTTP 400 with a detail message.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request: %@"
+          }
+        }
+      }
+    },
+    "DeArrow rejected the vote request.": {
+      "comment": "Error message when DeArrow returns HTTP 400 without a detail message.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow rejected the vote request."
+          }
+        }
+      }
+    },
+    "Voting is not permitted for this title: %@": {
+      "comment": "Error message when DeArrow returns HTTP 403 with a detail message.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title: %@"
+          }
+        }
+      }
+    },
+    "Voting is not permitted for this title.": {
+      "comment": "Error message when DeArrow returns HTTP 403 without a detail message.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Voting is not permitted for this title."
+          }
+        }
+      }
+    },
+    "A vote is already in progress. Please wait a moment and try again.": {
+      "comment": "Error message when DeArrow returns HTTP 429.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "A vote is already in progress. Please wait a moment and try again."
+          }
+        }
+      }
+    },
+    "DeArrow server returned an error (HTTP %lld).": {
+      "comment": "Error message when DeArrow returns an unexpected HTTP status code.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "DeArrow server returned an error (HTTP %lld)."
+          }
+        }
+      }
+    },
+    "Received an invalid response from DeArrow.": {
+      "comment": "Error message when DeArrow returns an invalid response.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Received an invalid response from DeArrow."
+          }
+        }
+      }
+    },
+    "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.": {
+      "comment": "Settings -> Addons -> DeArrow section footer.",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "pt": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch."
+          }
+        }
+      }
     }
   },
   "version": "1.1"

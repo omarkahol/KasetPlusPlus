@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"실시간\"은 비디오 재생에 따라 색상이 변하고, 다른 옵션은 고정됩니다";
 "%@ %@" = "%1$@ %2$@";
 "%@, %@, %@" = "%1$@, %2$@, %3$@";
@@ -7,7 +8,12 @@
 "%lld" = "%lld";
 "%lld songs" = "%lld곡";
 "%lld songs listened today" = "오늘 %lld곡 감상";
+"1 Hour" = "1시간";
+"15 Minutes" = "15분";
+"30 Minutes" = "30분";
+"45 Minutes" = "45분";
 "A soft color glow drawn from the video plays behind the player. Applies to YouTube videos, not Music." = "비디오에서 가져온 부드러운 색상 빛이 플레이어 뒤에 표시됩니다. YouTube 동영상에만 적용되며 Music에는 적용되지 않습니다.";
+"A vote is already in progress. Please wait a moment and try again." = "A vote is already in progress. Please wait a moment and try again.";
 "AI responses follow your system language settings." = "AI 응답은 시스템 언어 설정을 따릅니다.";
 "AI summary needs macOS 26." = "AI summary needs macOS 26.";
 "About" = "정보";
@@ -50,6 +56,7 @@
 "Apple Intelligence is downloading. This may take a few minutes." = "Apple Intelligence를 다운로드하는 중입니다. 몇 분 정도 걸릴 수 있습니다.";
 "Apple Intelligence is not available" = "Apple Intelligence를 사용할 수 없음";
 "Apple Intelligence is ready to use" = "Apple Intelligence를 사용할 준비가 되었습니다";
+"Application ID" = "Application ID";
 "Apply Changes" = "변경사항 적용";
 "Artist" = "아티스트";
 "Artist not found" = "아티스트를 찾을 수 없음";
@@ -110,6 +117,9 @@
 "Clear the entire queue and stop playback." = "전체 대기열을 지우고 재생을 중지합니다.";
 "Clearing..." = "지우는 중...";
 "Clears the AI session state. Use this if responses seem off or stuck." = "AI 세션 상태를 지웁니다. 응답이 이상하거나 멈춘 것 같으면 사용하세요.";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch." = "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.";
 "Close" = "닫기";
 "Close comments" = "Close comments";
 "Close side panel" = "사이드 패널 닫기";
@@ -124,12 +134,14 @@
 "Connect" = "연결";
 "Connected as %@" = "%@로 연결됨";
 "Connected as %arg" = "Connected as %arg";
+"Connected to Discord." = "Connected to Discord.";
 "Content Language" = "콘텐츠 언어";
 "Content may not be available in your region." = "해당 지역에서 콘텐츠를 사용하지 못할 수 있습니다.";
 "Continue" = "계속";
 "Continue Watching" = "계속 시청";
 "Control playback with your keyboard" = "키보드로 재생을 제어하세요";
 "Could not create AI session" = "AI 세션을 생성할 수 없음";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
 "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings." = "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings.";
 "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings." = "Kaset++의 오디오를 캡처할 수 없습니다(상태 %d). 시스템 설정에서 화면 및 시스템 오디오 녹음 권한을 확인하세요.";
 "Couldn't configure the audio unit (%lld)." = "오디오 유닛을 구성할 수 없습니다 (%lld).";
@@ -149,13 +161,21 @@
 "Custom" = "사용자 지정";
 "Dance" = "댄스";
 "DeArrow" = "DeArrow";
+"DeArrow Titles" = "DeArrow Titles";
+"DeArrow Titles & Voting" = "DeArrow Titles & Voting";
+"DeArrow rejected the vote request." = "DeArrow rejected the vote request.";
+"DeArrow rejected the vote request: %@" = "DeArrow rejected the vote request: %@";
+"DeArrow server returned an error (HTTP %lld)." = "DeArrow server returned an error (HTTP %lld).";
 "Debug" = "디버그";
 "Deep" = "딥";
+"Default" = "Default";
 "Default Page on Launch" = "실행 시 기본 페이지";
 "Delete Playlist…" = "재생목록 삭제…";
 "Description" = "Description";
 "Disables Liquid Glass, the Command Bar, and Apple Intelligence UI surfaces until toggled off." = "끄기 전까지 Liquid Glass, Command Bar 및 Apple Intelligence UI 요소를 비활성화합니다.";
 "Disconnect" = "연결 해제";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
 "Discover" = "둘러보기";
 "Discussion title" = "Discussion title";
 "Dislike" = "싫어요";
@@ -172,6 +192,7 @@
 "Download" = "Download";
 "Download failed. Is yt-dlp installed? Try: brew install yt-dlp" = "Download failed. Is yt-dlp installed? Try: brew install yt-dlp";
 "Downloading" = "다운로드 중";
+"Downvote title" = "Downvote title";
 "Drag to reorder" = "드래그하여 순서 변경";
 "E" = "E";
 "Edit" = "편집";
@@ -179,6 +200,7 @@
 "Enable %@ Scrobbling" = "%@ 스크로블링 사용";
 "Enable AI Features" = "AI 기능 활성화";
 "Enable Apple Intelligence in System Settings to use AI features." = "AI 기능을 사용하려면 시스템 설정에서 Apple Intelligence를 활성화하세요.";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
 "Enable Equalizer" = "이퀄라이저 사용";
 "Enable Smart Shuffle" = "스마트 셔플 사용";
 "Enable Synced Lyrics" = "실시간 가사 활성화";
@@ -211,6 +233,7 @@
 "Find songs, albums, artists, and playlists" = "노래, 앨범, 아티스트, 재생목록 찾기";
 "Find videos, channels, and playlists." = "동영상, 채널 및 재생목록을 찾으세요.";
 "Flat" = "플랫";
+"Float on Top" = "Float on Top";
 "Follow artists on YouTube Music to see them here." = "여기에서 보려면 YouTube Music에서 아티스트를 구독하세요.";
 "For you" = "추천";
 "Force macOS 15 fallback views and materials while running on macOS 26+ for compatibility debugging" = "호환성 디버깅을 위해 macOS 26+에서 실행 중일 때 macOS 15 대체 보기와 머티리얼을 강제로 사용합니다";
@@ -266,6 +289,8 @@
 "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections." = "Kaset++은 로그인 없이 공개 YouTube 검색, 탐색 및 재생을 사용할 수 있습니다. 개인 동영상 모음을 보려면 로그인하세요.";
 "Kaset++ works without login for public browsing, search, and playback. Sign in to access personal music collections." = "Kaset++은 로그인 없이 공개 탐색, 검색 및 재생을 사용할 수 있습니다. 개인 음악 모음을 보려면 로그인하세요.";
 "Keep Mini Player on Top" = "미니 플레이어를 항상 위에 표시";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
 "Keep a playing video in a floating window when you leave the page. When off, the video stops instead." = "페이지를 벗어나도 재생 중인 비디오를 떠 있는 윈도우에 유지합니다. 끄면 대신 비디오가 중지됩니다.";
 "Keep listening even when the window is closed" = "창이 닫혀도 계속 재생";
 "Keep suggestions queued ahead" = "미리 대기열에 유지할 추천";
@@ -292,6 +317,7 @@
 "Live (follows video)" = "실시간(비디오에 따라 변경)";
 "Live stream" = "실시간 스트림";
 "Load More" = "더 보기";
+"Loading DeArrow titles..." = "Loading DeArrow titles...";
 "Loading Playlists…" = "재생목록 불러오는 중…";
 "Loading account" = "계정 불러오는 중";
 "Loading account…" = "계정 불러오는 중…";
@@ -310,6 +336,7 @@
 "Loading your library..." = "보관함 로드 중...";
 "Loading..." = "로드 중...";
 "Loading…" = "불러오는 중…";
+"Locked" = "Locked";
 "Loudness" = "라우드니스";
 "Lounge" = "라운지";
 "Lyrics" = "가사";
@@ -338,6 +365,7 @@
 "Next/Previous Track" = "다음/이전 트랙";
 "No Connection" = "연결 없음";
 "No Content Available" = "사용 가능한 콘텐츠 없음";
+"No DeArrow Titles" = "No DeArrow Titles";
 "No Extensions Added" = "추가된 확장 프로그램 없음";
 "No Lyrics Available" = "가사 없음";
 "No Moods & Genres Available" = "분위기 및 장르 없음";
@@ -352,6 +380,7 @@
 "No captions available to summarize this video." = "No captions available to summarize this video.";
 "No changes suggested. The playlist looks good!" = "변경 사항이 없습니다. 재생목록이 좋아 보여요!";
 "No comments yet." = "아직 댓글이 없습니다.";
+"No community titles have been submitted for this video yet." = "No community titles have been submitted for this video yet.";
 "No discussions yet" = "No discussions yet";
 "No formats available. Is yt-dlp installed?" = "No formats available. Is yt-dlp installed?";
 "No history" = "기록 없음";
@@ -399,10 +428,13 @@
 "Open queue in side panel" = "사이드 패널에서 대기열 열기";
 "Open the command bar to control music with natural language. Try saying \"play something chill\" or \"add jazz to queue\"." = "자연어로 음악을 제어하려면 명령 막대를 여세요. \"play something chill\" 또는 \"add jazz to queue\"라고 말해 보세요.";
 "Options…" = "옵션…";
+"Original" = "Original";
 "Original Kaset" = "Original Kaset";
+"Original YouTube Title" = "Original YouTube Title";
 "Output" = "출력";
 "Outro" = "Outro";
 "Pause" = "일시중지";
+"Paused" = "Paused";
 "Paused:" = "Paused:";
 "Permission needed" = "권한 필요";
 "Piano" = "피아노";
@@ -448,9 +480,11 @@
 "Profile" = "프로필";
 "Profiles" = "프로필";
 "Provide tactile feedback for actions on Force Touch trackpads" = "Force Touch 트랙패드에서 동작에 대한 햅틱 피드백 제공";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
 "Queue" = "대기열";
 "Quick Access" = "빠른 액세스";
 "R&B" = "R&B";
+"Received an invalid response from DeArrow." = "Received an invalid response from DeArrow.";
 "Redo" = "다시 실행";
 "Redo the last undone queue change." = "마지막으로 실행 취소한 대기열 변경을 다시 적용합니다.";
 "Refine" = "다듬기";
@@ -484,6 +518,7 @@
 "Retry Loading Playlists" = "재생목록 다시 불러오기";
 "Return YouTube Dislikes" = "Return YouTube Dislikes";
 "Return to Kaset++" = "Kaset++으로 돌아가기";
+"Return to video" = "Return to video";
 "Rock" = "록";
 "Romanize Lyrics" = "가사 로마자 표시";
 "Save albums on YouTube Music to see them here." = "여기에서 보려면 YouTube Music에서 앨범을 저장하세요.";
@@ -492,6 +527,8 @@
 "Save shuffle and repeat settings across app restarts" = "앱을 다시 시작해도 셔플 및 반복 설정 유지";
 "Save the current queue as a new private playlist." = "현재 대기열을 새 비공개 재생목록으로 저장합니다.";
 "Save to Playlist" = "재생목록에 저장";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
 "Saving queue as playlist…" = "대기열을 재생목록으로 저장하는 중…";
 "Scrobbling" = "스크로블링";
 "Scroll %@ left" = "%1$@ 왼쪽으로 스크롤";
@@ -535,6 +572,7 @@
 "Show original title" = "Show original title";
 "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom." = "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom.";
 "Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics" = "비라틴 가사 아래에 로마자 표기(로마지, 병음 등) 표시";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
 "Showing" = "표시 중";
 "Shows dislike counts on videos." = "Shows dislike counts on videos.";
 "Shuffle" = "셔플";
@@ -558,6 +596,7 @@
 "Singles & EPs" = "싱글 및 EP";
 "Skip Forward/Backward" = "앞으로/뒤로 건너뛰기";
 "Skipped" = "Skipped";
+"Sleep Timer" = "취침 타이머";
 "Small Speakers" = "소형 스피커";
 "Smart" = "스마트";
 "Smart Shuffle" = "스마트 셔플";
@@ -616,6 +655,7 @@
 "Try asking:" = "이렇게 질문해 보세요:";
 "Try commands like:" = "다음과 같은 명령을 시도해 보세요:";
 "Try searching for something else" = "다른 항목을 검색해 보세요";
+"Turn Off Sleep Timer" = "취침 타이머 끄기";
 "Unable to determine availability" = "사용 가능 여부를 확인할 수 없음";
 "Unable to load artist" = "아티스트를 로드할 수 없음";
 "Unable to load content" = "콘텐츠를 로드할 수 없음";
@@ -633,6 +673,7 @@
 "Upload songs to YouTube Music to browse them here." = "노래를 YouTube Music에 업로드하면 여기에서 둘러볼 수 있습니다.";
 "Uploads" = "업로드";
 "Upvote the ideas that matter to you" = "Upvote the ideas that matter to you";
+"Upvote title" = "Upvote title";
 "Use Legacy macOS 15 UI" = "macOS 15 레거시 UI 사용";
 "Verification isn’t available yet." = "Verification isn’t available yet.";
 "Verified — thank you! 💗" = "Verified — thank you! 💗";
@@ -655,6 +696,9 @@
 "Volume" = "볼륨";
 "Volume Down" = "볼륨 줄이기";
 "Volume Up" = "볼륨 높이기";
+"Voting is not permitted for this title." = "Voting is not permitted for this title.";
+"Voting is not permitted for this title: %@" = "Voting is not permitted for this title: %@";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";
 "Waiting for authorization…" = "인증 대기 중…";
 "Waiting for playback" = "재생 대기 중";
 "Watch Later" = "나중에 볼 동영상";
@@ -665,6 +709,7 @@
 "What would you like to do with your queue?" = "대기열로 무엇을 하시겠습니까?";
 "What would you like to do?" = "무엇을 하시겠습니까?";
 "What's New in Kaset++" = "Kaset++의 새로운 기능";
+"When Current Song Ends" = "현재 노래가 끝나면";
 "When enabled, Kaset++ can add richer queue analysis, AI-powered playlist refinement, and lyrics explanations." = "활성화하면 Kaset++이 더 풍부한 대기열 분석, AI 기반 재생목록 개선, 가사 설명을 추가할 수 있습니다.";
 "When enabled, you can use natural language commands, AI-powered playlist refinement, and lyrics explanations." = "활성화하면 자연어 명령, AI 기반 재생목록 다듬기, 가사 설명을 사용할 수 있습니다.";
 "When off, navigating back from a playing video stops it instead of opening the floating player. The pop-out and full-view buttons still work." = "끄면 재생 중인 비디오에서 뒤로 이동할 때 떠 있는 플레이어가 열리는 대신 비디오가 중지됩니다. 팝아웃 및 전체 보기 버튼은 계속 작동합니다.";
@@ -683,35 +728,3 @@
 "yt-dlp not found." = "yt-dlp not found.";
 "•" = "•";
 "⌘K" = "⌘K";
-
-/* Sleep Timer */
-"Sleep Timer" = "취침 타이머";
-"15 Minutes" = "15분";
-"30 Minutes" = "30분";
-"45 Minutes" = "45분";
-"1 Hour" = "1시간";
-"When Current Song Ends" = "현재 노래가 끝나면";
-"Turn Off Sleep Timer" = "취침 타이머 끄기";
-
-/* Synced missing keys from Localizable.xcstrings */
-"" = "";
-"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
-"Application ID" = "Application ID";
-"Click to collapse" = "Click to collapse";
-"Click to show the full description" = "Click to show the full description";
-"Connected to Discord." = "Connected to Discord.";
-"Could not reach Discord: %@" = "Could not reach Discord: %@";
-"Default" = "Default";
-"Discord Rich Presence" = "Discord Rich Presence";
-"Discord refused the connection: %@" = "Discord refused the connection: %@";
-"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
-"Float on Top" = "Float on Top";
-"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
-"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
-"Paused" = "Paused";
-"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
-"Return to video" = "Return to video";
-"Save to library" = "Save to library";
-"Saved" = "Saved";
-"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
-"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

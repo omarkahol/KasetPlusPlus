@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"Live\" mengubah warna saat video diputar; yang lain tetap konstan";
 "%@ %@" = "%1$@ %2$@";
 "%@, %@, %@" = "%1$@, %2$@, %3$@";
@@ -7,7 +8,12 @@
 "%lld" = "%lld";
 "%lld songs" = "%lld lagu";
 "%lld songs listened today" = "%lld lagu yang didengarkan hari ini";
+"1 Hour" = "1 Jam";
+"15 Minutes" = "15 Menit";
+"30 Minutes" = "30 Menit";
+"45 Minutes" = "45 Menit";
 "A soft color glow drawn from the video plays behind the player. Applies to YouTube videos, not Music." = "Menampilkan cahaya warna lembut dari video di belakang pemutar. Berlaku untuk video YouTube, bukan Music.";
+"A vote is already in progress. Please wait a moment and try again." = "A vote is already in progress. Please wait a moment and try again.";
 "AI responses follow your system language settings." = "Respons AI mengikuti pengaturan bahasa sistem Anda.";
 "AI summary needs macOS 26." = "Ringkasan AI membutuhkan macOS 26.";
 "About" = "Tentang";
@@ -50,6 +56,7 @@
 "Apple Intelligence is downloading. This may take a few minutes." = "Apple Intelligence sedang diunduh. Ini mungkin memakan waktu beberapa menit.";
 "Apple Intelligence is not available" = "Apple Intelligence tidak tersedia";
 "Apple Intelligence is ready to use" = "Apple Intelligence siap digunakan";
+"Application ID" = "Application ID";
 "Apply Changes" = "Terapkan Perubahan";
 "Artist" = "Artis";
 "Artist not found" = "Artis tidak ditemukan";
@@ -110,6 +117,9 @@
 "Clear the entire queue and stop playback." = "Kosongkan seluruh antrean dan hentikan pemutaran.";
 "Clearing..." = "Membersihkan...";
 "Clears the AI session state. Use this if responses seem off or stuck." = "Menghapus status sesi AI. Gunakan ini jika respons tampak aneh atau macet.";
+"Click to collapse" = "Click to collapse";
+"Click to show the full description" = "Click to show the full description";
+"Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch." = "Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.";
 "Close" = "Tutup";
 "Close comments" = "Tutup komentar";
 "Close side panel" = "Tutup panel samping";
@@ -124,12 +134,14 @@
 "Connect" = "Hubungkan";
 "Connected as %@" = "Terhubung sebagai %@";
 "Connected as %arg" = "Terhubung sebagai %arg";
+"Connected to Discord." = "Connected to Discord.";
 "Content Language" = "Bahasa Konten";
 "Content may not be available in your region." = "Konten mungkin tidak tersedia di wilayah Anda.";
 "Continue" = "Lanjutkan";
 "Continue Watching" = "Lanjutkan Menonton";
 "Control playback with your keyboard" = "Kendalikan pemutaran dengan keyboard Anda";
 "Could not create AI session" = "Tidak dapat membuat sesi AI";
+"Could not reach Discord: %@" = "Could not reach Discord: %@";
 "Couldn't capture Kaset++'s audio (status %arg). Check Screen & System Audio Recording permission in System Settings." = "Tidak dapat menangkap audio Kaset++ (status %arg). Periksa izin Rekaman Layar & Audio Sistem di Pengaturan Sistem.";
 "Couldn't capture Kaset++'s audio (status %d). Check Screen & System Audio Recording permission in System Settings." = "Tidak dapat menangkap audio Kaset++ (status %d). Periksa izin Perekaman Layar & Audio Sistem di Pengaturan Sistem.";
 "Couldn't configure the audio unit (%lld)." = "Tidak dapat mengonfigurasi unit audio (%lld).";
@@ -149,13 +161,21 @@
 "Custom" = "Kustom";
 "Dance" = "Dance";
 "DeArrow" = "DeArrow";
+"DeArrow Titles" = "DeArrow Titles";
+"DeArrow Titles & Voting" = "DeArrow Titles & Voting";
+"DeArrow rejected the vote request." = "DeArrow rejected the vote request.";
+"DeArrow rejected the vote request: %@" = "DeArrow rejected the vote request: %@";
+"DeArrow server returned an error (HTTP %lld)." = "DeArrow server returned an error (HTTP %lld).";
 "Debug" = "Debuh";
 "Deep" = "Kedalaman";
+"Default" = "Default";
 "Default Page on Launch" = "Halaman Default Saat Buka";
 "Delete Playlist…" = "Hapus Playlist…";
 "Description" = "Deskripsi";
 "Disables Liquid Glass, the Command Bar, and Apple Intelligence UI surfaces until toggled off." = "Menonaktifkan Liquid Glass, Command Bar, dan permukaan UI Apple Intelligence sampai dimatikan kembali.";
 "Disconnect" = "Putuskan";
+"Discord Rich Presence" = "Discord Rich Presence";
+"Discord refused the connection: %@" = "Discord refused the connection: %@";
 "Discover" = "Jelajahi";
 "Discussion title" = "Judul diskusi";
 "Dislike" = "Tidak suka";
@@ -172,6 +192,7 @@
 "Download" = "Unduh";
 "Download failed. Is yt-dlp installed? Try: brew install yt-dlp" = "Unduhan gagal. Apakah yt-dlp sudah terpasang? Coba jalankan: brew install yt-dlp";
 "Downloading" = "Mengunduh";
+"Downvote title" = "Downvote title";
 "Drag to reorder" = "Seret untuk mengurutkan ulang";
 "E" = "E";
 "Edit" = "Edit";
@@ -179,6 +200,7 @@
 "Enable %@ Scrobbling" = "Aktifkan Scrobbling %@";
 "Enable AI Features" = "Aktifkan Fitur AI";
 "Enable Apple Intelligence in System Settings to use AI features." = "Aktifkan Apple Intelligence di Pengaturan Sistem untuk menggunakan fitur AI.";
+"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
 "Enable Equalizer" = "Aktifkan Equalizer";
 "Enable Smart Shuffle" = "Aktifkan Acak Cerdas";
 "Enable Synced Lyrics" = "Aktifkan Lirik Tersinkron";
@@ -211,6 +233,7 @@
 "Find songs, albums, artists, and playlists" = "Temukan lagu, album, artis, dan daftar putar";
 "Find videos, channels, and playlists." = "Temukan video, channel, dan playlist.";
 "Flat" = "Datar";
+"Float on Top" = "Float on Top";
 "Follow artists on YouTube Music to see them here." = "Ikuti artis di YouTube Music untuk melihatnya di sini.";
 "For you" = "Untuk Anda";
 "Force macOS 15 fallback views and materials while running on macOS 26+ for compatibility debugging" = "Paksa tampilan dan material fallback macOS 15 saat berjalan di macOS 26+ untuk debugging kompatibilitas";
@@ -266,6 +289,8 @@
 "Kaset++ works without login for public YouTube search, discovery, and playback. Sign in to access personal video collections." = "Kaset++ berfungsi tanpa login untuk pencarian, penemuan, dan pemutaran YouTube publik. Masuk untuk mengakses koleksi video pribadi.";
 "Kaset++ works without login for public browsing, search, and playback. Sign in to access personal music collections." = "Kaset++ berfungsi tanpa login untuk penelusuran, pencarian, dan pemutaran publik. Masuk untuk mengakses koleksi musik pribadi.";
 "Keep Mini Player on Top" = "Tampilkan Mini Player di Atas";
+"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
+"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
 "Keep a playing video in a floating window when you leave the page. When off, the video stops instead." = "Pertahankan video yang sedang diputar di jendela mengambang saat Anda meninggalkan halaman. Jika nonaktif, video akan berhenti.";
 "Keep listening even when the window is closed" = "Lanjutkan mendengarkan meski jendela ditutup";
 "Keep suggestions queued ahead" = "Simpan saran dalam antrean di depan";
@@ -292,6 +317,7 @@
 "Live (follows video)" = "Live (mengikuti video)";
 "Live stream" = "Siaran Langsung";
 "Load More" = "Muat Lainnya";
+"Loading DeArrow titles..." = "Loading DeArrow titles...";
 "Loading Playlists…" = "Memuat Playlist…";
 "Loading account" = "Memuat akun";
 "Loading account…" = "Memuat akun…";
@@ -310,6 +336,7 @@
 "Loading your library..." = "Memuat pustaka Anda...";
 "Loading..." = "Memuat...";
 "Loading…" = "Memuat…";
+"Locked" = "Locked";
 "Loudness" = "Kekerasan suara";
 "Lounge" = "Ruang tunggu";
 "Lyrics" = "Lirik";
@@ -338,6 +365,7 @@
 "Next/Previous Track" = "Lagu Berikutnya/Sebelumnya";
 "No Connection" = "Tidak Ada Koneksi";
 "No Content Available" = "Tidak Ada Konten";
+"No DeArrow Titles" = "No DeArrow Titles";
 "No Extensions Added" = "Belum ada ekstensi yang ditambahkan";
 "No Lyrics Available" = "Tidak Ada Lirik";
 "No Moods & Genres Available" = "Tidak Ada Suasana & Genre";
@@ -352,6 +380,7 @@
 "No captions available to summarize this video." = "Tidak ditemukan caption untuk meringkas video ini.";
 "No changes suggested. The playlist looks good!" = "Tidak ada perubahan yang disarankan. Daftar putar sudah bagus!";
 "No comments yet." = "Belum ada komentar.";
+"No community titles have been submitted for this video yet." = "No community titles have been submitted for this video yet.";
 "No discussions yet" = "Belum ada diskusi";
 "No formats available. Is yt-dlp installed?" = "Tidak ada format tersedia. Apakah yt-dlp sudah terinstal?";
 "No history" = "Tidak ada riwayat";
@@ -399,10 +428,13 @@
 "Open queue in side panel" = "Buka antrean di panel samping";
 "Open the command bar to control music with natural language. Try saying \"play something chill\" or \"add jazz to queue\"." = "Buka Command Bar untuk mengontrol musik dengan bahasa alami. Coba ucapkan \"play something chill\" atau \"add jazz to queue\".";
 "Options…" = "Opsi…";
+"Original" = "Original";
 "Original Kaset" = "Original Kaset";
+"Original YouTube Title" = "Original YouTube Title";
 "Output" = "Keluaran";
 "Outro" = "Outro";
 "Pause" = "Jeda";
+"Paused" = "Paused";
 "Paused:" = "Dihentikan:";
 "Permission needed" = "Izin diperlukan";
 "Piano" = "Piano";
@@ -448,9 +480,11 @@
 "Profile" = "Profil";
 "Profiles" = "Profil";
 "Provide tactile feedback for actions on Force Touch trackpads" = "Berikan umpan balik haptik untuk tindakan di trackpad Force Touch";
+"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
 "Queue" = "Antrean";
 "Quick Access" = "Akses Cepat";
 "R&B" = "R&B";
+"Received an invalid response from DeArrow." = "Received an invalid response from DeArrow.";
 "Redo" = "Ulangi";
 "Redo the last undone queue change." = "Ulangi perubahan antrean terakhir yang dibatalkan.";
 "Refine" = "Sempurnakan";
@@ -484,6 +518,7 @@
 "Retry Loading Playlists" = "Coba Lagi Memuat Playlist";
 "Return YouTube Dislikes" = "Menampilkan kembali jumlah Dislikes YouTube";
 "Return to Kaset++" = "Kembali ke Kaset++";
+"Return to video" = "Return to video";
 "Rock" = "Rock";
 "Romanize Lyrics" = "Romanisasi Lirik";
 "Save albums on YouTube Music to see them here." = "Simpan album di YouTube Music untuk melihatnya di sini.";
@@ -492,6 +527,8 @@
 "Save shuffle and repeat settings across app restarts" = "Simpan pengaturan acak dan ulangi setelah aplikasi dimulai ulang";
 "Save the current queue as a new private playlist." = "Simpan antrean saat ini sebagai playlist pribadi baru.";
 "Save to Playlist" = "Simpan ke Playlist";
+"Save to library" = "Save to library";
+"Saved" = "Saved";
 "Saving queue as playlist…" = "Menyimpan antrean sebagai playlist…";
 "Scrobbling" = "Scrobbling";
 "Scroll %@ left" = "Gulir %1$@ ke kiri";
@@ -535,6 +572,7 @@
 "Show original title" = "Tampilkan judul asli";
 "Show playback controls overlaid on the video (on hover) instead of in the docked bar at the bottom." = "Tampilkan kontrol pemutaran di atas video (saat kursor diarahkan), bukan di baris bawah.";
 "Show romanized text (romaji, pinyin, etc.) below non-Latin lyrics" = "Tampilkan teks romanisasi (romaji, pinyin, dll.) di bawah lirik non-Latin";
+"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
 "Showing" = "Menampilkan";
 "Shows dislike counts on videos." = "Tampilkan jumlah dislike pada video.";
 "Shuffle" = "Acak";
@@ -558,6 +596,7 @@
 "Singles & EPs" = "Single & EP";
 "Skip Forward/Backward" = "Lompat Maju/Mundur";
 "Skipped" = "Dilewati";
+"Sleep Timer" = "Pengatur Waktu Tidur";
 "Small Speakers" = "Speaker Kecil";
 "Smart" = "Cerdas";
 "Smart Shuffle" = "Acak Cerdas";
@@ -616,6 +655,7 @@
 "Try asking:" = "Coba tanyakan:";
 "Try commands like:" = "Coba perintah seperti:";
 "Try searching for something else" = "Coba cari hal lain";
+"Turn Off Sleep Timer" = "Matikan Pengatur Waktu Tidur";
 "Unable to determine availability" = "Tidak dapat menentukan ketersediaan";
 "Unable to load artist" = "Tidak dapat memuat artis";
 "Unable to load content" = "Tidak dapat memuat konten";
@@ -633,6 +673,7 @@
 "Upload songs to YouTube Music to browse them here." = "Unggah lagu ke YouTube Music untuk menelusurinya di sini.";
 "Uploads" = "Unggahan";
 "Upvote the ideas that matter to you" = "Dukung ide yang penting bagi Anda dengan upvote";
+"Upvote title" = "Upvote title";
 "Use Legacy macOS 15 UI" = "Gunakan UI macOS 15 Legacy";
 "Verification isn’t available yet." = "Verifikasi belum tersedia.";
 "Verified — thank you! 💗" = "Terverifikasi! — terima kasih! 💗";
@@ -655,6 +696,9 @@
 "Volume" = "Volume";
 "Volume Down" = "Volume Turun";
 "Volume Up" = "Volume Naik";
+"Voting is not permitted for this title." = "Voting is not permitted for this title.";
+"Voting is not permitted for this title: %@" = "Voting is not permitted for this title: %@";
+"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";
 "Waiting for authorization…" = "Menunggu otorisasi…";
 "Waiting for playback" = "Menunggu pemutaran";
 "Watch Later" = "Tonton Nanti";
@@ -665,6 +709,7 @@
 "What would you like to do with your queue?" = "Apa yang ingin Anda lakukan dengan antrean?";
 "What would you like to do?" = "Apa yang ingin Anda lakukan?";
 "What's New in Kaset++" = "Apa yang Baru di Kaset++";
+"When Current Song Ends" = "Saat Lagu Saat Ini Berakhir";
 "When enabled, Kaset++ can add richer queue analysis, AI-powered playlist refinement, and lyrics explanations." = "Saat diaktifkan, Kaset++ dapat menambahkan analisis antrean yang lebih kaya, penyempurnaan playlist bertenaga AI, dan penjelasan lirik.";
 "When enabled, you can use natural language commands, AI-powered playlist refinement, and lyrics explanations." = "Jika diaktifkan, Anda dapat menggunakan perintah bahasa alami, penyempurnaan daftar putar bertenaga AI, dan penjelasan lirik.";
 "When off, navigating back from a playing video stops it instead of opening the floating player. The pop-out and full-view buttons still work." = "Jika nonaktif, kembali dari video yang sedang diputar akan menghentikannya alih-alih membuka pemutar mengambang. Tombol pop-out dan tampilan penuh tetap berfungsi.";
@@ -683,35 +728,3 @@
 "yt-dlp not found." = "yt-dlp tidak ditemukan.";
 "•" = "•";
 "⌘K" = "⌘K";
-
-/* Sleep Timer */
-"Sleep Timer" = "Pengatur Waktu Tidur";
-"15 Minutes" = "15 Menit";
-"30 Minutes" = "30 Menit";
-"45 Minutes" = "45 Menit";
-"1 Hour" = "1 Jam";
-"When Current Song Ends" = "Saat Lagu Saat Ini Berakhir";
-"Turn Off Sleep Timer" = "Matikan Pengatur Waktu Tidur";
-
-/* Synced missing keys from Localizable.xcstrings */
-"" = "";
-"\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
-"Application ID" = "Application ID";
-"Click to collapse" = "Click to collapse";
-"Click to show the full description" = "Click to show the full description";
-"Connected to Discord." = "Connected to Discord.";
-"Could not reach Discord: %@" = "Could not reach Discord: %@";
-"Default" = "Default";
-"Discord Rich Presence" = "Discord Rich Presence";
-"Discord refused the connection: %@" = "Discord refused the connection: %@";
-"Enable Discord Rich Presence" = "Enable Discord Rich Presence";
-"Float on Top" = "Float on Top";
-"Keep Playing in the Player Bar When Navigating Away" = "Keep Playing in the Player Bar When Navigating Away";
-"Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video." = "Keep a playing video going, controlled from the bottom player bar, when you leave the page — with no floating pop-out window. Tap the thumbnail in the bar to return to the video.";
-"Paused" = "Paused";
-"Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops." = "Publishes what you are playing to the Discord app running on this Mac, so your profile reads \"Listening to Kaset++\". Nothing is sent anywhere else, and the presence clears when playback stops.";
-"Return to video" = "Return to video";
-"Save to library" = "Save to library";
-"Saved" = "Saved";
-"Show the track or video you are playing on your Discord profile." = "Show the track or video you are playing on your Discord profile.";
-"Waiting for Discord to be running on this Mac." = "Waiting for Discord to be running on this Mac.";

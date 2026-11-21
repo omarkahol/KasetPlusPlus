@@ -464,6 +464,17 @@ struct KasetApp: App {
                 .environment(self.equalizerService)
         }
 
+        WindowGroup(String(localized: "DeArrow Titles"), id: DearrowTitlesWindow.windowID, for: String.self) { $videoId in
+            if let videoId {
+                DearrowTitlesWindow(videoId: videoId)
+                    .tint(self.settings.accentColor)
+                    .environment(\.locale, self.settings.contentLanguage.locale)
+                    .environment(\.usesLegacyMacOS15UI, self.settings.useLegacyMacOS15UI)
+            }
+        }
+        .defaultSize(width: 460, height: 500)
+        .windowResizability(.contentMinSize)
+
         MenuBarExtra(isInserted: self.$settings.showMenuBarExtra) {
             MenuBarPlayerView()
                 .tint(self.settings.accentColor)

@@ -18,6 +18,7 @@ struct YouTubeWatchView: View {
     @Environment(AccountService.self) private var accountService
     @Environment(YouTubePlayerService.self) private var youtubePlayer
     @Environment(\.openURL) private var openURL
+    @Environment(\.openWindow) private var openWindow
     @State private var viewModel: YouTubeWatchViewModel
 
     init(video: YouTubeVideo, client: any YouTubeClientProtocol) {
@@ -454,25 +455,48 @@ struct YouTubeWatchView: View {
 
     private var metadataSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(self.resolvedTitle)
                     .font(.title2.bold())
                     .lineLimit(nil)
                     .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(0)
 
-                if self.hasDearrow {
-                    Button {
-                        self.youtubePlayer.showsDearrowOriginal.toggle()
-                    } label: {
-                        Image(systemName: self.youtubePlayer.showsDearrowOriginal
-                            ? "arrow.uturn.backward.circle.fill" : "arrow.triangle.swap")
-                            .font(.system(size: 14))
-                            .foregroundStyle(self.youtubePlayer.showsDearrowOriginal ? .orange : SponsorSegment.brandColor)
+                if self.settings.dearrowEnabled {
+                    HStack(spacing: 4) {
+                        if self.hasDearrow {
+                            Button {
+                                self.youtubePlayer.showsDearrowOriginal.toggle()
+                            } label: {
+                                Image(systemName: self.youtubePlayer.showsDearrowOriginal
+                                    ? "arrow.uturn.backward.circle.fill" : "arrow.triangle.swap")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(self.youtubePlayer.showsDearrowOriginal ? .orange : SponsorSegment.brandColor)
+                            }
+                            .buttonStyle(.plain)
+                            .help(self.youtubePlayer.showsDearrowOriginal
+                                ? String(localized: "Show DeArrow title")
+                                : String(localized: "Show original title"))
+                            .accessibilityLabel(self.youtubePlayer.showsDearrowOriginal
+                                ? String(localized: "Show DeArrow title")
+                                : String(localized: "Show original title"))
+                        }
+
+                        Button {
+                            self.openWindow(id: DearrowTitlesWindow.windowID, value: self.video.videoId)
+                        } label: {
+                            Image(systemName: "text.bubble")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(self.hasDearrow ? SponsorSegment.brandColor : .secondary)
+                                .frame(width: 24, height: 24)
+                                .compatGlass(interactive: true, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(String(localized: "DeArrow Titles & Voting"))
+                        .accessibilityLabel(String(localized: "DeArrow Titles & Voting"))
                     }
-                    .buttonStyle(.plain)
-                    .help(self.youtubePlayer.showsDearrowOriginal
-                        ? String(localized: "Show DeArrow title")
-                        : String(localized: "Show original title"))
+                    .fixedSize(horizontal: true, vertical: true)
+                    .layoutPriority(1)
                 }
             }
 

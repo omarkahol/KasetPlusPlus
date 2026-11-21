@@ -84,7 +84,7 @@ struct AddonsSettingsView: View {
             } header: {
                 Text("DeArrow")
             } footer: {
-                Text("Clickbait titles are replaced with accurate descriptions from the DeArrow community database. A toggle icon (↔) appears next to the title — click it to see the original. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.")
+                Text("Clickbait titles are replaced with accurate descriptions from the DeArrow community database. Use the buttons next to the video title to switch between original and DeArrow titles or to view and vote on community titles. Powered by the same community as SponsorBlock. Takes effect on the next video you watch.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -48,6 +48,7 @@ final class SettingsManager {
         static let adBlockEnabled = "settings.adBlock.enabled"
         static let returnYouTubeDislikesEnabled = "settings.ryd.enabled"
         static let dearrowEnabled = "settings.dearrow.enabled"
+        static let dearrowUserID = "settings.dearrow.userID"
         static let discordRichPresenceEnabled = "settings.discord.richPresence.enabled"
         static let hasCompletedInitialOnboarding = "settings.onboarding.completed"
         static let distractionFreeEnabled = "settings.distractionFree.enabled"
@@ -760,6 +761,17 @@ final class SettingsManager {
         didSet {
             self.defaults.set(self.dearrowEnabled, forKey: Keys.dearrowEnabled)
         }
+    }
+
+    /// Persistent local user ID for DeArrow title voting & submissions.
+    /// Lazily generates and persists a 36-character UUID string on first use.
+    var dearrowUserID: String {
+        if let existing = self.defaults.string(forKey: Keys.dearrowUserID), existing.count >= 30 {
+            return existing
+        }
+        let generated = UUID().uuidString
+        self.defaults.set(generated, forKey: Keys.dearrowUserID)
+        return generated
     }
 
     /// Distraction-free mode: hides the comments and the related-videos rail on
