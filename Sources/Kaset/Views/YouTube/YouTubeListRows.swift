@@ -6,21 +6,27 @@ import SwiftUI
 struct VideoRowView: View {
     let video: YouTubeVideo
 
+    @State private var dearrowCache = DearrowCache.shared
+    @State private var settings = SettingsManager.shared
+
+    private var displayTitle: String {
+        guard self.settings.dearrowEnabled else { return self.video.title }
+        return self.dearrowCache.dearrowTitle(for: self.video.videoId) ?? self.video.title
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VideoThumbnailView(video: self.video, targetSize: CGSize(width: 160, height: 90))
                 .frame(width: 160)
 
             VStack(alignment: .leading, spacing: 3) {
-                let displayTitle = DearrowCache.shared.displayTitle(
-                    for: self.video.videoId, original: self.video.title)
-                Text(displayTitle)
+                Text(self.displayTitle)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     // Full title as a hover tooltip when truncated.
-                    .help(displayTitle)
+                    .help(self.displayTitle)
 
                 if let channelName = self.video.channelName {
                     Text(channelName)
@@ -40,8 +46,10 @@ struct VideoRowView: View {
 
             Spacer(minLength: 0)
         }
-        .onAppear {
-            DearrowCache.shared.fetchOneIfNeeded(videoId: self.video.videoId)
+        .task(id: "\(self.video.videoId)-\(self.settings.dearrowEnabled)") {
+            guard self.settings.dearrowEnabled else { return }
+            self.dearrowCache.registerOriginalTitle(self.video.title, for: self.video.videoId)
+            self.dearrowCache.fetchOneIfNeeded(videoId: self.video.videoId)
         }
         .contentShape(Rectangle())
         .contextMenu {

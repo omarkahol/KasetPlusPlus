@@ -84,11 +84,21 @@ struct YouTubePlayerBar: View {
     @State private var chapterPreviewMarker: PlayerBarProgressMarker?
     @State private var hoverPreviewFraction: Double?
     @State private var settings = SettingsManager.shared
+    @State private var dearrowCache = DearrowCache.shared
     @State private var showsSpeedQualityPopover = false
     @State private var airPlayAnchor = AirPlayPickerAnchor()
 
     var body: some View {
         self.content
+        .task(id: "\(self.youtubePlayer.currentVideo?.videoId ?? "")-\(self.settings.dearrowEnabled)") {
+            guard self.settings.dearrowEnabled,
+                  let video = self.youtubePlayer.currentVideo
+            else { return }
+            if !video.title.isEmpty {
+                self.dearrowCache.registerOriginalTitle(video.title, for: video.videoId)
+            }
+            self.dearrowCache.fetchOneIfNeeded(videoId: video.videoId)
+        }
         .onChange(of: self.currentSeekIdentity) { _, _ in
             self.chapterPreviewMarker = nil
         }
@@ -362,26 +372,39 @@ struct YouTubePlayerBar: View {
         }
     }
 
+    private var activeDearrowTitle: String? {
+        guard self.settings.dearrowEnabled,
+              let videoId = self.youtubePlayer.currentVideo?.videoId
+        else { return nil }
+        return self.dearrowCache.dearrowTitle(for: videoId)
+    }
+
     private var currentTitleIdentity: String {
         [
             self.youtubePlayer.currentVideo?.id ?? "none",
             self.youtubePlayer.currentVideo?.title ?? "none",
             self.chapterPreviewMarker?.id ?? "none",
             self.youtubePlayer.showsDearrowOriginal ? "orig" : "dearrow",
-            self.youtubePlayer.dearrowTitle ?? "none",
+            self.activeDearrowTitle ?? "none",
         ].joined(separator: "|")
     }
 
     private var videoDetailsTitle: String {
         // DeArrow takes priority over chapter preview for the base title
         let baseTitle: String = {
-            if self.youtubePlayer.showsDearrowOriginal,
+            if self.settings.dearrowEnabled,
+               !self.youtubePlayer.showsDearrowOriginal,
+               let dearrow = self.activeDearrowTitle
+            {
+                return dearrow
+            }
+            if self.settings.dearrowEnabled,
+               self.youtubePlayer.showsDearrowOriginal,
                let orig = self.youtubePlayer.dearrowOriginalTitle
             {
                 return orig
             }
-            return self.youtubePlayer.dearrowTitle
-                ?? self.youtubePlayer.currentVideo?.title
+            return self.youtubePlayer.currentVideo?.title
                 ?? String(localized: "Not Playing")
         }()
 
@@ -396,7 +419,7 @@ struct YouTubePlayerBar: View {
     }
 
     private var hasDearrow: Bool {
-        self.youtubePlayer.dearrowTitle != nil
+        self.activeDearrowTitle != nil
     }
 
     private var isShowingChapterPreview: Bool {

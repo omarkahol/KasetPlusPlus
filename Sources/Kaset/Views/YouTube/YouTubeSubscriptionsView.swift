@@ -6,6 +6,7 @@ import SwiftUI
 /// subscriptions feed grid.
 struct YouTubeSubscriptionsView: View {
     let viewModel: YouTubeSubscriptionsViewModel
+    @State private var settings = SettingsManager.shared
 
     private static let columns = [
         GridItem(.adaptive(minimum: 260, maximum: 380), spacing: 20, alignment: .top),
@@ -36,6 +37,10 @@ struct YouTubeSubscriptionsView: View {
         // idle model stuck. See YouTubeHomeView for the full rationale.
         .task(id: ObjectIdentifier(self.viewModel)) {
             await self.viewModel.load()
+        }
+        .task(id: "\(self.viewModel.videos.count)-\(self.settings.dearrowEnabled)") {
+            guard self.settings.dearrowEnabled, !self.viewModel.videos.isEmpty else { return }
+            DearrowCache.shared.fetchBatch(for: self.viewModel.videos.map(\.videoId))
         }
     }
 

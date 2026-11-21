@@ -297,16 +297,22 @@ final class YouTubePlayerService {
 
     /// Computed: the DeArrow title for the current video (from shared cache).
     var dearrowTitle: String? {
-        guard let videoId = self.currentVideo?.videoId else { return nil }
-        return DearrowCache.shared.hasDearrow(for: videoId)
-            ? DearrowCache.shared.displayTitle(for: videoId, original: self.currentVideo?.title ?? "")
-            : nil
+        guard SettingsManager.shared.dearrowEnabled,
+              let videoId = self.currentVideo?.videoId
+        else { return nil }
+        return DearrowCache.shared.dearrowTitle(for: videoId)
     }
 
     /// The original title stored in the cache for toggle-back support.
     var dearrowOriginalTitle: String? {
         guard let videoId = self.currentVideo?.videoId else { return nil }
-        return DearrowCache.shared.originalTitle(for: videoId)
+        if let cached = DearrowCache.shared.originalTitle(for: videoId), !cached.isEmpty {
+            return cached
+        }
+        if let title = self.currentVideo?.title, !title.isEmpty {
+            return title
+        }
+        return nil
     }
 
     /// Playback volume (0...1).

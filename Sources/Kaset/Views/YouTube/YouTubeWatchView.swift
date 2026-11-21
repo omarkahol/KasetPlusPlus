@@ -53,18 +53,20 @@ struct YouTubeWatchView: View {
     @State private var lyricsService = LyricsSearchService()
 
     private var resolvedTitle: String {
+        let fallbackTitle = self.viewModel.data.videoTitle ?? self.video.title
+        guard self.settings.dearrowEnabled else {
+            return fallbackTitle
+        }
         if self.youtubePlayer.showsDearrowOriginal,
            let orig = self.youtubePlayer.dearrowOriginalTitle
         {
             return orig
         }
-        return self.youtubePlayer.dearrowTitle
-            ?? self.viewModel.data.videoTitle
-            ?? self.video.title
+        return self.youtubePlayer.dearrowTitle ?? fallbackTitle
     }
 
     private var hasDearrow: Bool {
-        self.youtubePlayer.dearrowTitle != nil
+        self.settings.dearrowEnabled && self.youtubePlayer.dearrowTitle != nil
     }
 
     private var askAccountScope: YouTubeAskAccountScopeObservation {
@@ -178,6 +180,12 @@ struct YouTubeWatchView: View {
             }
             .task(id: self.video.videoId) {
                 self.startOrAdoptPlayback()
+            }
+            .task(id: "\(self.video.videoId)-\(self.settings.dearrowEnabled)") {
+                guard self.settings.dearrowEnabled else { return }
+                let origTitle = self.viewModel.data.videoTitle ?? self.video.title
+                DearrowCache.shared.registerOriginalTitle(origTitle, for: self.video.videoId)
+                DearrowCache.shared.fetchOneIfNeeded(videoId: self.video.videoId)
             }
             .task(id: self.askAccountScope) {
                 let accountScope = self.askAccountScope
@@ -483,9 +491,16 @@ struct YouTubeWatchView: View {
                         }
 
                         Button {
-                            self.openWindow(id: DearrowTitlesWindow.windowID, value: self.video.videoId)
+                            let origTitle = self.viewModel.data.videoTitle ?? self.video.title
+                            self.openWindow(
+                                id: DearrowTitlesWindow.windowID,
+                                value: DearrowTitlesWindowContext(
+                                    videoId: self.video.videoId,
+                                    originalTitle: origTitle.isEmpty ? nil : origTitle
+                                )
+                            )
                         } label: {
-                            Image(systemName: "text.bubble")
+                            Image(systemName: "target")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(self.hasDearrow ? SponsorSegment.brandColor : .secondary)
                                 .frame(width: 24, height: 24)
@@ -2456,10 +2471,17 @@ private struct ChapterCard: View {
 /// Compact related-rail row sized for the right column.
 private struct RelatedVideoRow: View, Equatable {
     let video: YouTubeVideo
+    @State private var dearrowCache = DearrowCache.shared
+    @State private var settings = SettingsManager.shared
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.video.id == rhs.video.id
             && lhs.video.watchedPercent == rhs.video.watchedPercent
+    }
+
+    private var displayTitle: String {
+        guard self.settings.dearrowEnabled else { return self.video.title }
+        return self.dearrowCache.dearrowTitle(for: self.video.videoId) ?? self.video.title
     }
 
     var body: some View {
@@ -2468,7 +2490,7 @@ private struct RelatedVideoRow: View, Equatable {
                 .frame(width: 140)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(self.video.title)
+                Text(self.displayTitle)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
@@ -2496,6 +2518,11 @@ private struct RelatedVideoRow: View, Equatable {
             if isHovered {
                 DirectVideoStreamResolver.shared.prefetchStreamURL(videoId: self.video.videoId)
             }
+        }
+        .task(id: "\(self.video.videoId)-\(self.settings.dearrowEnabled)") {
+            guard self.settings.dearrowEnabled else { return }
+            self.dearrowCache.registerOriginalTitle(self.video.title, for: self.video.videoId)
+            self.dearrowCache.fetchOneIfNeeded(videoId: self.video.videoId)
         }
         .accessibilityElement(children: .combine)
     }

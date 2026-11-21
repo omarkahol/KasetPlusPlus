@@ -1,32 +1,69 @@
 import SwiftUI
 
+/// Window value passed to `DearrowTitlesWindow` so the original YouTube title
+/// is always available even when a video has no DeArrow entries yet.
+struct DearrowTitlesWindowContext: Hashable, Codable, Sendable {
+    let videoId: String
+    let originalTitle: String?
+}
+
 /// Window displaying all community-submitted DeArrow titles for a YouTube video,
 /// allowing the user to inspect vote counts and upvote or downvote titles.
 struct DearrowTitlesWindow: View {
     static let windowID = "dearrow-titles"
 
-    let videoId: String
+    let context: DearrowTitlesWindowContext
 
+    @Environment(YouTubePlayerService.self) private var youtubePlayer
     @State private var cache = DearrowCache.shared
     @State private var titles: [DearrowTitle] = []
+    @State private var oembedTitle: String?
     @State private var isLoading = true
     @State private var loadError: String?
     @State private var votingTitleUUID: String?
     @State private var voteError: String?
 
-    private var originalTitle: String {
+    private var videoId: String {
+        self.context.videoId
+    }
+
+    private var resolvedOriginalTitle: String? {
+        if let passed = self.context.originalTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !passed.isEmpty
+        {
+            return passed
+        }
         if let cached = self.cache.originalTitle(for: self.videoId), !cached.isEmpty {
             return cached
         }
-        if let originalEntry = self.titles.first(where: { $0.original }) {
+        if self.youtubePlayer.currentVideo?.videoId == self.videoId,
+           let playerTitle = self.youtubePlayer.currentVideo?.title,
+           !playerTitle.isEmpty
+        {
+            return playerTitle
+        }
+        if let originalEntry = self.titles.first(where: { $0.original }),
+           !originalEntry.displayTitle.isEmpty
+        {
             return originalEntry.displayTitle
         }
-        return self.videoId
+        if let oembedTitle = self.oembedTitle, !oembedTitle.isEmpty {
+            return oembedTitle
+        }
+        return nil
+    }
+
+    private var originalTitle: String {
+        if let resolved = self.resolvedOriginalTitle {
+            return resolved
+        }
+        return self.isLoading
+            ? String(localized: "Loading...")
+            : String(localized: "Original title unavailable")
     }
 
     private var activeDearrowTitle: String? {
-        guard self.cache.hasDearrow(for: self.videoId) else { return nil }
-        return self.cache.displayTitle(for: self.videoId, original: self.originalTitle)
+        self.cache.dearrowTitle(for: self.videoId)
     }
 
     var body: some View {
@@ -120,7 +157,7 @@ struct DearrowTitlesWindow: View {
         } else if self.titles.isEmpty {
             ContentUnavailableView(
                 String(localized: "No DeArrow Titles"),
-                systemImage: "text.bubble",
+                systemImage: "target",
                 description: Text(String(localized: "No community titles have been submitted for this video yet."))
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -237,11 +274,19 @@ struct DearrowTitlesWindow: View {
     private func loadTitles() async {
         self.isLoading = true
         self.loadError = nil
+        if let passed = self.context.originalTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !passed.isEmpty
+        {
+            self.cache.registerOriginalTitle(passed, for: self.videoId)
+        }
         do {
             let fetched = try await self.cache.fetchAllTitles(videoId: self.videoId)
             self.titles = fetched
         } catch {
             self.loadError = error.localizedDescription
+        }
+        if self.resolvedOriginalTitle == nil {
+            self.oembedTitle = await self.cache.fetchOriginalTitleOEmbed(videoId: self.videoId)
         }
         self.isLoading = false
     }

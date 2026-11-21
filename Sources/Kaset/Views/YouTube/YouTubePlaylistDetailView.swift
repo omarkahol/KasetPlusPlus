@@ -3,6 +3,7 @@ import SwiftUI
 /// A YouTube playlist page: header plus its video rows.
 struct YouTubePlaylistDetailView: View {
     @State private var viewModel: YouTubePlaylistViewModel
+    @State private var settings = SettingsManager.shared
 
     private static let columns = [
         GridItem(.adaptive(minimum: 260, maximum: 380), spacing: 20, alignment: .top),
@@ -38,6 +39,13 @@ struct YouTubePlaylistDetailView: View {
         .navigationTitle(Text(self.viewModel.detail?.playlist.title ?? ""))
         .task {
             await self.viewModel.load()
+        }
+        .task(id: "\(self.viewModel.detail?.videos.count ?? 0)-\(self.settings.dearrowEnabled)") {
+            guard self.settings.dearrowEnabled,
+                  let videos = self.viewModel.detail?.videos,
+                  !videos.isEmpty
+            else { return }
+            DearrowCache.shared.fetchBatch(for: videos.map(\.videoId))
         }
     }
 

@@ -464,12 +464,17 @@ struct KasetApp: App {
                 .environment(self.equalizerService)
         }
 
-        WindowGroup(String(localized: "DeArrow Titles"), id: DearrowTitlesWindow.windowID, for: String.self) { $videoId in
-            if let videoId {
-                DearrowTitlesWindow(videoId: videoId)
+        WindowGroup(
+            String(localized: "DeArrow Titles"),
+            id: DearrowTitlesWindow.windowID,
+            for: DearrowTitlesWindowContext.self
+        ) { $context in
+            if let context {
+                DearrowTitlesWindow(context: context)
                     .tint(self.settings.accentColor)
                     .environment(\.locale, self.settings.contentLanguage.locale)
                     .environment(\.usesLegacyMacOS15UI, self.settings.useLegacyMacOS15UI)
+                    .environment(self.youtubePlayerService)
             }
         }
         .defaultSize(width: 460, height: 500)

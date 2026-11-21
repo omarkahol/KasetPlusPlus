@@ -89,6 +89,8 @@ final class DearrowCache {
     private var accessOrder: [String] = []
     /// Video IDs currently being fetched (dedup).
     private var inFlight: Set<String> = []
+    /// Video IDs that already completed a DeArrow lookup (prevents re-fetching 404s on scroll).
+    private var checkedVideoIds: Set<String> = []
     private let maxEntries: Int
     private let userDefaults: UserDefaults?
     private let transport: Transport
@@ -134,10 +136,22 @@ final class DearrowCache {
 
     // MARK: - Public API
 
+    /// Pure read of the cached DeArrow title without mutating cache state.
+    func dearrowTitle(for videoId: String) -> String? {
+        self.dearrowTitles[videoId]
+    }
+
+    /// Records the original YouTube title for toggle-back support outside of view `body`.
+    func registerOriginalTitle(_ title: String, for videoId: String) {
+        guard !title.isEmpty, self.originalTitles[videoId] == nil else { return }
+        self.originalTitles[videoId] = title
+        self.recordAccess(for: videoId)
+    }
+
     /// Returns the DeArrow title if available, otherwise the original.
     func displayTitle(for videoId: String, original: String) -> String {
         // Store original for toggle support
-        if self.originalTitles[videoId] == nil {
+        if !original.isEmpty, self.originalTitles[videoId] == nil {
             self.originalTitles[videoId] = original
             self.recordAccess(for: videoId)
         }
@@ -172,7 +186,9 @@ final class DearrowCache {
     func fetchBatch(for videoIds: [String]) {
         guard SettingsManager.shared.dearrowEnabled else { return }
         let candidates = videoIds.filter {
-            self.dearrowTitles[$0] == nil && !self.inFlight.contains($0)
+            self.dearrowTitles[$0] == nil
+                && !self.checkedVideoIds.contains($0)
+                && !self.inFlight.contains($0)
         }
         guard !candidates.isEmpty else { return }
         for id in candidates {
@@ -210,6 +226,7 @@ final class DearrowCache {
     func fetchOneIfNeeded(videoId: String) {
         guard SettingsManager.shared.dearrowEnabled,
               self.dearrowTitles[videoId] == nil,
+              !self.checkedVideoIds.contains(videoId),
               !self.inFlight.contains(videoId)
         else { return }
 
@@ -236,6 +253,7 @@ final class DearrowCache {
         if httpResponse.statusCode == 404 {
             self.allTitles[videoId] = []
             self.dearrowTitles.removeValue(forKey: videoId)
+            self.checkedVideoIds.insert(videoId)
             self.recordAccess(for: videoId)
             return []
         }
@@ -247,6 +265,7 @@ final class DearrowCache {
 
         let decoded = try JSONDecoder().decode(BrandingResponse.self, from: data)
         self.allTitles[videoId] = decoded.titles
+        self.checkedVideoIds.insert(videoId)
         self.syncTopDisplayTitle(from: decoded.titles, for: videoId)
         self.recordAccess(for: videoId)
         return decoded.titles
@@ -375,6 +394,36 @@ final class DearrowCache {
             self.dearrowTitles.removeValue(forKey: evicted)
             self.originalTitles.removeValue(forKey: evicted)
             self.allTitles.removeValue(forKey: evicted)
+            self.checkedVideoIds.remove(evicted)
+        }
+    }
+
+    /// Fetches the original video title via YouTube's public oEmbed endpoint as a fallback
+    /// when no original title is cached locally or returned by DeArrow.
+    func fetchOriginalTitleOEmbed(videoId: String) async -> String? {
+        if let cached = self.originalTitles[videoId], !cached.isEmpty {
+            return cached
+        }
+        var components = URLComponents(string: "https://www.youtube.com/oembed")
+        components?.queryItems = [
+            URLQueryItem(name: "url", value: "https://www.youtube.com/watch?v=\(videoId)"),
+            URLQueryItem(name: "format", value: "json"),
+        ]
+        guard let url = components?.url else { return nil }
+        do {
+            let (data, response) = try await self.transport(URLRequest(url: url))
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200 ... 299).contains(httpResponse.statusCode)
+            else {
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(OEmbedResponse.self, from: data)
+            let trimmed = decoded.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            self.registerOriginalTitle(trimmed, for: videoId)
+            return trimmed
+        } catch {
+            return nil
         }
     }
 
@@ -385,12 +434,17 @@ final class DearrowCache {
 
         do {
             let (data, response) = try await self.transport(URLRequest(url: url))
-            if let httpResponse = response as? HTTPURLResponse,
-               !(200 ... 299).contains(httpResponse.statusCode)
-            {
-                return
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 404 {
+                    self.checkedVideoIds.insert(videoId)
+                    return
+                }
+                if !(200 ... 299).contains(httpResponse.statusCode) {
+                    return
+                }
             }
 
+            self.checkedVideoIds.insert(videoId)
             let decoded = try JSONDecoder().decode(BrandingResponse.self, from: data)
             guard let first = decoded.titles.first, Self.isValidTopTitle(first) else {
                 return
@@ -405,6 +459,10 @@ final class DearrowCache {
 }
 
 // MARK: - API Models
+
+private struct OEmbedResponse: Decodable {
+    let title: String
+}
 
 private struct BrandingResponse: Decodable {
     let titles: [DearrowTitle]

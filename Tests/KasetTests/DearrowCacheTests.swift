@@ -243,4 +243,72 @@ struct DearrowCacheTests {
         #expect(UUID(uuidString: userID) != nil)
         #expect(SettingsManager.shared.dearrowUserID == userID)
     }
+
+    @Test("registerOriginalTitle ignores empty strings and dearrowTitle reads without mutating")
+    func registerOriginalTitleAndPureRead() async throws {
+        let cache = DearrowCache.makeTestInstance(
+            transport: { request in
+                let url = try #require(request.url)
+                let json = """
+                {
+                    "titles": [
+                        { "title": "Clean Title", "original": false, "votes": 5, "locked": false, "UUID": "u1" }
+                    ]
+                }
+                """
+                let response = try #require(HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                ))
+                return (Data(json.utf8), response)
+            }
+        )
+
+        cache.registerOriginalTitle("", for: "vid1")
+        #expect(cache.originalTitle(for: "vid1") == nil)
+        #expect(cache.dearrowTitle(for: "vid1") == nil)
+
+        cache.registerOriginalTitle("Clickbait Title!", for: "vid1")
+        #expect(cache.originalTitle(for: "vid1") == "Clickbait Title!")
+
+        _ = try await cache.fetchAllTitles(videoId: "vid1")
+        #expect(cache.dearrowTitle(for: "vid1") == "Clean Title")
+    }
+
+    @Test("fetchOriginalTitleOEmbed fetches and caches title from YouTube oEmbed")
+    func fetchOriginalTitleOEmbedFallback() async throws {
+        let cache = DearrowCache.makeTestInstance(
+            transport: { request in
+                let url = try #require(request.url)
+                #expect(url.host == "www.youtube.com")
+                #expect(url.path == "/oembed")
+                let json = """
+                {
+                    "title": "Actual YouTube Video Title"
+                }
+                """
+                let response = try #require(HTTPURLResponse(
+                    url: url,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                ))
+                return (Data(json.utf8), response)
+            }
+        )
+
+        let fetched = await cache.fetchOriginalTitleOEmbed(videoId: "dQw4w9WgXcQ")
+        #expect(fetched == "Actual YouTube Video Title")
+        #expect(cache.originalTitle(for: "dQw4w9WgXcQ") == "Actual YouTube Video Title")
+    }
+
+    @Test("DearrowTitlesWindowContext is Hashable and Codable")
+    func windowContextCodable() throws {
+        let context = DearrowTitlesWindowContext(videoId: "abc123", originalTitle: "Original Title")
+        let data = try JSONEncoder().encode(context)
+        let decoded = try JSONDecoder().decode(DearrowTitlesWindowContext.self, from: data)
+        #expect(decoded == context)
+    }
 }

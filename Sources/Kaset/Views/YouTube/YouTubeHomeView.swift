@@ -56,6 +56,25 @@ struct YouTubeHomeView: View {
         .task(id: ObjectIdentifier(self.viewModel)) {
             await self.viewModel.load()
         }
+        .task(id: self.dearrowBatchKey) {
+            guard self.settings.dearrowEnabled else { return }
+            let ids = self.visibleVideoIdsForDearrow
+            guard !ids.isEmpty else { return }
+            DearrowCache.shared.fetchBatch(for: ids)
+        }
+    }
+
+    private var dearrowBatchKey: String {
+        guard self.settings.dearrowEnabled else { return "disabled" }
+        return "\(self.viewModel.sections.count)-\(self.viewModel.videos.count)-\(self.viewModel.chipVideos.count)"
+    }
+
+    private var visibleVideoIdsForDearrow: [String] {
+        if self.viewModel.selectedChip != nil {
+            return self.viewModel.chipVideos.map(\.videoId)
+        }
+        let sectionIds = self.viewModel.sections.flatMap { $0.videos.map(\.videoId) }
+        return sectionIds + self.viewModel.videos.map(\.videoId)
     }
 
     // MARK: - Chip Bar
