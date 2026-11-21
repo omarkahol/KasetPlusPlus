@@ -8,6 +8,26 @@ import Foundation
 final class YouTubeDownloadService {
     static let shared = YouTubeDownloadService()
 
+    private final class LockedDestination: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = ""
+
+        func set(_ newValue: String) {
+            self.lock.withLock {
+                self.value = newValue
+            }
+        }
+
+        func get() -> String {
+            self.lock.withLock {
+                self.value
+            }
+        }
+    }
+
+    private var activeDownloadProcess: Process?
+    private var isDownloadCanceled = false
+
     var downloadsDir: URL {
         DownloadManager.shared.videosDirectory
     }
@@ -150,18 +170,19 @@ final class YouTubeDownloadService {
     /// yt-dlp, for on-device AI features like the video summary. Returns nil when
     /// the video has no captions or yt-dlp is unavailable.
     func fetchTranscript(videoId: String) async -> String? {
-        guard let ytdlpPath, let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)") else { return nil }
+        guard let ytdlpPath = await YTDLPBinaryLocator.shared.resolveYtdlpPath(),
+              let url = URL(string: "https://www.youtube.com/watch?v=\(videoId)")
+        else { return nil }
         let tmpDir = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("kaset-transcript-\(videoId)", isDirectory: true)
+            .appendingPathComponent("kaset-transcript-\(videoId)-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
         let env = Self.configuredEnvironment(customFfmpegPath: SettingsManager.shared.customFfmpegPath)
 
-        return await withCheckedContinuation { continuation in
-            let proc = Process()
-            proc.executableURL = URL(fileURLWithPath: ytdlpPath)
-            proc.environment = env
-            proc.arguments = [
+        _ = await AsyncProcessRunner.run(
+            executableURL: URL(fileURLWithPath: ytdlpPath),
+            arguments: [
                 "--skip-download",
                 "--write-auto-subs", "--write-subs",
                 "--sub-langs", "\(lang),\(lang).*,en,en.*",
@@ -169,22 +190,12 @@ final class YouTubeDownloadService {
                 "--socket-timeout", "20",
                 "-o", "\(tmpDir.path)/%(id)s.%(ext)s",
                 url.absoluteString,
-            ]
-            let pipe = Pipe()
-            proc.standardOutput = pipe
-            proc.standardError = pipe
-            proc.terminationHandler = { _ in
-                let text = Self.transcriptText(fromDir: tmpDir)
-                try? FileManager.default.removeItem(at: tmpDir)
-                continuation.resume(returning: text)
-            }
-            do {
-                try proc.run()
-            } catch {
-                try? FileManager.default.removeItem(at: tmpDir)
-                continuation.resume(returning: nil)
-            }
-        }
+            ],
+            environment: env,
+            timeoutSeconds: 30.0,
+            maxOutputBytes: 1_048_576
+        )
+        return Self.transcriptText(fromDir: tmpDir)
     }
 
     /// Parses the first `.vtt` file in `dir` into deduplicated plain text.
@@ -305,8 +316,15 @@ final class YouTubeDownloadService {
         proc.standardOutput = pipe
         proc.standardError = pipe
 
+        // Terminate any prior in-flight download managed by this service.
+        if let existingProcess = self.activeDownloadProcess, existingProcess.isRunning {
+            existingProcess.terminate()
+        }
+        self.isDownloadCanceled = false
+        self.activeDownloadProcess = proc
+
         // Parse progress from yt-dlp output
-        nonisolated(unsafe) var lastFilename = ""
+        let lastFilename = LockedDestination()
         let onUpdateSendable = onUpdate
         let resolvedTitle = videoTitle
         let isAudioOnly = format.isAudioOnly
@@ -319,23 +337,31 @@ final class YouTubeDownloadService {
             for line in lines {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if trimmed.contains("[download] Destination:") {
-                    lastFilename = trimmed
-                        .replacingOccurrences(of: "[download] Destination: ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
+                    lastFilename.set(
+                        trimmed
+                            .replacingOccurrences(of: "[download] Destination: ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                    )
                 } else if trimmed.contains("[ExtractAudio] Destination:") {
-                    lastFilename = trimmed
-                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
+                    lastFilename.set(
+                        trimmed
+                            .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                    )
                 } else if trimmed.contains("[Merger] Merging formats into") {
-                    lastFilename = trimmed
-                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                        .replacingOccurrences(of: "\"", with: "")
+                    lastFilename.set(
+                        trimmed
+                            .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                            .replacingOccurrences(of: "\"", with: "")
+                    )
                 } else if trimmed.contains("[VideoRemuxer] Remuxing video from"),
                           let destinationPart = trimmed.components(separatedBy: " to ").last
                 {
-                    lastFilename = destinationPart
-                        .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
+                    lastFilename.set(
+                        destinationPart
+                            .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
+                    )
                 } else if trimmed.contains("%") {
                     let percent = Self.parsePercent(trimmed)
                     let speed = Self.parseSpeed(trimmed)
@@ -344,17 +370,25 @@ final class YouTubeDownloadService {
             }
         }
 
-        proc.terminationHandler = { process in
+        proc.terminationHandler = { [weak self] process in
             pipe.fileHandleForReading.readabilityHandler = nil
-            var name = lastFilename.components(separatedBy: "/").last ?? lastFilename
+            let recordedFilename = lastFilename.get()
+            var name = recordedFilename.components(separatedBy: "/").last ?? recordedFilename
             let expectedExt = isAudioOnly ? "mp3" : "mp4"
             if let matchingFile = (try? FileManager.default.contentsOfDirectory(atPath: targetDir.path))?
                 .first(where: { $0.contains("[\(videoId)]") && $0.hasSuffix(".\(expectedExt)") })
             {
                 name = matchingFile
             }
-            if process.terminationStatus == 0 {
-                Task { @MainActor in
+            let status = process.terminationStatus
+            Task { @MainActor [weak self] in
+                if let self, self.activeDownloadProcess === process {
+                    self.activeDownloadProcess = nil
+                }
+                let wasCanceled = self?.isDownloadCanceled ?? false
+                if wasCanceled {
+                    onUpdateSendable(.idle)
+                } else if status == 0 {
                     if !name.isEmpty {
                         DownloadManager.shared.registerCompletedDownload(
                             videoId: videoId,
@@ -364,27 +398,28 @@ final class YouTubeDownloadService {
                         )
                     }
                     onUpdateSendable(.completed(filename: name))
+                } else {
+                    onUpdateSendable(.failed(String(localized: "Download failed. Is yt-dlp installed? Try: brew install yt-dlp")))
                 }
-            } else {
-                onUpdateSendable(.failed(String(localized: "Download failed. Is yt-dlp installed? Try: brew install yt-dlp")))
             }
         }
 
         do {
             try proc.run()
         } catch {
+            pipe.fileHandleForReading.readabilityHandler = nil
+            self.activeDownloadProcess = nil
             onUpdate(.failed(error.localizedDescription))
         }
     }
 
-    /// Cancels the current download by killing yt-dlp.
+    /// Cancels the current tracked download process.
     func cancelDownload() {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        proc.arguments = ["killall", "yt-dlp"]
-        proc.standardOutput = FileHandle.nullDevice
-        proc.standardError = FileHandle.nullDevice
-        try? proc.run()
+        self.isDownloadCanceled = true
+        if let process = self.activeDownloadProcess, process.isRunning {
+            process.terminate()
+        }
+        self.activeDownloadProcess = nil
     }
 
     // MARK: - Helpers

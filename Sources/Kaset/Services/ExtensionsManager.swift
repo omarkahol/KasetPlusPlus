@@ -60,6 +60,7 @@ final class ExtensionsManager {
 
     /// All managed extensions, in display order.
     private(set) var extensions: [ManagedExtension] = []
+    @ObservationIgnored private var activeSecurityScopedURLs: [URL] = []
 
     private static var defaultPersistenceURL: URL? {
         guard let appSupport = FileManager.default.urls(
@@ -111,6 +112,7 @@ final class ExtensionsManager {
     /// Returns the resolved `URL`s for all enabled extensions, in order.
     /// Starts security-scoped access — call `stopAllAccess()` when done.
     func resolvedURLs() -> [(id: String, url: URL)] {
+        self.stopAllAccess()
         var result: [(id: String, url: URL)] = []
 
         guard let base = self.managedExtensionsDirectoryURL else {
@@ -126,6 +128,7 @@ final class ExtensionsManager {
                 if let resolved = try? URL(resolvingBookmarkData: bookmarkData, options: .withSecurityScope, relativeTo: nil, bookmarkDataIsStale: &isStale),
                    resolved.startAccessingSecurityScopedResource()
                 {
+                    self.activeSecurityScopedURLs.append(resolved)
                     result.append((id: ext.id, url: resolved))
                     continue
                 }
@@ -142,8 +145,13 @@ final class ExtensionsManager {
         return result
     }
 
-    /// Stops security-scoped access for all currently resolved extensions (obsolete).
-    func stopAllAccess() {}
+    /// Stops security-scoped access for all currently resolved extensions.
+    func stopAllAccess() {
+        for url in self.activeSecurityScopedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        self.activeSecurityScopedURLs.removeAll()
+    }
 
     /// Adds an extension from a directory URL chosen by the user.
     /// Creates a security-scoped bookmark for persistent access.

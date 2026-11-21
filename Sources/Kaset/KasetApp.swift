@@ -62,9 +62,9 @@ struct KasetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) private var openWindow
 
-    @State private var authService = AuthService()
+    @State private var authService: AuthService
     @State private var webKitManager = WebKitManager.shared
-    @State private var playerService = PlayerService()
+    @State private var playerService: PlayerService
     @State private var youtubePlayerService: YouTubePlayerService
     @State private var playbackArbiter: PlaybackArbiter
     @State private var sharedClient: any YTMusicClientProtocol
@@ -576,18 +576,18 @@ struct KasetApp: App {
                 }
                 .keyboardShortcut("s", modifiers: .command)
 
-                // Repeat - ⌘⇧R (⌘R is Refresh, below)
+                // Repeat - ⌘R
                 Button(self.repeatModeLabel) {
                     self.playerService.cycleRepeatMode()
                 }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .keyboardShortcut("r", modifiers: .command)
 
-                // Refresh video playback - ⌘R. Recovers a stuck/black player
+                // Refresh video playback - ⌘⌥R. Recovers a stuck/black player
                 // after a network interruption, reloading at the same position.
                 Button(String(localized: "Refresh")) {
                     self.youtubePlayerService.refreshCurrentVideo()
                 }
-                .keyboardShortcut("r", modifiers: .command)
+                .keyboardShortcut("r", modifiers: [.command, .option])
 
                 Divider()
 

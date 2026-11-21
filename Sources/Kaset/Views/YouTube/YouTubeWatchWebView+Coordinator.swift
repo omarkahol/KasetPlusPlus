@@ -7,9 +7,28 @@ extension YouTubeWatchWebView {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         let playerService: YouTubePlayerService
+        private let playbackBridgeEvents = PlaybackBridgeEventQueue()
 
         init(playerService: YouTubePlayerService) {
             self.playerService = playerService
+        }
+
+        func cancelPlaybackBridgeTasks() {
+            self.playbackBridgeEvents.cancelAll()
+        }
+
+        private func enqueuePlaybackBridgeMessage(
+            generation: UInt64,
+            operation: @escaping @MainActor (Coordinator) async -> Void
+        ) {
+            self.playbackBridgeEvents.enqueue(documentGeneration: generation) { [weak self] in
+                guard let self,
+                      !Task.isCancelled,
+                      YouTubeWatchWebView.shared.coordinator === self,
+                      YouTubeWatchWebView.shared.documentGeneration.accepts(generation: generation)
+                else { return }
+                await operation(self)
+            }
         }
 
         func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -23,15 +42,26 @@ extension YouTubeWatchWebView {
                   )
             else { return }
 
-            // SponsorBlock messages are video-id-scoped (not generation-scoped)
-            // and don't carry a document generation; handle them before the
-            // generation gate so the fork's SponsorBlock feature keeps working.
+            // SponsorBlock messages may omit documentGeneration in JS; gate them on
+            // the current committed documentGeneration and WebView identity.
             switch type {
-            case "SPONSOR_SEGMENTS":
-                self.handleSponsorSegments(body)
-                return
-            case "SPONSOR_SKIPPED":
-                self.handleSponsorSkipped(body)
+            case "SPONSOR_SEGMENTS", "SPONSOR_SKIPPED":
+                let sponsorGeneration = WebPlaybackDocumentGeneration.decode(
+                    body["documentGeneration"]
+                ) ?? watchWebView.documentGeneration.currentGeneration
+                guard sponsorGeneration > 0,
+                      YouTubeWatchWebView.acceptsBridgeMessage(
+                          sourceWebView: message.webView,
+                          currentWebView: watchWebView.webView,
+                          documentGeneration: watchWebView.documentGeneration,
+                          rawDocumentGeneration: sponsorGeneration
+                      )
+                else { return }
+                if type == "SPONSOR_SEGMENTS" {
+                    self.handleSponsorSegments(body, documentGeneration: sponsorGeneration)
+                } else {
+                    self.handleSponsorSkipped(body, documentGeneration: sponsorGeneration)
+                }
                 return
             default:
                 break
@@ -58,7 +88,7 @@ extension YouTubeWatchWebView {
             }
         }
 
-        private func handleSponsorSegments(_ body: [String: Any]) {
+        private func handleSponsorSegments(_ body: [String: Any], documentGeneration: UInt64) {
             guard let videoId = body["videoId"] as? String else { return }
             let segmentDictionaries = body["segments"] as? [[String: Any]] ?? []
             let segments: [SponsorSegment] = segmentDictionaries.compactMap { dict in
@@ -68,19 +98,19 @@ extension YouTubeWatchWebView {
                 else { return nil }
                 return SponsorSegment(start: start, end: end, category: category)
             }
-            Task { @MainActor in
-                self.playerService.setSponsorSegments(segments, videoId: videoId)
+            self.enqueuePlaybackBridgeMessage(generation: documentGeneration) { coordinator in
+                coordinator.playerService.setSponsorSegments(segments, videoId: videoId)
             }
         }
 
-        private func handleSponsorSkipped(_ body: [String: Any]) {
+        private func handleSponsorSkipped(_ body: [String: Any], documentGeneration: UInt64) {
             guard let start = body["start"] as? Double,
                   let end = body["end"] as? Double,
                   let category = body["category"] as? String,
                   let videoId = body["videoId"] as? String
             else { return }
-            Task { @MainActor in
-                self.playerService.handleSponsorBlockSkip(
+            self.enqueuePlaybackBridgeMessage(generation: documentGeneration) { coordinator in
+                coordinator.playerService.handleSponsorBlockSkip(
                     start: start,
                     end: end,
                     category: category,
@@ -126,11 +156,8 @@ extension YouTubeWatchWebView {
             // document. Persist the recovery-only marker synchronously so a
             // process-termination callback cannot invalidate the generation first.
             self.playerService.recordPostConclusionAutoplayTransitionIfNeeded(update)
-            Task { @MainActor in
-                guard YouTubeWatchWebView.shared.documentGeneration.accepts(
-                    generation: documentGeneration
-                ) else { return }
-                guard self.playerService.acceptsPlaybackOccurrence(
+            self.enqueuePlaybackBridgeMessage(generation: documentGeneration) { coordinator in
+                guard coordinator.playerService.acceptsPlaybackOccurrence(
                     update.playbackOccurrence
                 ) else { return }
                 var validatedUpdate = update
@@ -149,8 +176,8 @@ extension YouTubeWatchWebView {
                         validatedUpdate.didApplyPendingSeek = false
                     }
                 }
-                self.playerService.updatePlaybackState(validatedUpdate)
-                self.reconcilePendingSeek(
+                coordinator.playerService.updatePlaybackState(validatedUpdate)
+                coordinator.reconcilePendingSeek(
                     after: validatedUpdate,
                     documentGeneration: documentGeneration
                 )
@@ -367,6 +394,7 @@ extension YouTubeWatchWebView {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             DiagnosticsLogger.player.error("YouTube watch WebView content process terminated, recovering")
+            self.cancelPlaybackBridgeTasks()
             let resumeAt = YouTubeWatchWebView.shared.pendingSeekForActiveNavigation()
             guard YouTubeWatchWebView.shared.beginContentProcessRecovery(webView: webView) else { return }
             self.playerService.recoverAfterWebContentProcessTermination(

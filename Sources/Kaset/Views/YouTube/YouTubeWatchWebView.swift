@@ -25,12 +25,28 @@ final class YouTubeWatchWebView {
         return instance
     }
 
+    private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+        private weak var coordinator: Coordinator?
+
+        init(coordinator: Coordinator) {
+            self.coordinator = coordinator
+        }
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            self.coordinator?.userContentController(userContentController, didReceive: message)
+        }
+    }
+
     private(set) var webView: WKWebView?
     weak var webKitManager: WebKitManager?
     private weak var currentContainer: NSView?
     private var usesCookieFreeDataStore: Bool?
     var currentVideoId: String?
     var coordinator: Coordinator?
+    private var scriptMessageHandler: WeakScriptMessageHandler?
     let logger = DiagnosticsLogger.player
 
     /// Seek position (seconds) to apply once the next page finishes loading.
@@ -78,7 +94,8 @@ final class YouTubeWatchWebView {
         self.logger.info("Creating YouTube watch WebView")
         self.usesCookieFreeDataStore = usesCookieFreeDataStore
 
-        self.coordinator = Coordinator(playerService: playerService)
+        let coordinator = Coordinator(playerService: playerService)
+        self.coordinator = coordinator
 
         let configuration = webKitManager.createWebViewConfiguration(
             websiteDataStore: usesCookieFreeDataStore ? .nonPersistent() : nil,
@@ -88,7 +105,9 @@ final class YouTubeWatchWebView {
             // client-side ads without breaking playback.
             applyAdBlock: false
         )
-        configuration.userContentController.add(self.coordinator!, name: "youtubePlayer")
+        let messageHandler = WeakScriptMessageHandler(coordinator: coordinator)
+        self.scriptMessageHandler = messageHandler
+        configuration.userContentController.add(messageHandler, name: "youtubePlayer")
         self.installUserScripts(
             on: configuration.userContentController,
             targetVolume: playerService.volume,
@@ -96,7 +115,7 @@ final class YouTubeWatchWebView {
         )
 
         let newWebView = ScrollForwardingWebView(frame: .zero, configuration: configuration)
-        newWebView.navigationDelegate = self.coordinator
+        newWebView.navigationDelegate = coordinator
         newWebView.customUserAgent = WebKitManager.userAgent
         self.webKitManager = webKitManager
         webKitManager.registerExtensionHostWebView(newWebView, role: .youtubeWatch)
@@ -339,7 +358,9 @@ final class YouTubeWatchWebView {
         webView.removeFromSuperview()
         self.webKitManager?.unregisterExtensionHostWebView(role: .youtubeWatch)
         self.webView = nil
+        self.coordinator?.cancelPlaybackBridgeTasks()
         self.coordinator = nil
+        self.scriptMessageHandler = nil
         self.currentContainer = nil
         self.usesCookieFreeDataStore = nil
     }

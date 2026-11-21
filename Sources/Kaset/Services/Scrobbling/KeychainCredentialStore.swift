@@ -9,6 +9,30 @@ import Security
 final class KeychainCredentialStore {
     private let servicePrefix: String
 
+    #if DEBUG
+        private static let debugCookieStorageEnvironmentKey = "KASET_DEBUG_COOKIE_STORAGE"
+
+        private static var usesDebugFileStorage: Bool {
+            ProcessInfo.processInfo.environment[Self.debugCookieStorageEnvironmentKey]?.lowercased() != "keychain"
+        }
+
+        private var debugCredentialsFileURL: URL? {
+            guard let appSupport = FileManager.default.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            ).first else { return nil }
+            let sanitizedPrefix = self.servicePrefix.replacingOccurrences(
+                of: "[^A-Za-z0-9._-]",
+                with: "_",
+                options: .regularExpression
+            )
+            return appSupport
+                .appendingPathComponent("Kaset", isDirectory: true)
+                .appendingPathComponent("debug-credentials", isDirectory: true)
+                .appendingPathComponent("\(sanitizedPrefix).json")
+        }
+    #endif
+
     /// Creates a credential store with the given service prefix.
     /// - Parameter servicePrefix: Prefix for Keychain entries (default: "com.sertacozercan.Kaset").
     init(servicePrefix: String = "com.sertacozercan.Kaset") {
@@ -87,6 +111,13 @@ final class KeychainCredentialStore {
     // MARK: - Private Helpers
 
     private func save(key: String, value: String) throws {
+        #if DEBUG
+            if Self.usesDebugFileStorage {
+                try self.saveToDebugFile(key: key, value: value)
+                return
+            }
+        #endif
+
         guard let data = value.data(using: .utf8) else {
             throw KeychainError.encodingFailed
         }
@@ -123,6 +154,12 @@ final class KeychainCredentialStore {
     }
 
     private func get(key: String) -> String? {
+        #if DEBUG
+            if Self.usesDebugFileStorage {
+                return self.loadDebugCredentials()[key]
+            }
+        #endif
+
         let account = "\(self.servicePrefix).\(key)"
 
         let query: [String: Any] = [
@@ -147,6 +184,13 @@ final class KeychainCredentialStore {
     }
 
     private func delete(key: String) {
+        #if DEBUG
+            if Self.usesDebugFileStorage {
+                self.deleteFromDebugFile(key: key)
+                return
+            }
+        #endif
+
         let account = "\(self.servicePrefix).\(key)"
 
         let query: [String: Any] = [
@@ -155,8 +199,48 @@ final class KeychainCredentialStore {
             kSecAttrService as String: self.servicePrefix,
         ]
 
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            DiagnosticsLogger.app.warning("Keychain delete failed for \(key) with status: \(status)")
+        }
     }
+
+    #if DEBUG
+        private func loadDebugCredentials() -> [String: String] {
+            guard let url = self.debugCredentialsFileURL,
+                  let data = try? Data(contentsOf: url),
+                  let decoded = try? JSONDecoder().decode([String: String].self, from: data)
+            else {
+                return [:]
+            }
+            return decoded
+        }
+
+        private func saveToDebugFile(key: String, value: String) throws {
+            guard let url = self.debugCredentialsFileURL else {
+                throw KeychainError.encodingFailed
+            }
+            var credentials = self.loadDebugCredentials()
+            credentials[key] = value
+            let dir = url.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(credentials)
+            try data.write(to: url, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
+
+        private func deleteFromDebugFile(key: String) {
+            guard let url = self.debugCredentialsFileURL else { return }
+            var credentials = self.loadDebugCredentials()
+            credentials.removeValue(forKey: key)
+            if credentials.isEmpty {
+                try? FileManager.default.removeItem(at: url)
+            } else if let data = try? JSONEncoder().encode(credentials) {
+                try? data.write(to: url, options: .atomic)
+                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            }
+        }
+    #endif
 }
 
 // MARK: - KeychainError

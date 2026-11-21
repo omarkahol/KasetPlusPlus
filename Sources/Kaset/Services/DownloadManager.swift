@@ -94,6 +94,43 @@ final class DownloadManager {
 
     // MARK: - Private State
 
+    private final class ProcessProgressState: @unchecked Sendable {
+        private static let minimumUpdateInterval: Duration = .milliseconds(100)
+
+        private let lock = NSLock()
+        private var lastDestination = ""
+        private var lastProgressUpdate: ContinuousClock.Instant?
+
+        func setDestination(_ destination: String) {
+            self.lock.withLock {
+                self.lastDestination = destination
+            }
+        }
+
+        func destination() -> String {
+            self.lock.withLock {
+                self.lastDestination
+            }
+        }
+
+        func shouldEmitProgress(_ percent: Double) -> Bool {
+            let now = ContinuousClock.now
+            return self.lock.withLock {
+                if percent >= 1.0 {
+                    self.lastProgressUpdate = now
+                    return true
+                }
+                if let last = self.lastProgressUpdate,
+                   now - last < Self.minimumUpdateInterval
+                {
+                    return false
+                }
+                self.lastProgressUpdate = now
+                return true
+            }
+        }
+    }
+
     @ObservationIgnored private var downloadQueue: [DownloadItem] = []
     @ObservationIgnored private var activeProcesses: [String: Process] = [:]
     @ObservationIgnored private var canceledVideoIds: Set<String> = []
@@ -502,36 +539,47 @@ final class DownloadManager {
 
         self.activeProcesses[videoId] = proc
 
-        nonisolated(unsafe) var lastDestination = ""
+        let progressState = ProcessProgressState()
         let itemTitle = item.title
 
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
             guard !chunk.isEmpty else { return }
 
+            var latestProgress: (percent: Double, speed: String)?
             let lines = chunk.components(separatedBy: "\n")
             for line in lines {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 if trimmed.contains("[download] Destination:") {
-                    lastDestination = trimmed
-                        .replacingOccurrences(of: "[download] Destination: ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
+                    progressState.setDestination(
+                        trimmed
+                            .replacingOccurrences(of: "[download] Destination: ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                    )
                 } else if trimmed.contains("[ExtractAudio] Destination:") {
-                    lastDestination = trimmed
-                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
+                    progressState.setDestination(
+                        trimmed
+                            .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                    )
                 } else if trimmed.contains("[Merger] Merging formats into") {
-                    lastDestination = trimmed
-                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
-                        .trimmingCharacters(in: .whitespaces)
-                        .replacingOccurrences(of: "\"", with: "")
+                    progressState.setDestination(
+                        trimmed
+                            .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                            .trimmingCharacters(in: .whitespaces)
+                            .replacingOccurrences(of: "\"", with: "")
+                    )
                 } else if trimmed.contains("%") {
-                    let percent = Self.parsePercent(trimmed)
-                    let speed = Self.parseSpeed(trimmed)
-                    Task { @MainActor in
-                        if DownloadManager.shared.activeDownloads[videoId] != nil {
-                            DownloadManager.shared.activeDownloads[videoId] = .downloading(progress: percent, speed: speed)
-                        }
+                    latestProgress = (Self.parsePercent(trimmed), Self.parseSpeed(trimmed))
+                }
+            }
+
+            if let latestProgress, progressState.shouldEmitProgress(latestProgress.percent) {
+                let percent = latestProgress.percent
+                let speed = latestProgress.speed
+                Task { @MainActor in
+                    if DownloadManager.shared.activeDownloads[videoId] != nil {
+                        DownloadManager.shared.activeDownloads[videoId] = .downloading(progress: percent, speed: speed)
                     }
                 }
             }
@@ -539,6 +587,7 @@ final class DownloadManager {
 
         proc.terminationHandler = { [weak self] process in
             pipe.fileHandleForReading.readabilityHandler = nil
+            let finalDestination = progressState.destination()
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.activeProcesses.removeValue(forKey: videoId)
@@ -551,7 +600,7 @@ final class DownloadManager {
                 } else if process.terminationStatus == 0 {
                     self.logger.info("Download completed successfully for \(itemTitle) (\(videoId))")
                     let fileExt = (item.mediaType == .video) ? videoQuality.fileExtension : audioFormat.fileExtension
-                    self.finalizeDownload(item: item, fileExtension: fileExt, detectedDestination: lastDestination)
+                    self.finalizeDownload(item: item, fileExtension: fileExt, detectedDestination: finalDestination)
                 } else {
                     self.logger.error("Download failed for \(itemTitle) (\(videoId)) with exit code \(process.terminationStatus)")
                     self.activeDownloads[videoId] = .failed(error: String(localized: "Download failed."))
