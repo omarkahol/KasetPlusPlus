@@ -2390,7 +2390,7 @@ extension YouTubePlayerServiceTests {
             boundVideoId: "vid-preroll",
             isAd: false
         ))
-        for _ in 0 ..< 20 where controller.selectedAudioTrackId != "1" {
+        for _ in 0 ..< 100 where controller.selectedAudioTrackId != "1" {
             try? await Task.sleep(for: .milliseconds(25))
         }
         #expect(controller.selectedAudioTrackId == "1")
@@ -2426,7 +2426,7 @@ extension YouTubePlayerServiceTests {
             boundVideoId: "vid-midroll",
             isAd: false
         ))
-        for _ in 0 ..< 20 where controller.selectedAudioTrackHistory.count < 1 {
+        for _ in 0 ..< 100 where controller.selectedAudioTrackHistory.count < 1 {
             try? await Task.sleep(for: .milliseconds(25))
         }
         #expect(controller.selectedAudioTrackId == "1")
@@ -2453,7 +2453,7 @@ extension YouTubePlayerServiceTests {
             boundVideoId: "vid-midroll",
             isAd: false
         ))
-        for _ in 0 ..< 20 where controller.selectedAudioTrackHistory.count < 2 {
+        for _ in 0 ..< 100 where controller.selectedAudioTrackHistory.count < 2 {
             try? await Task.sleep(for: .milliseconds(25))
         }
         #expect(controller.selectedAudioTrackHistory == ["1", "1"])

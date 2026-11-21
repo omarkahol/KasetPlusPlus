@@ -9,7 +9,7 @@ struct YouTubeNavigationScriptOwnershipTests {
         let source = try String(
             contentsOfFile: #filePath.replacingOccurrences(
                 of: "Tests/KasetTests/YouTubeNavigationScriptOwnershipTests.swift",
-                with: "Sources/Kaset/Views/YouTube/YouTubeWatchWebView.swift"
+                with: "Sources/Kaset/Views/YouTube/YouTubeWatchWebView+Navigation.swift"
             ),
             encoding: .utf8
         )
