@@ -110,6 +110,7 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     let logger = DiagnosticsLogger.webKit
 
     private var extensionContexts: [String: WKWebExtensionContext] = [:]
+    private var cookieStoreObserver: WeakCookieStoreObserver?
 
     @ObservationIgnored private lazy var webExtensionHost = KasetWebExtensionHost(
         controller: self.webExtensionController,
@@ -138,8 +139,10 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
             self?.recordCookieChange()
         }
 
-        // Observe cookie changes
-        self.dataStore.httpCookieStore.add(self)
+        // Observe cookie changes via a weak proxy so WKHTTPCookieStore does not retain self.
+        let observer = WeakCookieStoreObserver(target: self)
+        self.cookieStoreObserver = observer
+        self.dataStore.httpCookieStore.add(observer)
 
         // Restore auth cookies on startup.
         // Keychain is the source of truth; in DEBUG builds we also export to cookies.dat for tooling.
@@ -156,12 +159,11 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         }
     }
 
-    isolated deinit {
-        self.dataStore.httpCookieStore.remove(self)
-    }
-
     func tearDown() {
-        self.dataStore.httpCookieStore.remove(self)
+        if let observer = self.cookieStoreObserver {
+            self.dataStore.httpCookieStore.remove(observer)
+            self.cookieStoreObserver = nil
+        }
     }
 
     /// Returns `true` if any web extension is currently loaded.
@@ -779,5 +781,20 @@ private final class SessionSwitchNavigationDriver: NSObject, WKNavigationDelegat
 
     func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
         self.complete(with: .failure(SessionSwitchError.navigationFailed(underlying: error.localizedDescription)))
+    }
+}
+
+// MARK: - WeakCookieStoreObserver
+
+/// Weak proxy so `WKHTTPCookieStore` does not strongly retain `WebKitManager`.
+private final class WeakCookieStoreObserver: NSObject, WKHTTPCookieStoreObserver {
+    weak var target: WebKitManager?
+
+    init(target: WebKitManager) {
+        self.target = target
+    }
+
+    func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+        self.target?.cookiesDidChange(in: cookieStore)
     }
 }
