@@ -1,5 +1,4 @@
 // swiftlint:disable file_length
-import CryptoKit
 import Foundation
 import os
 
@@ -238,6 +237,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
             self.logger.info("Personalized recommendations continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
             return additionalSections
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             self.logger.warning("Failed to fetch personalized recommendations continuation: \(error.localizedDescription)")
             self.personalizedRecommendationsContinuationToken = nil
@@ -338,6 +339,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
             self.logger.info("History continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
             return additionalSections
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             self.logger.warning("Failed to fetch history continuation: \(error.localizedDescription)")
             self.continuationTokens[.history] = nil
@@ -395,6 +398,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
             self.logger.info("Podcasts continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
             return additionalSections
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             self.logger.warning("Failed to fetch podcasts continuation: \(error.localizedDescription)")
             self.continuationTokens[.podcasts] = nil
@@ -1939,12 +1944,11 @@ final class YTMusicClient: YTMusicClientProtocol {
         // Compute SAPISIDHASH
         let origin = WebKitManager.origin
         let timestamp = Int(Date().timeIntervalSince1970)
-        let hashInput = "\(timestamp) \(sapisid) \(origin)"
-        let hash = Insecure.SHA1.hash(data: Data(hashInput.utf8))
-            .map { String(format: "%02x", $0) }
-            .joined()
-
-        let sapisidhash = "\(timestamp)_\(hash)"
+        let sapisidhash = InnerTubeSupport.sapisidHash(
+            sapisid: sapisid,
+            origin: origin,
+            timestamp: timestamp
+        )
 
         return [
             "Cookie": cookieHeader,
@@ -2153,7 +2157,7 @@ final class YTMusicClient: YTMusicClientProtocol {
                 code: statusCode
             )
         case let .networkError(error):
-            if let urlError = error as? URLError, urlError.code == .cancelled {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
                 throw CancellationError()
             }
             throw YTMusicError.networkError(underlying: error)
@@ -2222,6 +2226,8 @@ final class YTMusicClient: YTMusicClientProtocol {
             }
 
             return .success(data)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             return .networkError(error)
         }
@@ -2313,6 +2319,10 @@ final class YTMusicAPIKeyResolver {
             }
 
             return apiKey
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            throw CancellationError()
         } catch let error as YTMusicError {
             throw error
         } catch {

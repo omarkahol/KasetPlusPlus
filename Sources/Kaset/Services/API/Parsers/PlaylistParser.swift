@@ -488,29 +488,6 @@ enum PlaylistParser {
         return token
     }
 
-    /// Extracts continuation token from a playlist continuation response.
-    private static func extractPlaylistContinuationTokenFromContinuation(_ data: [String: Any]) -> String? {
-        guard let continuationContents = data["continuationContents"] as? [String: Any] else {
-            return nil
-        }
-
-        // Try musicShelfContinuation
-        if let shelfContinuation = continuationContents["musicShelfContinuation"] as? [String: Any],
-           let token = Self.extractTokenFromRenderer(shelfContinuation)
-        {
-            return token
-        }
-
-        // Try musicPlaylistShelfContinuation
-        if let playlistShelfContinuation = continuationContents["musicPlaylistShelfContinuation"] as? [String: Any],
-           let token = Self.extractTokenFromRenderer(playlistShelfContinuation)
-        {
-            return token
-        }
-
-        return nil
-    }
-
     // MARK: - Header Parsing
 
     private static func parsePlaylistHeader(_ data: [String: Any]) -> HeaderData {
@@ -811,11 +788,13 @@ enum PlaylistParser {
         }
     }
 
+    private static let durationUnits = ["second", "seconds", "minute", "minutes", "hour", "hours"]
+    private static let durationUnitCharacters = Set(durationUnits.joined())
+
     private static func isNaturalLanguageDuration(_ text: String) -> Bool {
         let lowercased = text.lowercased()
-        let durationUnits = ["second", "seconds", "minute", "minutes", "hour", "hours"]
 
-        guard durationUnits.contains(where: { lowercased.contains($0) }) else {
+        guard Self.durationUnits.contains(where: { lowercased.contains($0) }) else {
             return false
         }
 
@@ -823,7 +802,7 @@ enum PlaylistParser {
             character.isNumber
                 || character.isWhitespace
                 || character == ","
-                || durationUnits.joined().contains(character)
+                || Self.durationUnitCharacters.contains(character)
         }
     }
 
@@ -846,7 +825,7 @@ enum PlaylistParser {
             return true
         }
 
-        if self.isNaturalLanguageDuration(text) {
+        if Self.isNaturalLanguageDuration(text) {
             return true
         }
 

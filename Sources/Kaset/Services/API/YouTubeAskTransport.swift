@@ -34,28 +34,46 @@ enum YouTubeAskTransportError: Error, Sendable {
 // MARK: - YouTubeAskTransport
 
 final class YouTubeAskTransport: @unchecked Sendable {
-    private let configuration: URLSessionConfiguration
+    private let session: URLSession
+    private let delegate: YouTubeAskSessionDelegate
 
     init(configuration: URLSessionConfiguration) {
-        configuration.urlCache = nil
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.httpCookieStorage = nil
-        configuration.httpShouldSetCookies = false
-        self.configuration = configuration
+        let sanitizedConfiguration = (configuration.copy() as? URLSessionConfiguration) ?? .ephemeral
+        sanitizedConfiguration.urlCache = nil
+        sanitizedConfiguration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        sanitizedConfiguration.httpCookieStorage = nil
+        sanitizedConfiguration.httpShouldSetCookies = false
+
+        let delegate = YouTubeAskSessionDelegate()
+        self.delegate = delegate
+        self.session = URLSession(
+            configuration: sanitizedConfiguration,
+            delegate: delegate,
+            delegateQueue: nil
+        )
+    }
+
+    deinit {
+        self.session.finishTasksAndInvalidate()
     }
 
     func send(_ request: URLRequest) async throws -> YouTubeAskHTTPResponse {
         guard let originURL = request.url else {
             throw YouTubeAskTransportError.invalidResponse
         }
+        let task = self.session.dataTask(with: request)
+        let taskIdentifier = task.taskIdentifier
+        let delegate = self.delegate
         let loader = YouTubeAskBoundedResponseLoader(
             originURL: originURL,
-            maximumBytes: YouTubeAskLimits.maximumResponseBytes
+            maximumBytes: YouTubeAskLimits.maximumResponseBytes,
+            task: task,
+            onFinish: {
+                delegate.unregister(taskIdentifier: taskIdentifier)
+            }
         )
-        let (data, response) = try await loader.load(
-            configuration: self.configuration,
-            request: request
-        )
+        delegate.register(loader, forTaskIdentifier: taskIdentifier)
+        let (data, response) = try await loader.load()
         guard let httpResponse = response as? HTTPURLResponse else {
             throw YouTubeAskTransportError.invalidResponse
         }
@@ -66,65 +84,136 @@ final class YouTubeAskTransport: @unchecked Sendable {
     }
 }
 
+// MARK: - YouTubeAskSessionDelegate
+
+private final class YouTubeAskSessionDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var loaders: [Int: YouTubeAskBoundedResponseLoader] = [:]
+
+    func register(_ loader: YouTubeAskBoundedResponseLoader, forTaskIdentifier taskIdentifier: Int) {
+        self.lock.lock()
+        self.loaders[taskIdentifier] = loader
+        self.lock.unlock()
+    }
+
+    func unregister(taskIdentifier: Int) {
+        self.lock.lock()
+        self.loaders.removeValue(forKey: taskIdentifier)
+        self.lock.unlock()
+    }
+
+    private func loader(for task: URLSessionTask) -> YouTubeAskBoundedResponseLoader? {
+        self.lock.lock()
+        let loader = self.loaders[task.taskIdentifier]
+        self.lock.unlock()
+        return loader
+    }
+
+    private func takeLoader(for task: URLSessionTask) -> YouTubeAskBoundedResponseLoader? {
+        self.lock.lock()
+        let loader = self.loaders.removeValue(forKey: task.taskIdentifier)
+        self.lock.unlock()
+        return loader
+    }
+
+    func urlSession(
+        _: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection _: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let loader = self.loader(for: task) else {
+            completionHandler(nil)
+            return
+        }
+        loader.handleRedirect(newRequest: request, completionHandler: completionHandler)
+    }
+
+    func urlSession(
+        _: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        guard let loader = self.loader(for: dataTask) else {
+            completionHandler(.cancel)
+            return
+        }
+        loader.handleResponse(response, completionHandler: completionHandler)
+    }
+
+    func urlSession(
+        _: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive data: Data
+    ) {
+        self.loader(for: dataTask)?.handleData(data)
+    }
+
+    func urlSession(
+        _: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: (any Error)?
+    ) {
+        self.takeLoader(for: task)?.handleCompletion(error: error)
+    }
+}
+
 // MARK: - YouTubeAskBoundedResponseLoader
 
-private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+private final class YouTubeAskBoundedResponseLoader: @unchecked Sendable {
     private let scheme: String?
     private let host: String?
     private let port: Int?
     private let maximumBytes: Int
+    private let task: URLSessionDataTask
+    private let onFinish: () -> Void
     private let lock = NSLock()
 
     private var continuation: CheckedContinuation<(Data, URLResponse), any Error>?
-    private var session: URLSession?
     private var response: URLResponse?
     private var responseData = Data()
     private var isFinished = false
     private var cancellationRequested = false
 
-    init(originURL: URL, maximumBytes: Int) {
+    init(
+        originURL: URL,
+        maximumBytes: Int,
+        task: URLSessionDataTask,
+        onFinish: @escaping () -> Void
+    ) {
         self.scheme = originURL.scheme?.lowercased()
         self.host = originURL.host?.lowercased()
         self.port = Self.effectivePort(for: originURL)
         self.maximumBytes = maximumBytes
+        self.task = task
+        self.onFinish = onFinish
     }
 
-    func load(
-        configuration: URLSessionConfiguration,
-        request: URLRequest
-    ) async throws -> (Data, URLResponse) {
+    func load() async throws -> (Data, URLResponse) {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let session = URLSession(
-                    configuration: configuration,
-                    delegate: self,
-                    delegateQueue: nil
-                )
-                let task = session.dataTask(with: request)
-
                 self.lock.lock()
                 if self.cancellationRequested {
                     self.isFinished = true
                     self.lock.unlock()
-                    session.invalidateAndCancel()
+                    self.onFinish()
+                    self.task.cancel()
                     continuation.resume(throwing: CancellationError())
                     return
                 }
                 self.continuation = continuation
-                self.session = session
                 self.lock.unlock()
 
-                task.resume()
+                self.task.resume()
             }
         } onCancel: {
             self.cancel()
         }
     }
 
-    func urlSession(
-        _: URLSession,
-        task _: URLSessionTask,
-        willPerformHTTPRedirection _: HTTPURLResponse,
+    func handleRedirect(
         newRequest request: URLRequest,
         completionHandler: @escaping (URLRequest?) -> Void
     ) {
@@ -136,17 +225,15 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
             completionHandler(nil)
             self.finish(
                 .failure(YouTubeAskTransportError.invalidResponse),
-                cancelSession: true
+                cancelTask: true
             )
             return
         }
         completionHandler(request)
     }
 
-    func urlSession(
-        _: URLSession,
-        dataTask _: URLSessionDataTask,
-        didReceive response: URLResponse,
+    func handleResponse(
+        _ response: URLResponse,
         completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
     ) {
         let exceedsLimit = response.expectedContentLength > 0
@@ -155,7 +242,7 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
             completionHandler(.cancel)
             self.finish(
                 .failure(YouTubeAskTransportError.responseTooLarge),
-                cancelSession: true
+                cancelTask: true
             )
             return
         }
@@ -173,11 +260,7 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
         completionHandler(.allow)
     }
 
-    func urlSession(
-        _: URLSession,
-        dataTask _: URLSessionDataTask,
-        didReceive data: Data
-    ) {
+    func handleData(_ data: Data) {
         var exceedsLimit = false
         self.lock.lock()
         if !self.isFinished {
@@ -192,21 +275,17 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
         if exceedsLimit {
             self.finish(
                 .failure(YouTubeAskTransportError.responseTooLarge),
-                cancelSession: true
+                cancelTask: true
             )
         }
     }
 
-    func urlSession(
-        _: URLSession,
-        task _: URLSessionTask,
-        didCompleteWithError error: (any Error)?
-    ) {
+    func handleCompletion(error: (any Error)?) {
         if let error {
             if (error as? URLError)?.code == .cancelled {
-                self.finish(.failure(CancellationError()), cancelSession: true)
+                self.finish(.failure(CancellationError()), cancelTask: true)
             } else {
-                self.finish(.failure(error), cancelSession: true)
+                self.finish(.failure(error), cancelTask: true)
             }
             return
         }
@@ -219,11 +298,11 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
         guard let response else {
             self.finish(
                 .failure(YouTubeAskTransportError.invalidResponse),
-                cancelSession: true
+                cancelTask: true
             )
             return
         }
-        self.finish(.success((data, response)), cancelSession: false)
+        self.finish(.success((data, response)), cancelTask: false)
     }
 
     private func cancel() {
@@ -232,13 +311,13 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
         let shouldFinish = self.continuation != nil && !self.isFinished
         self.lock.unlock()
         if shouldFinish {
-            self.finish(.failure(CancellationError()), cancelSession: true)
+            self.finish(.failure(CancellationError()), cancelTask: true)
         }
     }
 
     private func finish(
         _ result: Result<(Data, URLResponse), any Error>,
-        cancelSession: Bool
+        cancelTask: Bool
     ) {
         self.lock.lock()
         guard !self.isFinished else {
@@ -247,15 +326,12 @@ private final class YouTubeAskBoundedResponseLoader: NSObject, URLSessionDataDel
         }
         self.isFinished = true
         let continuation = self.continuation
-        let session = self.session
         self.continuation = nil
-        self.session = nil
         self.lock.unlock()
 
-        if cancelSession {
-            session?.invalidateAndCancel()
-        } else {
-            session?.finishTasksAndInvalidate()
+        self.onFinish()
+        if cancelTask {
+            self.task.cancel()
         }
         continuation?.resume(with: result)
     }

@@ -3,23 +3,23 @@ import Foundation
 // MARK: - LRCParser
 
 enum LRCParser {
+    private static let timeRegex = try? NSRegularExpression(pattern: "\\[(\\d{2,}):(\\d{2})\\.(\\d{2,3})\\]")
+    private static let metadataRegex = try? NSRegularExpression(pattern: "\\[([a-z]+):([^\\]]+)\\]")
+    private static let pureMetadataRegex = try? NSRegularExpression(pattern: "^\\[([a-z]+):([^\\]]+)\\]\\s*$")
+    private static let wordRegex = try? NSRegularExpression(pattern: "<(\\d{2,}):(\\d{2})\\.(\\d{2,3})>([^<]+)")
+
     static func parse(_ raw: String) -> SyncedLyrics? {
         var unmergedLines: [SyncedLyricLine] = []
         var offsetMs = 0
 
         let lines = raw.components(separatedBy: .newlines)
 
-        // Match regex for timestamps and metadata
-        let timeRegex = try? NSRegularExpression(pattern: "\\[(\\d{2,}):(\\d{2})\\.(\\d{2,3})\\]")
-        let metadataRegex = try? NSRegularExpression(pattern: "\\[([a-z]+):([^\\]]+)\\]")
-        let wordRegex = try? NSRegularExpression(pattern: "<(\\d{2,}):(\\d{2})\\.(\\d{2,3})>([^<]+)")
-
         for line in lines {
             let nsLine = line as NSString
             let fullRange = NSRange(location: 0, length: nsLine.length)
 
             // Check for metadata
-            if let metaMatch = metadataRegex?.firstMatch(in: line, options: [], range: fullRange) {
+            if let metaMatch = Self.metadataRegex?.firstMatch(in: line, options: [], range: fullRange) {
                 let key = nsLine.substring(with: metaMatch.range(at: 1)).lowercased()
                 let value = nsLine.substring(with: metaMatch.range(at: 2)).trimmingCharacters(in: .whitespaces)
 
@@ -28,12 +28,12 @@ enum LRCParser {
                 }
 
                 // If it's pure metadata and has no lyric text or time tag, skip
-                if (try? NSRegularExpression(pattern: "^\\[([a-z]+):([^\\]]+)\\]\\s*$").firstMatch(in: line, options: [], range: fullRange)) != nil {
+                if Self.pureMetadataRegex?.firstMatch(in: line, options: [], range: fullRange) != nil {
                     continue
                 }
             }
 
-            guard let regex = timeRegex else { continue }
+            guard let regex = Self.timeRegex else { continue }
             let matches = regex.matches(in: line, options: [], range: fullRange)
 
             if matches.isEmpty {
@@ -45,7 +45,7 @@ enum LRCParser {
 
             // Find word level timing
             var words: [TimedWord]?
-            if let wRegex = wordRegex {
+            if let wRegex = Self.wordRegex {
                 let nsText = textOnly as NSString
                 let wMatches = wRegex.matches(in: textOnly, options: [], range: NSRange(location: 0, length: nsText.length))
                 if !wMatches.isEmpty {
@@ -54,8 +54,8 @@ enum LRCParser {
                         let mm = Int(nsText.substring(with: match.range(at: 1))) ?? 0
                         let ss = Int(nsText.substring(with: match.range(at: 2))) ?? 0
                         let msStr = nsText.substring(with: match.range(at: 3))
-                        let ms = self.parseCentsToMs(msStr)
-                        let time = (mm * 60 * 1000) + (ss * 1000) + ms
+                        let ms = Self.parseCentsToMs(msStr)
+                        let time = max(0, (mm * 60 * 1000) + (ss * 1000) + ms - offsetMs)
                         let word = nsText.substring(with: match.range(at: 4))
                         extracted.append(TimedWord(timeInMs: time, word: word))
                     }
@@ -70,7 +70,7 @@ enum LRCParser {
                 let mm = Int(nsLine.substring(with: match.range(at: 1))) ?? 0
                 let ss = Int(nsLine.substring(with: match.range(at: 2))) ?? 0
                 let msStr = nsLine.substring(with: match.range(at: 3))
-                let ms = self.parseCentsToMs(msStr)
+                let ms = Self.parseCentsToMs(msStr)
 
                 let timeMs = (mm * 60 * 1000) + (ss * 1000) + ms - offsetMs
 

@@ -16,6 +16,7 @@ final class SettingsManager {
         static let youTubeMusicEnabled = "settings.youTubeMusicEnabled"
         static let showNowPlayingNotifications = "settings.showNowPlayingNotifications"
         static let defaultLaunchPage = "settings.defaultLaunchPage"
+        static let lastUsedPage = "settings.lastUsedPage"
         static let hapticFeedbackEnabled = "settings.hapticFeedbackEnabled"
         static let telemetryEnabled = "settings.telemetryEnabled"
         static let rememberPlaybackSettings = "settings.rememberPlaybackSettings"
@@ -560,7 +561,11 @@ final class SettingsManager {
     }
 
     /// The last page the user was on (for "Last Used" option).
-    var lastUsedPage: LaunchPage = .home
+    var lastUsedPage: LaunchPage {
+        didSet {
+            UserDefaults.standard.set(self.lastUsedPage.rawValue, forKey: Keys.lastUsedPage)
+        }
+    }
 
     /// Whether synced lyrics are preferred.
     var syncedLyricsEnabled: Bool {
@@ -873,18 +878,33 @@ final class SettingsManager {
     }
 
     /// Whether Offline Mode is enabled. When enabled, only downloaded tracks will play natively via AVPlayer.
-    @ObservationIgnored
-    @AppStorage("isOfflineModeEnabled") var isOfflineModeEnabled: Bool = false
+    var isOfflineModeEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(self.isOfflineModeEnabled, forKey: Keys.isOfflineModeEnabled)
+        }
+    }
 
     /// Whether fast native audio streaming (bypassing WebView via yt-dlp) is enabled.
-    @ObservationIgnored
-    @AppStorage(Keys.isFastNativeStreamingEnabled) var isFastNativeStreamingEnabled: Bool = false
+    var isFastNativeStreamingEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(self.isFastNativeStreamingEnabled, forKey: Keys.isFastNativeStreamingEnabled)
+        }
+    }
 
     // MARK: - Initialization
 
     private init() {
         // Load persisted settings or use defaults
         self.showNowPlayingNotifications = UserDefaults.standard.object(forKey: Keys.showNowPlayingNotifications) as? Bool ?? true
+        self.isOfflineModeEnabled = UserDefaults.standard.object(forKey: Keys.isOfflineModeEnabled) as? Bool ?? false
+        self.isFastNativeStreamingEnabled = UserDefaults.standard.object(forKey: Keys.isFastNativeStreamingEnabled) as? Bool ?? false
+        if let rawValue = UserDefaults.standard.string(forKey: Keys.lastUsedPage),
+           let page = LaunchPage(rawValue: rawValue)
+        {
+            self.lastUsedPage = page
+        } else {
+            self.lastUsedPage = .home
+        }
         self.hapticFeedbackEnabled = UserDefaults.standard.object(forKey: Keys.hapticFeedbackEnabled) as? Bool ?? true
         self.telemetryEnabled = UserDefaults.standard.object(forKey: Keys.telemetryEnabled) as? Bool ?? true
         self.rememberPlaybackSettings = UserDefaults.standard.object(forKey: Keys.rememberPlaybackSettings) as? Bool ?? false
