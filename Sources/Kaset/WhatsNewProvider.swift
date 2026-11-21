@@ -11,6 +11,23 @@ enum WhatsNewProvider {
     /// Static fallback entries used when the network is unavailable.
     static let fallbackCollection: [WhatsNew] = [
         WhatsNew(
+            version: "1.1.0",
+            title: "What's New in Kaset++",
+            features: [
+                .init(
+                    icon: "wrench.and.screwdriver.fill",
+                    title: "Bug Fixes",
+                    subtitle: "Reliable Force Original Language audio, Keychain & WebView stability, scrobbling & download resilience, and UI performance improvements"
+                ),
+                .init(
+                    icon: "target",
+                    title: "DeArrow Support",
+                    subtitle: "Dedicated DeArrow titles toggle, title-adjacent DeArrow button with voting & alternatives window, and DeArrow titles across Home, Subscriptions, and Player Bar"
+                ),
+            ],
+            learnMoreURL: URL(string: "https://github.com/omarkahol/KasetPlusPlus/releases")
+        ),
+        WhatsNew(
             version: "0.12.0",
             title: "What's New in Kaset++",
             features: [
