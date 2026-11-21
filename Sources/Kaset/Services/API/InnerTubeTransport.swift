@@ -177,10 +177,17 @@ final class InnerTubeAuthProvider {
 /// Shared transport, context building, and in-flight read coalescing for InnerTube clients.
 @MainActor
 final class InnerTubeTransport {
+    private struct Waiter: Sendable {
+        let id: UUID
+        let continuation: CheckedContinuation<Void, Error>
+    }
+
+    @MainActor
     private final class InFlightJSONRequest {
         let id = UUID()
         let generation: Int
-        var waiters: [CheckedContinuation<Void, Never>] = []
+        var task: Task<Void, Never>?
+        var waiters: [Waiter] = []
         var result: Result<[String: Any], Error>?
 
         init(generation: Int) {
@@ -214,6 +221,8 @@ final class InnerTubeTransport {
         generation: Int,
         operation: @MainActor @escaping () async throws -> [String: Any]
     ) async throws -> [String: Any] {
+        try Task.checkCancellation()
+
         let entry: InFlightJSONRequest
         if let existing = self.inFlightJSONRequests[cacheKey], existing.generation == generation {
             self.logger.debug("Coalescing in-flight \(self.profile.logLabel) request for key \(cacheKey)")
@@ -223,7 +232,7 @@ final class InnerTubeTransport {
             self.inFlightJSONRequests[cacheKey] = newEntry
             entry = newEntry
 
-            Task { @MainActor in
+            newEntry.task = Task { @MainActor in
                 let result: Result<[String: Any], Error>
                 do {
                     result = try await .success(operation())
@@ -238,14 +247,19 @@ final class InnerTubeTransport {
                 let waiters = newEntry.waiters
                 newEntry.waiters.removeAll()
                 for waiter in waiters {
-                    waiter.resume()
+                    waiter.continuation.resume()
                 }
             }
         }
 
         if entry.result == nil {
-            await withCheckedContinuation { continuation in
-                entry.waiters.append(continuation)
+            let waiterID = UUID()
+            try await withTaskCancellationHandler {
+                try await self.awaitEntry(entry, waiterID: waiterID, cacheKey: cacheKey)
+            } onCancel: {
+                Task { @MainActor in
+                    self.cancelWaiter(id: waiterID, for: entry, cacheKey: cacheKey)
+                }
             }
         }
         try Task.checkCancellation()
@@ -253,6 +267,44 @@ final class InnerTubeTransport {
             throw CancellationError()
         }
         return try result.get()
+    }
+
+    private func awaitEntry(
+        _ entry: InFlightJSONRequest,
+        waiterID: UUID,
+        cacheKey: String
+    ) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            if Task.isCancelled {
+                continuation.resume(throwing: CancellationError())
+                self.cancelInFlightEntryIfAbandoned(entry, cacheKey: cacheKey)
+                return
+            }
+            if entry.result != nil {
+                continuation.resume()
+                return
+            }
+            entry.waiters.append(Waiter(id: waiterID, continuation: continuation))
+        }
+    }
+
+    private func cancelWaiter(id waiterID: UUID, for entry: InFlightJSONRequest, cacheKey: String) {
+        guard let index = entry.waiters.firstIndex(where: { $0.id == waiterID }) else {
+            return
+        }
+        let waiter = entry.waiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
+        self.cancelInFlightEntryIfAbandoned(entry, cacheKey: cacheKey)
+    }
+
+    private func cancelInFlightEntryIfAbandoned(_ entry: InFlightJSONRequest, cacheKey: String) {
+        guard entry.waiters.isEmpty, entry.result == nil else {
+            return
+        }
+        if self.inFlightJSONRequests[cacheKey]?.id == entry.id {
+            self.inFlightJSONRequests.removeValue(forKey: cacheKey)
+        }
+        entry.task?.cancel()
     }
 
     /// Builds the standard InnerTube `context` dictionary.
