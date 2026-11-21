@@ -29,11 +29,9 @@ struct MoodCategoryDetailView: View {
                 PlayerBar()
             }
         }
-        .onAppear {
+        .task(id: ObjectIdentifier(self.viewModel)) {
             if self.viewModel.loadingState == .idle {
-                Task {
-                    await self.viewModel.load()
-                }
+                await self.viewModel.load()
             }
         }
         .refreshable {

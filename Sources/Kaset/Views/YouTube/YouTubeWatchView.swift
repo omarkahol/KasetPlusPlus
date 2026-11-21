@@ -29,6 +29,7 @@ struct YouTubeWatchView: View {
 
     @State private var commentDraft = ""
     @State private var settings = SettingsManager.shared
+    @State private var networkMonitor = NetworkMonitor.shared
     @State private var lyricsSearchQuery = ""
     @State private var showsDownloadSheet = false
     @State private var showsSavePopover = false
@@ -45,15 +46,10 @@ struct YouTubeWatchView: View {
     /// Active tab inside the trailing inspector.
     @State private var inspectorTab: WatchInspectorTab = .suggested
 
-    // AI video summary (on-device, macOS 26+). Stored as plain values so the
-    // view doesn't reference the macOS-26-only VideoSummary type outside a guard.
     @State private var showsSummary = false
     @State private var showsDescription = false
-    @State private var summaryTldr: String?
-    @State private var summaryPoints: [String] = []
-    @State private var summaryAudience: String?
-    @State private var summaryLoading = false
-    @State private var summaryError: String?
+    @State private var summaryCoordinator = VideoSummaryCoordinator()
+    @State private var lyricsService = LyricsSearchService()
 
     private var resolvedTitle: String {
         if self.youtubePlayer.showsDearrowOriginal,
@@ -89,17 +85,34 @@ struct YouTubeWatchView: View {
 
     var body: some View {
         Group {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    self.videoSurface
-                        .contextMenu { self.videoContextMenu }
-
-                    self.primaryBelowVideoColumn
+            if self.settings.isOfflineModeEnabled {
+                ErrorView(
+                    title: String(localized: "Offline Mode Enabled"),
+                    message: String(localized: "Turn off Offline Mode to stream YouTube videos.")
+                ) {
+                    self.settings.isOfflineModeEnabled = false
+                    Task { await self.viewModel.load() }
                 }
-                .frame(maxWidth: Self.maxVideoStageWidth, alignment: .leading)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 20)
-                .frame(maxWidth: .infinity)
+            } else if !self.networkMonitor.isConnected {
+                ErrorView(
+                    title: String(localized: "No Connection"),
+                    message: String(localized: "Please check your internet connection and try again.")
+                ) {
+                    Task { await self.viewModel.load() }
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        self.videoSurface
+                            .contextMenu { self.videoContextMenu }
+
+                        self.primaryBelowVideoColumn
+                    }
+                    .frame(maxWidth: Self.maxVideoStageWidth, alignment: .leading)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 20)
+                    .frame(maxWidth: .infinity)
+                }
             }
         }
         .disabled(self.viewModel.ask.isExpanded)
@@ -571,7 +584,7 @@ struct YouTubeWatchView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     self.showsSummary.toggle()
                 }
-                if self.showsSummary, self.summaryTldr == nil, !self.summaryLoading {
+                if self.showsSummary, self.summaryCoordinator.tldr == nil, !self.summaryCoordinator.isLoading {
                     self.generateSummary()
                 }
             } label: {
@@ -833,6 +846,13 @@ struct YouTubeWatchView: View {
 
     private static let seekLinkScheme = "kaset-seek"
 
+    private static let descriptionLinkDetector = try? NSDataDetector(
+        types: NSTextCheckingResult.CheckingType.link.rawValue
+    )
+    private static let descriptionTimestampRegex = try? NSRegularExpression(
+        pattern: #"(?<![\d:])(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?![\d:])"#
+    )
+
     /// Builds an attributed description: real URLs become browser links, and
     /// `mm:ss` / `h:mm:ss` timestamps become `kaset-seek://<seconds>` links that
     /// seek the player. Segment-by-segment so NSString (UTF-16) ranges from the
@@ -843,7 +863,7 @@ struct YouTubeWatchView: View {
         let full = NSRange(location: 0, length: ns.length)
         var hits: [Hit] = []
 
-        if let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) {
+        if let detector = Self.descriptionLinkDetector {
             for match in detector.matches(in: text, range: full) {
                 if let url = match.url {
                     hits.append(Hit(range: match.range, url: url))
@@ -851,7 +871,7 @@ struct YouTubeWatchView: View {
             }
         }
 
-        if let regex = try? NSRegularExpression(pattern: #"(?<![\d:])(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?![\d:])"#) {
+        if let regex = Self.descriptionTimestampRegex {
             for match in regex.matches(in: text, range: full) {
                 // Don't turn a timestamp inside a matched URL into a seek link.
                 guard !hits.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) else { continue }
@@ -889,8 +909,7 @@ struct YouTubeWatchView: View {
 
     /// Whether on-device summarization is usable right now (macOS 26 + a ready model).
     private var aiSummaryAvailable: Bool {
-        guard #available(macOS 26.0, *) else { return false }
-        return FoundationModelsService.shared.isAvailable
+        self.summaryCoordinator.isAvailable
     }
 
     /// A live broadcast has no transcript to summarize and no lyrics, so both
@@ -907,27 +926,27 @@ struct YouTubeWatchView: View {
                 Label("AI Summary", systemImage: "sparkles")
                     .font(.headline)
                 Spacer()
-                if self.summaryLoading {
+                if self.summaryCoordinator.isLoading {
                     ProgressView().scaleEffect(0.7).frame(width: 16, height: 16)
                 }
             }
 
-            if self.summaryLoading {
+            if self.summaryCoordinator.isLoading {
                 Text("Reading the transcript and summarizing on-device…", comment: "AI summary loading")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            } else if let error = self.summaryError {
+            } else if let error = self.summaryCoordinator.error {
                 Text(error)
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            } else if let tldr = self.summaryTldr {
+            } else if let tldr = self.summaryCoordinator.tldr {
                 Text(tldr)
                     .font(.callout)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if !self.summaryPoints.isEmpty {
+                if !self.summaryCoordinator.keyPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(self.summaryPoints.enumerated()), id: \.offset) { _, point in
+                        ForEach(Array(self.summaryCoordinator.keyPoints.enumerated()), id: \.offset) { _, point in
                             HStack(alignment: .top, spacing: 8) {
                                 Circle().fill(.secondary).frame(width: 5, height: 5).padding(.top, 6)
                                 Text(point).font(.system(size: 13))
@@ -938,7 +957,7 @@ struct YouTubeWatchView: View {
                     .padding(.top, 2)
                 }
 
-                if let audience = self.summaryAudience, !audience.isEmpty {
+                if let audience = self.summaryCoordinator.audience, !audience.isEmpty {
                     Text(audience)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -956,37 +975,12 @@ struct YouTubeWatchView: View {
     }
 
     private func generateSummary() {
-        self.summaryError = nil
-        self.summaryLoading = true
-        let videoId = self.video.videoId
         let title = self.viewModel.data.videoTitle ?? self.video.title
-        Task {
-            defer { self.summaryLoading = false }
-            guard let transcript = await YouTubeDownloadService.shared.fetchTranscript(videoId: videoId),
-                  transcript.count > 40
-            else {
-                self.summaryError = String(localized: "No captions available to summarize this video.")
-                return
-            }
-            guard #available(macOS 26.0, *) else {
-                self.summaryError = String(localized: "AI summary needs macOS 26.")
-                return
-            }
-            do {
-                let summary = try await FoundationModelsService.shared.summarizeVideo(title: title, transcript: transcript)
-                self.summaryTldr = summary.tldr
-                self.summaryPoints = summary.keyPoints
-                self.summaryAudience = summary.audience
-            } catch {
-                self.summaryError = String(localized: "Couldn't summarize this video.")
-            }
-        }
+        self.summaryCoordinator.summarize(videoId: self.video.videoId, title: title)
     }
 
     // MARK: - Lyrics Section
 
-    @State private var lyricsResults: [LRCLibModel] = []
-    @State private var lyricsLoading = false
     @State private var lyricsExpandedID: Int?
 
     private var lyricsSection: some View {
@@ -995,7 +989,7 @@ struct YouTubeWatchView: View {
                 Label("Lyrics", systemImage: "music.quarternote.3")
                     .font(.headline)
                 Spacer()
-                if self.lyricsLoading {
+                if self.lyricsService.isLoading {
                     ProgressView()
                         .scaleEffect(0.7)
                         .frame(width: 16, height: 16)
@@ -1014,7 +1008,6 @@ struct YouTubeWatchView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .onSubmit {
-                    self.lyricsResults = []
                     self.lyricsExpandedID = nil
                     self.performLyricsSearch()
                 }
@@ -1029,7 +1022,6 @@ struct YouTubeWatchView: View {
                     .buttonStyle(.plain)
                 }
                 Button {
-                    self.lyricsResults = []
                     self.lyricsExpandedID = nil
                     self.performLyricsSearch()
                 } label: {
@@ -1045,13 +1037,13 @@ struct YouTubeWatchView: View {
                     .fill(Color.secondary.opacity(0.08))
             }
 
-            if self.lyricsResults.isEmpty, !self.lyricsLoading {
+            if self.lyricsService.results.isEmpty, !self.lyricsService.isLoading {
                 Text("No lyrics found for this song.", comment: "Empty lyrics state")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 4)
             } else {
-                ForEach(self.lyricsResults.prefix(3), id: \.id) { track in
+                ForEach(self.lyricsService.results.prefix(3), id: \.id) { track in
                     self.lyricsTrackRow(track)
                 }
             }
@@ -1068,7 +1060,6 @@ struct YouTubeWatchView: View {
             self.performLyricsSearch()
         }
         .onChange(of: self.video.videoId) { _, _ in
-            self.lyricsResults = []
             self.lyricsExpandedID = nil
             self.lyricsSearchQuery = self.viewModel.data.videoTitle ?? self.video.title
             self.performLyricsSearch()
@@ -1131,31 +1122,7 @@ struct YouTubeWatchView: View {
     }
 
     private func performLyricsSearch() {
-        let trimmed = self.lyricsSearchQuery.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !self.lyricsLoading else { return }
-
-        self.lyricsLoading = true
-        var components = URLComponents(string: "https://lrclib.net/api/search")!
-        components.queryItems = [URLQueryItem(name: "q", value: trimmed)]
-        guard let url = components.url else { self.lyricsLoading = false; return }
-
-        var request = URLRequest(url: url)
-        request.setValue("KasetPlus/1.0", forHTTPHeaderField: "User-Agent")
-
-        Task {
-            defer { self.lyricsLoading = false }
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200
-                else { return }
-                let decoded = try JSONDecoder().decode([LRCLibModel].self, from: data)
-                self.lyricsResults = decoded.filter {
-                    ($0.syncedLyrics != nil || $0.plainLyrics != nil) &&
-                        ($0.instrumental == false || $0.instrumental == nil)
-                }
-            } catch {}
-        }
+        self.lyricsService.search(query: self.lyricsSearchQuery)
     }
 
     private static func stripTimestamps(_ text: String) -> String {
@@ -1427,9 +1394,15 @@ struct YouTubeWatchView: View {
                 self.relatedSkeleton
             case let .error(error):
                 self.relatedHeader
-                Text(error.message)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                ErrorView(
+                    title: error.title,
+                    message: error.message,
+                    isRetryable: error.isRetryable
+                ) {
+                    Task {
+                        await self.viewModel.load()
+                    }
+                }
             case .loaded, .loadingMore:
                 if !self.viewModel.data.mixVideos.isEmpty {
                     self.mixBox
@@ -2103,6 +2076,12 @@ func parseCommentTimestamp(_ token: String) -> Int? {
     }
 }
 
+private enum CommentTimestampRegex {
+    static let shared = try? NSRegularExpression(
+        pattern: "(?<![\\d:])\\d{1,2}:\\d{2}(?::\\d{2})?(?![\\d:])"
+    )
+}
+
 /// Builds an attributed comment where in-range timestamps (`M:SS` / `H:MM:SS`)
 /// become `kasetseek://<seconds>` links, matching YouTube. Timestamps past the
 /// video's duration stay plain text; when the duration is unknown (0) nothing
@@ -2111,8 +2090,7 @@ func parseCommentTimestamp(_ token: String) -> Int? {
 func commentAttributedText(_ text: String, duration: TimeInterval) -> AttributedString {
     var result = AttributedString(text)
     guard duration > 0 else { return result }
-    let pattern = "(?<![\\d:])\\d{1,2}:\\d{2}(?::\\d{2})?(?![\\d:])"
-    guard let regex = try? NSRegularExpression(pattern: pattern) else { return result }
+    guard let regex = CommentTimestampRegex.shared else { return result }
     let ns = text as NSString
     for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
         guard let stringRange = Range(match.range, in: text) else { continue }

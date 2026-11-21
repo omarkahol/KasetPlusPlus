@@ -5,23 +5,44 @@ import SwiftUI
 /// The YouTube home (recommended) feed: an adaptive grid of video cards.
 struct YouTubeHomeView: View {
     let viewModel: YouTubeHomeViewModel
+    @State private var networkMonitor = NetworkMonitor.shared
+    @State private var settings = SettingsManager.shared
 
     private static let columns = [
         GridItem(.adaptive(minimum: 260, maximum: 380), spacing: 20, alignment: .top),
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
-            // YouTube-style filter chips: "All" shows the personalized Home;
-            // any other chip loads that topic's grid. Appears once Home loads.
-            if !self.viewModel.chips.isEmpty {
-                self.chipBar
-            }
-
-            if self.viewModel.selectedChip != nil {
-                self.chipContent
+        Group {
+            if self.settings.isOfflineModeEnabled {
+                ErrorView(
+                    title: String(localized: "Offline Mode Enabled"),
+                    message: String(localized: "Turn off Offline Mode to browse YouTube.")
+                ) {
+                    self.settings.isOfflineModeEnabled = false
+                    Task { await self.viewModel.refresh() }
+                }
+            } else if !self.networkMonitor.isConnected {
+                ErrorView(
+                    title: String(localized: "No Connection"),
+                    message: String(localized: "Please check your internet connection and try again.")
+                ) {
+                    Task { await self.viewModel.refresh() }
+                }
             } else {
-                self.homeContent
+                VStack(spacing: 0) {
+                    // YouTube-style filter chips: "All" shows the personalized Home;
+                    // any other chip loads that topic's grid. Appears once Home loads.
+                    if !self.viewModel.chips.isEmpty {
+                        self.chipBar
+                    }
+
+                    if self.viewModel.selectedChip != nil {
+                        self.chipContent
+                    } else {
+                        self.homeContent
+                    }
+                }
             }
         }
         .navigationTitle(Text("Home", comment: "YouTube home feed title"))

@@ -213,4 +213,106 @@ final class ArtistDetailViewModel {
             mixVideoId: detail.mixVideoId
         )
     }
+
+    // MARK: - Playback Orchestration
+
+    /// Plays a top song, starting immediately with the preview songs when full
+    /// artist songs still need to be fetched and appending the remainder once loaded.
+    func playTopSong(_ song: Song, displayedIndex: Int, playerService: PlayerService) {
+        let intent = playerService.beginMusicPlaybackIntent()
+        let exactOrdinal = self.displayedSongs
+            .prefix(displayedIndex)
+            .count(where: { $0.id == song.id && $0.videoId == song.videoId })
+        let videoOrdinal = self.displayedSongs
+            .prefix(displayedIndex)
+            .count(where: { $0.videoId == song.videoId })
+        Task {
+            if self.allSongs == nil,
+               self.artistDetail?.songsBrowseId != nil,
+               let initialSongs = self.artistDetail?.songs,
+               !initialSongs.isEmpty
+            {
+                let initialStartIndex = Self.songIndex(
+                    for: song,
+                    displayedIndex: displayedIndex,
+                    exactOrdinal: exactOrdinal,
+                    videoOrdinal: videoOrdinal,
+                    in: initialSongs
+                )
+                let loadGeneration = await playerService.playQueue(
+                    initialSongs,
+                    startingAt: initialStartIndex,
+                    deferringSmartShuffleFill: true,
+                    intent: intent
+                )
+                let allSongs = await self.getAllSongs()
+                guard let loadGeneration, playerService.isCurrentQueueLoad(loadGeneration) else { return }
+                let remaining = PlaylistPlaybackActions.remainingTracks(after: initialSongs, in: allSongs)
+                if !remaining.isEmpty {
+                    playerService.appendOriginalTracks(remaining)
+                }
+                await playerService.endQueueLoading(loadGeneration)
+                return
+            }
+
+            let allSongs = await self.getAllSongs()
+            guard playerService.acceptsMusicPlaybackIntent(intent) else { return }
+            let startIndex = Self.songIndex(
+                for: song,
+                displayedIndex: displayedIndex,
+                exactOrdinal: exactOrdinal,
+                videoOrdinal: videoOrdinal,
+                in: allSongs
+            )
+            await playerService.playQueue(
+                allSongs,
+                startingAt: startIndex,
+                deferringSmartShuffleFill: false,
+                intent: intent
+            )
+        }
+    }
+
+    /// Starts radio/mix playback for the artist.
+    func playMix(playlistId: String, startVideoId: String?, playerService: PlayerService) {
+        let intent = playerService.beginMusicPlaybackIntent()
+        Task {
+            await playerService.playWithMix(
+                playlistId: playlistId,
+                startVideoId: startVideoId,
+                intent: intent
+            )
+        }
+    }
+
+    /// Plays all songs for the artist in shuffled order.
+    func shuffleAllSongs(intent: MusicPlaybackIntent, playerService: PlayerService) async {
+        let allSongs = await self.getAllSongs()
+        guard !allSongs.isEmpty,
+              playerService.acceptsMusicPlaybackIntent(intent)
+        else { return }
+        let shuffledSongs = allSongs.shuffled()
+        await playerService.playQueue(
+            shuffledSongs,
+            startingAt: 0,
+            deferringSmartShuffleFill: false,
+            intent: intent
+        )
+    }
+
+    private static func songIndex(
+        for song: Song,
+        displayedIndex: Int,
+        exactOrdinal: Int,
+        videoOrdinal: Int,
+        in songs: [Song]
+    ) -> Int {
+        let exactMatches = songs.indices.filter {
+            songs[$0].id == song.id && songs[$0].videoId == song.videoId
+        }
+        let videoMatches = songs.indices.filter { songs[$0].videoId == song.videoId }
+        return exactMatches[safe: exactOrdinal]
+            ?? videoMatches[safe: videoOrdinal]
+            ?? (songs.indices.contains(displayedIndex) ? displayedIndex : 0)
+    }
 }

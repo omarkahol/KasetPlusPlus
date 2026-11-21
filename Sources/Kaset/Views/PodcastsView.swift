@@ -48,11 +48,9 @@ struct PodcastsView: View {
             PlayerBar()
                 .playerBarMusicNavigation(path: self.$navigationPath)
         }
-        .onAppear {
+        .task(id: ObjectIdentifier(self.viewModel)) {
             if self.viewModel.loadingState == .idle {
-                Task {
-                    await self.viewModel.load()
-                }
+                await self.viewModel.load()
             }
         }
         .refreshable {
@@ -620,10 +618,8 @@ struct AllEpisodesView: View {
                         ProgressView()
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
-                            .onAppear {
-                                Task {
-                                    await self.loadMoreEpisodes()
-                                }
+                            .task {
+                                await self.loadMoreEpisodes()
                             }
                     }
                 }

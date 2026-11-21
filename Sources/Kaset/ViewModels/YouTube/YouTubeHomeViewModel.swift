@@ -32,6 +32,7 @@ final class YouTubeHomeViewModel {
 
     private var chipContinuation: String?
     @ObservationIgnored private var chipTask: Task<Void, Never>?
+    private var isLoadingMoreChipVideos = false
 
     /// Whether the selected chip's grid has another page to load.
     var chipContinuationAvailable: Bool {
@@ -104,7 +105,7 @@ final class YouTubeHomeViewModel {
 
     /// The single in-flight load, shared by concurrent `load()` callers so
     /// SwiftUI `.task` restarts coalesce onto one run instead of cancelling it.
-    private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var loadTask: Task<Void, Never>?
 
     /// The player's `watchActivityGeneration` the last time Continue Watching
     /// was successfully rebuilt. A return/observe with no newer generation is a
@@ -132,7 +133,7 @@ final class YouTubeHomeViewModel {
     /// The in-flight post-watch Continue Watching rebuild, cancelled/replaced
     /// when a newer watch supersedes it. Stored (unstructured) so it survives
     /// the triggering view's teardown.
-    private var continueWatchingRefreshTask: Task<Void, Never>?
+    @ObservationIgnored private var continueWatchingRefreshTask: Task<Void, Never>?
 
     /// The target generation of `continueWatchingRefreshTask` while it is in
     /// flight (e.g. sitting in its propagation delay), else `nil`. `refresh()`
@@ -149,6 +150,12 @@ final class YouTubeHomeViewModel {
         self.client = client
     }
 
+    deinit {
+        self.chipTask?.cancel()
+        self.loadTask?.cancel()
+        self.continueWatchingRefreshTask?.cancel()
+    }
+
     // MARK: - Filter Chips
 
     /// Selects a Home filter chip (nil = "All", the personalized Home). Loads
@@ -160,6 +167,7 @@ final class YouTubeHomeViewModel {
         self.chipTask = nil
         self.chipVideos = []
         self.chipContinuation = nil
+        self.isLoadingMoreChipVideos = false
 
         guard let chip else {
             self.chipLoadingState = .idle
@@ -185,7 +193,12 @@ final class YouTubeHomeViewModel {
 
     /// Loads the next page of the selected chip's grid.
     func loadMoreChipVideos() async {
-        guard self.selectedChip != nil, let continuation = self.chipContinuation else { return }
+        guard !self.isLoadingMoreChipVideos,
+              self.selectedChip != nil,
+              let continuation = self.chipContinuation
+        else { return }
+        self.isLoadingMoreChipVideos = true
+        defer { self.isLoadingMoreChipVideos = false }
         do {
             let feed = try await self.client.getHomeTopicFeed(continuation: continuation, forceRefresh: false)
             guard self.chipContinuation == continuation else { return }

@@ -245,12 +245,8 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
             .onAppear {
                 DiagnosticsLogger.app.info("MainWindow: UI appeared")
             }
-            .task {
+            .task(id: self.didCompleteStartupPlaybackCleanup) {
                 // Auto-present onboarding after startup cleanup
-                for _ in 0..<30 {
-                    if self.didCompleteStartupPlaybackCleanup { break }
-                    try? await Task.sleep(for: .milliseconds(200))
-                }
                 guard self.didCompleteStartupPlaybackCleanup, self.whatsNewToPresent == nil else { return }
                 if !self.settings.hasCompletedInitialOnboarding {
                     // First launch ever: force the full onboarding once — changelog
@@ -618,7 +614,10 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
             }
             .id(self.contentResetID)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                guard let window = notification.object as? NSWindow,
+                      MainWindowLayout.isPrimaryWindow(window)
+                else { return }
                 // Ensure the sidebar returns when the app is re-activated from the Dock or app switcher.
                 if self.columnVisibility != .all {
                     self.columnVisibility = .all
@@ -956,27 +955,10 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
                     get: { self.pinnedNavigationPaths[item.contentId, default: NavigationPath()] },
                     set: { self.pinnedNavigationPaths[item.contentId] = $0 }
                 )) {
-                    Group {
-                        if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
-                            PlaylistDetailView(
-                                playlist: item.playlistRoute,
-                                viewModel: PlaylistDetailViewModel(
-                                    playlist: item.playlistRoute,
-                                    client: client
-                                )
-                            )
-                            .environment(\.libraryViewModel, self.libraryViewModel)
-                        } else {
-                            SimplePlaylistDetailView(
-                                playlist: item.playlistRoute,
-                                viewModel: PlaylistDetailViewModel(
-                                    playlist: item.playlistRoute,
-                                    client: client
-                                )
-                            )
-                            .environment(\.libraryViewModel, self.libraryViewModel)
-                        }
-                    }
+                    PlaylistDetailRouteView(
+                        playlist: item.playlistRoute,
+                        client: client
+                    )
                     .id(item.contentId)
                     .navigationDestinations(client: client)
                 }

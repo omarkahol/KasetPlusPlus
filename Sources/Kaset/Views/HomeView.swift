@@ -46,11 +46,9 @@ struct HomeView: View {
             PlayerBar()
                 .playerBarMusicNavigation(path: self.$navigationPath)
         }
-        .onAppear {
+        .task(id: ObjectIdentifier(self.viewModel)) {
             if self.viewModel.loadingState == .idle {
-                Task {
-                    await self.viewModel.load()
-                }
+                await self.viewModel.load()
             }
         }
         .popsNavigationStackOnSidebarReselect(path: self.$navigationPath, for: .home)

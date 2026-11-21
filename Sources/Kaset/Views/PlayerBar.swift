@@ -509,7 +509,16 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                     .contentTransition(.symbolEffect(.replace))
             }
             .playerBarVolumeOverlay(isPresented: self.$showsVolumeOverlay) {
-                self.volumeOverlay
+                PlayerBarVolumeOverlay(
+                    value: self.$volumeValue,
+                    isAdjusting: self.$isAdjustingVolume,
+                    volumeIcon: self.volumeIcon,
+                    accent: Self.brandAccent,
+                    accessibilityIdentifier: AccessibilityID.PlayerBar.volumeSlider,
+                    onSetVolume: { newValue in
+                        self.playerService.setVolumeImmediately(newValue)
+                    }
+                )
             }
 
             self.downloadButton
@@ -521,59 +530,6 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             segments: self.progressSegments,
             canSeek: self.canSeek
         )
-    }
-
-    private var volumeOverlay: some View {
-        CompatGlassContainer(spacing: 0) {
-            VStack(spacing: 10) {
-                Image(systemName: self.volumeIcon)
-                    .font(.system(size: 15, weight: .regular))
-                    .frame(width: 16, height: 16)
-                    .foregroundStyle(.primary)
-
-                PlayerBarVerticalSlider(
-                    value: self.$volumeValue,
-                    accent: Self.brandAccent,
-                    accessibilityIdentifier: AccessibilityID.PlayerBar.volumeSlider,
-                    accessibilityLabel: String(localized: "Volume"),
-                    onEditingChanged: { editing in
-                        self.isAdjustingVolume = editing
-                        if !editing {
-                            self.playerService.setVolumeImmediately(self.volumeValue)
-                        }
-                    },
-                    onValueChanged: { oldValue, newValue in
-                        if self.isAdjustingVolume {
-                            if (oldValue > 0 && newValue == 0) || (oldValue < 1 && newValue == 1) {
-                                HapticService.sliderBoundary()
-                            }
-                            self.playerService.setVolumeImmediately(newValue)
-                        }
-                    }
-                )
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 16)
-            .frame(width: 46, height: 168)
-            .background {
-                Capsule()
-                    .fill(self.volumeOverlayFill)
-            }
-            .compatGlass(interactive: true, tint: self.volumeOverlayTint, in: .capsule)
-            .shadow(color: self.volumeOverlayShadow, radius: 14, y: 5)
-        }
-    }
-
-    private var volumeOverlayFill: Color {
-        self.colorScheme == .dark ? .black.opacity(0.22) : .white.opacity(0.72)
-    }
-
-    private var volumeOverlayTint: Color {
-        self.colorScheme == .dark ? .white.opacity(0.10) : .black.opacity(0.06)
-    }
-
-    private var volumeOverlayShadow: Color {
-        self.colorScheme == .dark ? .black.opacity(0.36) : .black.opacity(0.18)
     }
 
     private var canSeek: Bool {
@@ -1275,135 +1231,21 @@ private struct MusicPlayerProgressLaneHost: View {
     let isLoading: Bool
     let currentSeekIdentity: String
 
-    @State private var seekValue: Double = 0
-    @State private var isSeeking = false
-    @State private var seekHold = PlayerBarSeekHold()
-    @State private var formattedProgress: String = "0:00"
-    @State private var formattedRemaining: String = "-0:00"
-    @State private var lastProgressSecond: Int = -1
-
-    private var displayedPlaybackProgress: TimeInterval {
-        self.seekHold.displayProgress(observedProgress: self.playerService.progress)
-    }
-
-    private var displayFraction: Double {
-        if self.isSeeking {
-            return min(max(0, self.seekValue), 1)
-        }
-        guard self.playerService.duration > 0 else { return 0 }
-        return min(max(0, self.displayedPlaybackProgress / self.playerService.duration), 1)
-    }
-
     var body: some View {
-        PlayerBarProgressLane(
-            fraction: self.displayFraction,
-            accent: self.accent,
-            elapsedText: self.isSeeking
-                ? Self.formatTime(self.seekValue * self.playerService.duration)
-                : self.formattedProgress,
-            remainingText: self.isSeeking
-                ? "-\(Self.formatTime(max(0, self.playerService.duration - self.seekValue * self.playerService.duration)))"
-                : self.formattedRemaining,
-            segments: self.segments,
+        PlayerBarProgressLaneHost(
+            progress: self.playerService.progress,
+            duration: self.playerService.duration,
+            isShowingAd: self.playerService.isShowingAd,
             isLive: self.playerService.isCurrentItemLive,
             canSeek: self.canSeek,
             isLoading: self.isLoading,
-            onScrub: { fraction in
-                self.isSeeking = true
-                self.seekValue = fraction
-            },
-            onCommit: {
-                self.performSeek()
+            currentSeekIdentity: self.currentSeekIdentity,
+            accent: self.accent,
+            segments: self.segments,
+            onSeek: { seekTime in
+                await self.playerService.seek(to: seekTime)
             }
         )
-        .onAppear {
-            self.syncFromPlayer(progress: self.playerService.progress, duration: self.playerService.duration)
-        }
-        .onChange(of: self.playerService.progress) { _, newValue in
-            self.syncFromPlayer(progress: newValue, duration: self.playerService.duration)
-        }
-        .onChange(of: self.playerService.duration) { _, newValue in
-            self.syncFromPlayer(progress: self.playerService.progress, duration: newValue)
-        }
-        .onChange(of: self.currentSeekIdentity) { _, _ in
-            self.clearSeekHold()
-        }
-        .onChange(of: self.playerService.isShowingAd) { _, isShowingAd in
-            if isShowingAd {
-                self.clearSeekHold()
-            }
-        }
-    }
-
-    private func syncFromPlayer(progress: TimeInterval, duration: TimeInterval) {
-        self.seekHold.reconcile(observedProgress: progress)
-        let displayProgress = self.seekHold.displayProgress(observedProgress: progress)
-
-        if !self.isSeeking, !self.seekHold.isActive, duration > 0 {
-            self.seekValue = displayProgress / duration
-        }
-
-        let currentSecond = Int(displayProgress)
-        if currentSecond != self.lastProgressSecond || duration == 0 {
-            self.lastProgressSecond = currentSecond
-            self.updateFormattedTimes(progress: displayProgress, duration: duration)
-        }
-    }
-
-    private func performSeek() {
-        guard self.isSeeking, self.canSeek else { return }
-        let seekTime = self.seekValue * self.playerService.duration
-        let holdID = self.seekHold.begin(target: seekTime)
-        self.updateFormattedTimes(progress: seekTime, duration: self.playerService.duration)
-        self.isSeeking = false
-
-        Task {
-            await self.playerService.seek(to: seekTime)
-        }
-        Task { @MainActor in
-            try? await Task.sleep(for: PlayerBarSeekHold.timeout)
-            if self.seekHold.clearIfCurrent(holdID) {
-                self.syncSeekValueFromDisplayedProgress()
-                self.updateFormattedTimes(
-                    progress: self.displayedPlaybackProgress,
-                    duration: self.playerService.duration
-                )
-            }
-        }
-    }
-
-    private func clearSeekHold() {
-        self.seekHold.clear()
-        self.isSeeking = false
-        self.syncSeekValueFromDisplayedProgress()
-        self.updateFormattedTimes(
-            progress: self.displayedPlaybackProgress,
-            duration: self.playerService.duration
-        )
-    }
-
-    private func syncSeekValueFromDisplayedProgress() {
-        if self.playerService.duration > 0 {
-            self.seekValue = self.displayedPlaybackProgress / self.playerService.duration
-        } else {
-            self.seekValue = 0
-        }
-    }
-
-    private func updateFormattedTimes(progress: TimeInterval, duration: TimeInterval) {
-        self.formattedProgress = Self.formatTime(progress)
-        self.formattedRemaining = "-\(Self.formatTime(max(0, duration - progress)))"
-    }
-
-    private static func formatTime(_ seconds: TimeInterval) -> String {
-        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
-        let totalSeconds = Int(seconds)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let secs = totalSeconds % 60
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
-            : String(format: "%d:%02d", minutes, secs)
     }
 }
 

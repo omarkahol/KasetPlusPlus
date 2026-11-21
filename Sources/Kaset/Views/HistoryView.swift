@@ -62,7 +62,7 @@ struct HistoryView: View {
             PlayerBar()
                 .playerBarMusicNavigation(path: self.$navigationPath)
         }
-        .task {
+        .task(id: ObjectIdentifier(self.viewModel)) {
             if self.viewModel.loadingState == .idle {
                 await self.viewModel.load()
                 self.viewModel.syncObservedPlayback(videoId: self.playerService.currentTrack?.videoId)

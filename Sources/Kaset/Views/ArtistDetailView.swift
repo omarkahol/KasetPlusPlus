@@ -3,7 +3,7 @@
 import SwiftUI
 
 /// Detail view for an artist showing their songs and albums.
-struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
+struct ArtistDetailView: View {
     let artist: Artist
     var playerBarNavigationAction: PlayerBarNavigationAction = .disabled
     @State var viewModel: ArtistDetailViewModel
@@ -188,7 +188,7 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                         Button {
                             let intent = self.playerService.beginMusicPlaybackIntent()
                             Task {
-                                await self.shuffleAllSongs(intent: intent)
+                                await self.viewModel.shuffleAllSongs(intent: intent, playerService: self.playerService)
                             }
                         } label: {
                             Label(String(localized: "Shuffle"), systemImage: "shuffle")
@@ -204,7 +204,11 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                     // in addition to client-side shuffling applied when the mix tracks are played
                     if let mixPlaylistId = detail.mixPlaylistId {
                         Button {
-                            self.playMix(playlistId: mixPlaylistId, startVideoId: nil)
+                            self.viewModel.playMix(
+                                playlistId: mixPlaylistId,
+                                startVideoId: nil,
+                                playerService: self.playerService
+                            )
                         } label: {
                             Label(String(localized: "Mix"), systemImage: "play.circle")
                         }
@@ -387,7 +391,7 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
                         } else if isCurrentSong {
                             await self.playerService.resume()
                         } else {
-                            self.playTopSong(song, displayedIndex: index)
+                            self.viewModel.playTopSong(song, displayedIndex: index, playerService: self.playerService)
                         }
                     }
                 } label: {
@@ -414,7 +418,7 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             .padding(.horizontal, 4)
             .background {
                 Button {
-                    self.playTopSong(song, displayedIndex: index)
+                    self.viewModel.playTopSong(song, displayedIndex: index, playerService: self.playerService)
                 } label: {
                     Color.clear.contentShape(Rectangle())
                 }
@@ -423,7 +427,7 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
         }
         .contextMenu {
             Button {
-                self.playTopSong(song, displayedIndex: index)
+                self.viewModel.playTopSong(song, displayedIndex: index, playerService: self.playerService)
             } label: {
                 Label(String(localized: "Play"), systemImage: "play.fill")
             }
@@ -487,77 +491,6 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
         }
     }
 
-    private func playTopSong(_ song: Song, displayedIndex: Int) {
-        let intent = self.playerService.beginMusicPlaybackIntent()
-        let exactOrdinal = self.viewModel.displayedSongs
-            .prefix(displayedIndex)
-            .count(where: { $0.id == song.id && $0.videoId == song.videoId })
-        let videoOrdinal = self.viewModel.displayedSongs
-            .prefix(displayedIndex)
-            .count(where: { $0.videoId == song.videoId })
-        Task {
-            if self.viewModel.allSongs == nil,
-               self.viewModel.artistDetail?.songsBrowseId != nil,
-               let initialSongs = self.viewModel.artistDetail?.songs,
-               !initialSongs.isEmpty
-            {
-                let initialStartIndex = Self.songIndex(
-                    for: song,
-                    displayedIndex: displayedIndex,
-                    exactOrdinal: exactOrdinal,
-                    videoOrdinal: videoOrdinal,
-                    in: initialSongs
-                )
-                let loadGeneration = await self.playerService.playQueue(
-                    initialSongs,
-                    startingAt: initialStartIndex,
-                    deferringSmartShuffleFill: true,
-                    intent: intent
-                )
-                let allSongs = await self.viewModel.getAllSongs()
-                guard let loadGeneration, self.playerService.isCurrentQueueLoad(loadGeneration) else { return }
-                let remaining = PlaylistPlaybackActions.remainingTracks(after: initialSongs, in: allSongs)
-                if !remaining.isEmpty {
-                    self.playerService.appendOriginalTracks(remaining)
-                }
-                await self.playerService.endQueueLoading(loadGeneration)
-                return
-            }
-
-            let allSongs = await self.viewModel.getAllSongs()
-            guard self.playerService.acceptsMusicPlaybackIntent(intent) else { return }
-            let startIndex = Self.songIndex(
-                for: song,
-                displayedIndex: displayedIndex,
-                exactOrdinal: exactOrdinal,
-                videoOrdinal: videoOrdinal,
-                in: allSongs
-            )
-            await self.playerService.playQueue(
-                allSongs,
-                startingAt: startIndex,
-                deferringSmartShuffleFill: false,
-                intent: intent
-            )
-        }
-    }
-
-    private static func songIndex(
-        for song: Song,
-        displayedIndex: Int,
-        exactOrdinal: Int,
-        videoOrdinal: Int,
-        in songs: [Song]
-    ) -> Int {
-        let exactMatches = songs.indices.filter {
-            songs[$0].id == song.id && songs[$0].videoId == song.videoId
-        }
-        let videoMatches = songs.indices.filter { songs[$0].videoId == song.videoId }
-        return exactMatches[safe: exactOrdinal]
-            ?? videoMatches[safe: videoOrdinal]
-            ?? (songs.indices.contains(displayedIndex) ? displayedIndex : 0)
-    }
-
     private func albumsSection(
         _ albums: [Album],
         title: String = "Albums",
@@ -568,10 +501,15 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             items: albums,
             contentInset: DetailContentLayout.horizontalInset
         ) {
-            self.sectionHeader(title: title, shelfKind: shelfKind)
+            ArtistShelfHeader(title: title, shelfKind: shelfKind, detail: self.viewModel.artistDetail)
         } itemContent: { album in
             NavigationLink(value: self.playlistFromAlbum(album)) {
-                self.albumCard(album)
+                ArtistShelfMediaCard(
+                    title: album.title,
+                    subtitle: album.year,
+                    thumbnailURL: album.thumbnailURL,
+                    placeholderIcon: "square.stack"
+                )
             }
             .buttonStyle(.plain)
         }
@@ -583,10 +521,15 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             items: playlists,
             contentInset: DetailContentLayout.horizontalInset
         ) {
-            self.sectionHeader(title: title, shelfKind: .playlistsByArtist)
+            ArtistShelfHeader(title: title, shelfKind: .playlistsByArtist, detail: self.viewModel.artistDetail)
         } itemContent: { playlist in
             NavigationLink(value: playlist) {
-                self.playlistCard(playlist)
+                ArtistShelfMediaCard(
+                    title: playlist.title,
+                    subtitle: Self.playlistSubtitle(for: playlist),
+                    thumbnailURL: playlist.thumbnailURL,
+                    placeholderIcon: "music.note.list"
+                )
             }
             .buttonStyle(.plain)
         }
@@ -598,10 +541,110 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
             items: artists,
             contentInset: DetailContentLayout.horizontalInset
         ) {
-            self.sectionHeader(title: title, shelfKind: .relatedArtists)
+            ArtistShelfHeader(title: title, shelfKind: .relatedArtists, detail: self.viewModel.artistDetail)
         } itemContent: { artist in
             NavigationLink(value: artist) {
-                self.artistCard(artist)
+                ArtistShelfMediaCard(
+                    title: artist.name,
+                    subtitle: artist.subtitle,
+                    thumbnailURL: artist.thumbnailURL,
+                    placeholderIcon: "person.fill",
+                    shape: .circle,
+                    alignment: .center,
+                    subtitleLineLimit: 2
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func episodesSection(_ episodes: [ArtistEpisode]) -> some View {
+        CarouselShelfSection(
+            accessibilityLabel: String(localized: "Latest episodes"),
+            items: episodes,
+            contentInset: DetailContentLayout.horizontalInset
+        ) {
+            ArtistShelfHeader(
+                title: "Latest episodes",
+                shelfKind: .episodes,
+                detail: self.viewModel.artistDetail
+            )
+        } itemContent: { episode in
+            Button {
+                let intent = self.playerService.beginMusicPlaybackIntent()
+                Task {
+                    await self.playerService.playEpisode(episode, intent: intent)
+                }
+            } label: {
+                ArtistEpisodeCard(episode: episode)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func singlesSection(_ singles: [Album]) -> some View {
+        self.albumsSection(singles, title: "Singles & EPs", shelfKind: .singles)
+    }
+
+    private func playlistsByArtistSection(_ playlists: [Playlist]) -> some View {
+        CarouselShelfSection(
+            accessibilityLabel: String(localized: "Playlists"),
+            items: playlists,
+            contentInset: DetailContentLayout.horizontalInset
+        ) {
+            ArtistShelfHeader(title: "Playlists", shelfKind: .playlistsByArtist, detail: self.viewModel.artistDetail)
+        } itemContent: { playlist in
+            NavigationLink(value: playlist) {
+                ArtistShelfMediaCard(
+                    title: playlist.title,
+                    thumbnailURL: playlist.thumbnailURL,
+                    placeholderIcon: "music.note.list"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func podcastsSection(_ podcasts: [PodcastShow]) -> some View {
+        CarouselShelfSection(
+            accessibilityLabel: String(localized: "Podcasts"),
+            items: podcasts,
+            contentInset: DetailContentLayout.horizontalInset
+        ) {
+            ArtistShelfHeader(title: "Podcasts", shelfKind: .podcasts, detail: self.viewModel.artistDetail)
+        } itemContent: { show in
+            NavigationLink(value: show) {
+                ArtistShelfMediaCard(
+                    title: show.title,
+                    thumbnailURL: show.thumbnailURL,
+                    placeholderIcon: "mic"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func relatedArtistsSection(_ artists: [Artist]) -> some View {
+        CarouselShelfSection(
+            accessibilityLabel: String(localized: "Fans might also like"),
+            items: artists,
+            contentInset: DetailContentLayout.horizontalInset
+        ) {
+            ArtistShelfHeader(
+                title: "Fans might also like",
+                shelfKind: .relatedArtists,
+                detail: self.viewModel.artistDetail
+            )
+        } itemContent: { artist in
+            NavigationLink(value: artist) {
+                ArtistShelfMediaCard(
+                    title: artist.name,
+                    thumbnailURL: artist.thumbnailURL,
+                    placeholderIcon: "person.fill",
+                    size: 120,
+                    shape: .circle,
+                    alignment: .center
+                )
             }
             .buttonStyle(.plain)
         }
@@ -618,370 +661,14 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
         )
     }
 
-    private func albumCard(_ album: Album) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Thumbnail
-            CachedAsyncImage(url: album.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 140, height: 140)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(.quaternary)
-                    .overlay {
-                        Image(systemName: "square.stack")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            .frame(width: 140, height: 140)
-            .clipShape(.rect(cornerRadius: 8))
-
-            // Title
-            Text(album.title)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .frame(width: 140, alignment: .leading)
-
-            // Year
-            if let year = album.year {
-                Text(year)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 140, alignment: .leading)
-            }
+    private static func playlistSubtitle(for playlist: Playlist) -> String? {
+        if let authorName = playlist.author?.name, !authorName.isEmpty {
+            return authorName
         }
-    }
-
-    private func playlistCard(_ playlist: Playlist) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CachedAsyncImage(url: playlist.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 140, height: 140)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(.quaternary)
-                    .overlay {
-                        Image(systemName: "music.note.list")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            .frame(width: 140, height: 140)
-            .clipShape(.rect(cornerRadius: 8))
-
-            Text(playlist.title)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .frame(width: 140, alignment: .leading)
-
-            if let authorName = playlist.author?.name, !authorName.isEmpty {
-                Text(authorName)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(width: 140, alignment: .leading)
-            } else if let trackCount = playlist.trackCount {
-                Text(trackCount == 1 ? "1 song" : "\(trackCount) songs")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 140, alignment: .leading)
-            }
+        if let trackCount = playlist.trackCount {
+            return trackCount == 1 ? "1 song" : "\(trackCount) songs"
         }
-    }
-
-    private func artistCard(_ artist: Artist) -> some View {
-        VStack(alignment: .center, spacing: 8) {
-            CachedAsyncImage(url: artist.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 140, height: 140)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(.quaternary)
-                    .overlay {
-                        Image(systemName: "person.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            .frame(width: 140, height: 140)
-            .clipShape(.circle)
-
-            Text(artist.name)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: 140, alignment: .center)
-
-            if let subtitle = artist.subtitle {
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 140, alignment: .center)
-            }
-        }
-    }
-
-    // MARK: - Actions
-
-    private func playMix(playlistId: String, startVideoId: String?) {
-        let intent = self.playerService.beginMusicPlaybackIntent()
-        Task {
-            await self.playerService.playWithMix(
-                playlistId: playlistId,
-                startVideoId: startVideoId,
-                intent: intent
-            )
-        }
-    }
-
-    private func playAll(_ songs: [Song]) {
-        guard !songs.isEmpty else { return }
-        let intent = self.playerService.beginMusicPlaybackIntent()
-        Task {
-            await self.playerService.playQueue(
-                songs,
-                startingAt: 0,
-                deferringSmartShuffleFill: false,
-                intent: intent
-            )
-        }
-    }
-
-    /// Fetches all artist songs and plays them shuffled.
-    private func shuffleAllSongs(intent: MusicPlaybackIntent) async {
-        let allSongs = await self.viewModel.getAllSongs()
-        guard !allSongs.isEmpty,
-              self.playerService.acceptsMusicPlaybackIntent(intent)
-        else { return }
-        let shuffledSongs = allSongs.shuffled()
-        await self.playerService.playQueue(
-            shuffledSongs,
-            startingAt: 0,
-            deferringSmartShuffleFill: false,
-            intent: intent
-        )
-    }
-
-    // MARK: - Episodes Section (Latest episodes / live radios)
-
-    private func episodesSection(_ episodes: [ArtistEpisode]) -> some View {
-        CarouselShelfSection(
-            accessibilityLabel: String(localized: "Latest episodes"),
-            items: episodes,
-            contentInset: DetailContentLayout.horizontalInset
-        ) {
-            self.sectionHeader(title: "Latest episodes", shelfKind: .episodes)
-        } itemContent: { episode in
-            Button {
-                let intent = self.playerService.beginMusicPlaybackIntent()
-                Task {
-                    await self.playerService.playEpisode(episode, intent: intent)
-                }
-            } label: {
-                self.episodeCard(episode)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func episodeCard(_ episode: ArtistEpisode) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topLeading) {
-                CachedAsyncImage(url: episode.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 220, height: 124)) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            Image(systemName: "play.rectangle")
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                        }
-                }
-                .frame(width: 220, height: 124)
-                .clipShape(.rect(cornerRadius: 8))
-
-                if episode.isLive {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 6, height: 6)
-                        Text("LIVE", comment: "Live badge on artist episode card")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .tracking(0.5)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.red, in: .capsule)
-                    .padding(8)
-                }
-            }
-
-            Text(episode.title)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .frame(width: 220, alignment: .leading)
-
-            if let subtitle = episode.subtitle {
-                Text(subtitle)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 220, alignment: .leading)
-            }
-        }
-    }
-
-    // MARK: - Singles & EPs Section
-
-    private func singlesSection(_ singles: [Album]) -> some View {
-        CarouselShelfSection(
-            accessibilityLabel: String(localized: "Singles & EPs"),
-            items: singles,
-            contentInset: DetailContentLayout.horizontalInset
-        ) {
-            self.sectionHeader(title: "Singles & EPs", shelfKind: .singles)
-        } itemContent: { album in
-            NavigationLink(value: self.playlistFromAlbum(album)) {
-                self.albumCard(album)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Playlists by Artist Section
-
-    private func playlistsByArtistSection(_ playlists: [Playlist]) -> some View {
-        CarouselShelfSection(
-            accessibilityLabel: String(localized: "Playlists"),
-            items: playlists,
-            contentInset: DetailContentLayout.horizontalInset
-        ) {
-            self.sectionHeader(title: "Playlists", shelfKind: .playlistsByArtist)
-        } itemContent: { playlist in
-            NavigationLink(value: playlist) {
-                VStack(alignment: .leading, spacing: 8) {
-                    CachedAsyncImage(url: playlist.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 140, height: 140)) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                Image(systemName: "music.note.list")
-                                    .font(.largeTitle)
-                                    .foregroundStyle(.secondary)
-                            }
-                    }
-                    .frame(width: 140, height: 140)
-                    .clipShape(.rect(cornerRadius: 8))
-
-                    Text(playlist.title)
-                        .font(.system(size: 12, weight: .medium))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(width: 140, alignment: .leading)
-                }
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Podcasts Section
-
-    private func podcastsSection(_ podcasts: [PodcastShow]) -> some View {
-        CarouselShelfSection(
-            accessibilityLabel: String(localized: "Podcasts"),
-            items: podcasts,
-            contentInset: DetailContentLayout.horizontalInset
-        ) {
-            self.sectionHeader(title: "Podcasts", shelfKind: .podcasts)
-        } itemContent: { show in
-            NavigationLink(value: show) {
-                self.podcastCard(show)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func podcastCard(_ show: PodcastShow) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CachedAsyncImage(url: show.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 140, height: 140)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(.quaternary)
-                    .overlay {
-                        Image(systemName: "mic")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            .frame(width: 140, height: 140)
-            .clipShape(.rect(cornerRadius: 8))
-
-            Text(show.title)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .frame(width: 140, alignment: .leading)
-        }
-    }
-
-    // MARK: - Related Artists Section
-
-    private func relatedArtistsSection(_ artists: [Artist]) -> some View {
-        CarouselShelfSection(
-            accessibilityLabel: String(localized: "Fans might also like"),
-            items: artists,
-            contentInset: DetailContentLayout.horizontalInset
-        ) {
-            self.sectionHeader(title: "Fans might also like", shelfKind: .relatedArtists)
-        } itemContent: { artist in
-            NavigationLink(value: artist) {
-                self.relatedArtistCard(artist)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func relatedArtistCard(_ artist: Artist) -> some View {
-        VStack(alignment: .center, spacing: 8) {
-            CachedAsyncImage(url: artist.thumbnailURL?.highQualityThumbnailURL, targetSize: CGSize(width: 120, height: 120)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Rectangle()
-                    .fill(.quaternary)
-                    .overlay {
-                        Image(systemName: "person.fill")
-                            .font(.largeTitle)
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            .frame(width: 120, height: 120)
-            .clipShape(.circle)
-
-            Text(artist.name)
-                .font(.system(size: 12, weight: .medium))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-                .frame(width: 120, alignment: .center)
-        }
+        return nil
     }
 
     private func albumShelfKind(for title: String) -> ArtistShelfKind {
@@ -995,60 +682,6 @@ struct ArtistDetailView: View { // swiftlint:disable:this type_body_length
 
     private var hasPersonalAccount: Bool {
         self.authService.hasPersonalAccount
-    }
-
-    // MARK: - Section Header with Optional See-all
-
-    private func sectionHeader(title: String, shelfKind: ArtistShelfKind) -> some View {
-        HStack {
-            Text(LocalizedStringKey(title))
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Spacer()
-
-            if let detail = viewModel.artistDetail,
-               let more = detail.moreEndpoints[shelfKind]
-            {
-                self.seeAllLink(more: more, sectionTitle: title, artistName: detail.name)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func seeAllLink(
-        more: ShelfMoreEndpoint,
-        sectionTitle: String,
-        artistName: String
-    ) -> some View {
-        switch more.pageType {
-        case .playlist:
-            // Playlist-backed See-all destinations reuse the existing
-            // `Playlist` navigation route so `PlaylistDetailView` can render
-            // the full list.
-            NavigationLink(value: Playlist(
-                id: more.browseId,
-                title: sectionTitle,
-                description: nil,
-                thumbnailURL: nil,
-                trackCount: nil,
-                author: Artist.inline(name: artistName, namespace: "playlist-author")
-            )) {
-                Text(String(localized: "See all")).font(.subheadline)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
-        case .artist, .discography:
-            NavigationLink(value: ArtistSeeAllDestination(
-                artistName: artistName,
-                sectionTitle: sectionTitle,
-                endpoint: more
-            )) {
-                Text(String(localized: "See all")).font(.subheadline)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Color.accentColor)
-        }
     }
 }
 

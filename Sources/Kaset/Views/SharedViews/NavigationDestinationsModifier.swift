@@ -30,50 +30,18 @@ struct NavigationDestinationsModifier: ViewModifier {
                         )
                     } else {
                         // Fallback - shouldn't happen
-                        if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
-                            PlaylistDetailView(
-                                playlist: playlist,
-                                viewModel: PlaylistDetailViewModel(
-                                    playlist: playlist,
-                                    client: self.client
-                                ),
-                                playerBarNavigationAction: self.playerBarNavigationAction
-                            )
-                            .environment(\.libraryViewModel, self.libraryViewModel)
-                        } else {
-                            SimplePlaylistDetailView(
-                                playlist: playlist,
-                                viewModel: PlaylistDetailViewModel(
-                                    playlist: playlist,
-                                    client: self.client
-                                ),
-                                playerBarNavigationAction: self.playerBarNavigationAction
-                            )
-                            .environment(\.libraryViewModel, self.libraryViewModel)
-                        }
+                        PlaylistDetailRouteView(
+                            playlist: playlist,
+                            client: self.client,
+                            playerBarNavigationAction: self.playerBarNavigationAction
+                        )
                     }
                 } else {
-                    if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
-                        PlaylistDetailView(
-                            playlist: playlist,
-                            viewModel: PlaylistDetailViewModel(
-                                playlist: playlist,
-                                client: self.client
-                            ),
-                            playerBarNavigationAction: self.playerBarNavigationAction
-                        )
-                        .environment(\.libraryViewModel, self.libraryViewModel)
-                    } else {
-                        SimplePlaylistDetailView(
-                            playlist: playlist,
-                            viewModel: PlaylistDetailViewModel(
-                                playlist: playlist,
-                                client: self.client
-                            ),
-                            playerBarNavigationAction: self.playerBarNavigationAction
-                        )
-                        .environment(\.libraryViewModel, self.libraryViewModel)
-                    }
+                    PlaylistDetailRouteView(
+                        playlist: playlist,
+                        client: self.client,
+                        playerBarNavigationAction: self.playerBarNavigationAction
+                    )
                 }
             }
             .navigationDestination(for: MoodCategory.self) { (category: MoodCategory) in
@@ -137,5 +105,53 @@ extension View {
             client: client,
             playerBarNavigationAction: playerBarNavigationAction
         ))
+    }
+}
+
+// MARK: - PlaylistDetailRouteView
+
+/// Lazily creates and owns `PlaylistDetailViewModel` in `@State` via `.task(id:)`
+/// so `View` body builders never instantiate `PlaylistDetailViewModel` during layout.
+struct PlaylistDetailRouteView: View {
+    let playlist: Playlist
+    let client: any YTMusicClientProtocol
+    var playerBarNavigationAction: PlayerBarNavigationAction = .disabled
+
+    @Environment(\.libraryViewModel) private var libraryViewModel: LibraryViewModel?
+    @Environment(\.usesLegacyMacOS15UI) private var usesLegacyMacOS15UI
+    @State private var viewModel: PlaylistDetailViewModel?
+    @State private var loadedPlaylistID: String?
+
+    var body: some View {
+        Group {
+            if let viewModel = self.viewModel {
+                if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
+                    PlaylistDetailView(
+                        playlist: self.playlist,
+                        viewModel: viewModel,
+                        playerBarNavigationAction: self.playerBarNavigationAction
+                    )
+                    .environment(\.libraryViewModel, self.libraryViewModel)
+                } else {
+                    SimplePlaylistDetailView(
+                        playlist: self.playlist,
+                        viewModel: viewModel,
+                        playerBarNavigationAction: self.playerBarNavigationAction
+                    )
+                    .environment(\.libraryViewModel, self.libraryViewModel)
+                }
+            } else {
+                LoadingView(String(localized: "Loading playlist..."))
+            }
+        }
+        .task(id: self.playlist.id) {
+            if self.loadedPlaylistID != self.playlist.id || self.viewModel == nil {
+                self.loadedPlaylistID = self.playlist.id
+                self.viewModel = PlaylistDetailViewModel(
+                    playlist: self.playlist,
+                    client: self.client
+                )
+            }
+        }
     }
 }
