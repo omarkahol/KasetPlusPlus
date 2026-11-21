@@ -37,8 +37,7 @@ struct KasetSidebarRow: View {
         .accessibilityAddTraits(self.isSelected ? .isSelected : [])
     }
 
-    @ViewBuilder
-    private var selectionBackground: some View {
+    @ViewBuilder private var selectionBackground: some View {
         if self.isSelected {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color.secondary.opacity(0.22))

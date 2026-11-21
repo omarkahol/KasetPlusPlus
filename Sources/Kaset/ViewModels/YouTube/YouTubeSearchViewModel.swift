@@ -29,7 +29,9 @@ final class YouTubeSearchViewModel {
     private(set) var appliedFilterParams: String?
 
     /// Whether any search filter is currently applied.
-    var hasActiveFilters: Bool { self.appliedFilterParams != nil }
+    var hasActiveFilters: Bool {
+        self.appliedFilterParams != nil
+    }
 
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var paginationTask: Task<Void, Never>?
@@ -175,8 +177,7 @@ final class YouTubeSearchViewModel {
 
         do {
             let results = try await client.search(query: request.context.query, params: request.context.params)
-            guard self.isCurrentSearch(request) else { return }
-            guard !Task.isCancelled else { return }
+            guard self.isCurrentSearch(request), !Task.isCancelled else { return }
 
             self.results = results
             // Keep the last non-empty filter set so the bar stays put on reloads.
@@ -192,8 +193,7 @@ final class YouTubeSearchViewModel {
             if error is CancellationError {
                 return
             }
-            guard self.isCurrentSearch(request) else { return }
-            guard !Task.isCancelled else { return }
+            guard self.isCurrentSearch(request), !Task.isCancelled else { return }
             self.logger.error("YouTube search failed: \(error.localizedDescription)")
             self.loadingState = .error(LoadingError(from: error))
         }

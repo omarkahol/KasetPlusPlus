@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - InnerTubeStreamResolver
 
-/// Resolves direct `AVPlayer`-compatible streaming URLs (Apple HLS master manifests or
+/// Resolves direct `AVPlayer`-compatible streaming URLs (Apple HLS multivariant manifests or
 /// muxed progressive MP4s) directly via YouTube's InnerTube `/youtubei/v1/player` API
 /// without spawning external subprocesses.
 actor InnerTubeStreamResolver {
@@ -252,15 +252,15 @@ actor InnerTubeStreamResolver {
             request.httpBody = bodyData
 
             guard let data = await Self.performBoundedDataRequest(
-                request,
-                session: session,
-                timeoutSeconds: min(2.5, remaining)
-            ),
-                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                let responseContext = json["responseContext"] as? [String: Any],
-                let visitorData = (responseContext["visitorData"] as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                !visitorData.isEmpty
+                      request,
+                      session: session,
+                      timeoutSeconds: min(2.5, remaining)
+                  ),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let responseContext = json["responseContext"] as? [String: Any],
+                  let visitorData = (responseContext["visitorData"] as? String)?
+                      .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !visitorData.isEmpty
             else {
                 return nil
             }
@@ -340,7 +340,8 @@ actor InnerTubeStreamResolver {
         return max(0, seconds)
     }
 
-    private nonisolated static func performBoundedDataRequest(
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func performBoundedDataRequest(
         _ request: URLRequest,
         session: URLSession,
         timeoutSeconds: TimeInterval
@@ -359,13 +360,14 @@ actor InnerTubeStreamResolver {
                 try? await Task.sleep(for: .seconds(max(0.05, timeoutSeconds)))
                 return nil
             }
-            let first = await group.next() ?? nil
+            let first = await group.next().flatMap(\.self)
             group.cancelAll()
             return first
         }
     }
 
-    private nonisolated static func streamTTL(from streamingData: [String: Any]?) -> TimeInterval {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func streamTTL(from streamingData: [String: Any]?) -> TimeInterval {
         let rawSeconds: TimeInterval? = switch streamingData?["expiresInSeconds"] {
         case let string as String:
             TimeInterval(string)
@@ -382,7 +384,8 @@ actor InnerTubeStreamResolver {
         return max(60, min(rawSeconds - Self.expirationSafetyBuffer, 5.5 * 3600))
     }
 
-    private nonisolated static func validHTTPURL(from string: String) -> URL? {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func validHTTPURL(from string: String) -> URL? {
         let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let url = URL(string: trimmed),
@@ -438,7 +441,7 @@ final class DirectStreamResolver {
         if let cachedURL = self.cachedStreamURL(for: videoId) {
             if HLSAudioSamplePlayer.isHLSURL(cachedURL) {
                 Task {
-                    await HLSManifestCache.shared.prewarm(masterURL: cachedURL)
+                    await HLSManifestCache.shared.prewarm(multivariantURL: cachedURL)
                 }
             }
             return
@@ -450,7 +453,7 @@ final class DirectStreamResolver {
             if let url = await self.resolveStreamURL(videoId: videoId, timeoutSeconds: 8.0),
                HLSAudioSamplePlayer.isHLSURL(url)
             {
-                await HLSManifestCache.shared.prewarm(masterURL: url)
+                await HLSManifestCache.shared.prewarm(multivariantURL: url)
             }
         }
     }

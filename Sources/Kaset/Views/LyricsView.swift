@@ -131,8 +131,7 @@ struct LyricsView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if self.playerService.currentTrack == nil {
             self.noTrackPlayingView
         } else if self.syncedLyricsService.isLoading || self.isLoadingFallback {
@@ -427,8 +426,7 @@ struct LyricsView: View {
             self.syncedLyricsService.activeProvider = nil
         }
 
-        guard self.lastLoadedVideoId == videoId else { return }
-        guard self.playerService.currentTrack?.videoId == videoId else { return }
+        guard self.lastLoadedVideoId == videoId, self.playerService.currentTrack?.videoId == videoId else { return }
 
         // As a fallback to provide plain lyrics
         if case .unavailable = self.syncedLyricsService.currentLyrics {

@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - GitHub configuration
+// MARK: - GitHubConfig
 
 /// Static configuration for the in-app community (Issues + Discussions).
 ///
@@ -25,9 +25,13 @@ enum GitHubConfig {
     /// Discussions, so they aren't needed here.)
     static let scopes = "public_repo"
 
-    static var isLoginConfigured: Bool { !Self.clientID.isEmpty }
+    static var isLoginConfigured: Bool {
+        !clientID.isEmpty
+    }
 
-    static var repoSlug: String { "\(Self.owner)/\(Self.repo)" }
+    static var repoSlug: String {
+        "\(owner)/\(repo)"
+    }
 }
 
 // MARK: - GitHubUser
@@ -66,7 +70,9 @@ struct GitHubIssue: Identifiable, Hashable {
     let createdAt: Date
     let url: URL?
 
-    var isOpen: Bool { self.state == "open" }
+    var isOpen: Bool {
+        self.state == "open"
+    }
 }
 
 // MARK: - GitHubIssueTemplate
@@ -74,7 +80,10 @@ struct GitHubIssue: Identifiable, Hashable {
 /// An issue template from the repo's `.github/ISSUE_TEMPLATE`, used to prefill
 /// the compose form the way GitHub's "New issue" chooser does.
 struct GitHubIssueTemplate: Identifiable, Hashable {
-    var id: String { self.filename }
+    var id: String {
+        self.filename
+    }
+
     let filename: String
     /// Display name (`name:` in YAML front-matter, else the filename).
     let name: String

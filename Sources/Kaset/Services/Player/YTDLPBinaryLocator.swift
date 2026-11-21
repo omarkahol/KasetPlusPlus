@@ -60,11 +60,9 @@ final class YTDLPBinaryLocator {
         if let cached = self.cachedFfmpegPath, FileManager.default.isExecutableFile(atPath: cached) {
             return cached
         }
-        for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"] {
-            if FileManager.default.isExecutableFile(atPath: path) {
-                self.cachedFfmpegPath = path
-                return path
-            }
+        for path in ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg"] where FileManager.default.isExecutableFile(atPath: path) {
+            self.cachedFfmpegPath = path
+            return path
         }
         if !self.hasAttemptedAsyncFfmpegLookup {
             self.hasAttemptedAsyncFfmpegLookup = true
@@ -86,10 +84,8 @@ final class YTDLPBinaryLocator {
     }
 
     private static func fastPathYtdlp() -> String? {
-        for sysPath in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] {
-            if FileManager.default.isExecutableFile(atPath: sysPath) {
-                return sysPath
-            }
+        for sysPath in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp"] where FileManager.default.isExecutableFile(atPath: sysPath) {
+            return sysPath
         }
         if let resourcePath = Bundle.main.resourcePath {
             let bundledPath = (resourcePath as NSString).appendingPathComponent("yt-dlp")

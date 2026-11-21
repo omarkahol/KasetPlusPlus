@@ -23,7 +23,7 @@ final class LRCLibProvider: LyricsProvider {
         let sanitizedArtist = LyricsTitleSanitizer.sanitizeArtist(info.artist)
 
         let primaryResult = await self.executeSearch(title: sanitizedTitle, artist: sanitizedArtist, info: info)
-        if case .unavailable = primaryResult, (sanitizedTitle != info.title || sanitizedArtist != info.artist) {
+        if case .unavailable = primaryResult, sanitizedTitle != info.title || sanitizedArtist != info.artist {
             // Retry with raw parameters if sanitized yielded no matches
             return await self.executeSearch(title: info.title, artist: info.artist, info: info)
         }

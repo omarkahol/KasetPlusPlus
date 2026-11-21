@@ -152,11 +152,11 @@ enum LibraryContentParser {
             ("appendContinuationItemsAction", "continuationItems"),
         ]
         guard let match = ResponseTreeSearch.firstDictionary(
-            namedOneOf: continuationSpecs.map(\.key),
-            in: data
-        ),
-            let itemsKey = continuationSpecs.first(where: { $0.key == match.key })?.itemsKey,
-            let items = match.dictionary[itemsKey] as? [[String: Any]]
+                  namedOneOf: continuationSpecs.map(\.key),
+                  in: data
+              ),
+              let itemsKey = continuationSpecs.first(where: { $0.key == match.key })?.itemsKey,
+              let items = match.dictionary[itemsKey] as? [[String: Any]]
         else {
             return LibraryAlbumsPage(albums: [], nextPage: nil, isRecognized: false)
         }

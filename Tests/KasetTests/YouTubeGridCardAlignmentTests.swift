@@ -39,9 +39,9 @@ struct YouTubeGridCardAlignmentTests {
         // GridItem doesn't expose its alignment, so assert on the source of
         // truth instead: no adaptive YouTube grid may omit `alignment: .top`.
         let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // KasetTests
-            .deletingLastPathComponent()  // Tests
-            .deletingLastPathComponent()  // repo root
+            .deletingLastPathComponent() // KasetTests
+            .deletingLastPathComponent() // Tests
+            .deletingLastPathComponent() // repo root
             .appendingPathComponent("Sources/Kaset/Views/YouTube")
         let files = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
         var offenders: [String] = []

@@ -72,8 +72,7 @@ struct QueueView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if self.playerService.queue.isEmpty {
             self.emptyQueueView
         } else {
@@ -236,8 +235,7 @@ private struct QueueRowView: View {
         }
     }
 
-    @ViewBuilder
-    private var leadingIndicator: some View {
+    @ViewBuilder private var leadingIndicator: some View {
         if self.isCurrentTrack {
             Image(systemName: "waveform")
                 .font(.system(size: 12, weight: .medium))

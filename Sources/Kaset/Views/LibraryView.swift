@@ -243,8 +243,7 @@ struct LibraryView: View {
         return [.uploadedSongs(uploadedSongsPlaylist)]
     }
 
-    @ViewBuilder
-    private var libraryGrid: some View {
+    @ViewBuilder private var libraryGrid: some View {
         if self.filteredItems.isEmpty {
             self.emptyStateView
         } else {

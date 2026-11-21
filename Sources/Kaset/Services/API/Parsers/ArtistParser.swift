@@ -1,10 +1,8 @@
-// swiftlint:disable file_length
-
 import Foundation
 import os
 
 /// Parser for artist-related responses from YouTube Music API.
-enum ArtistParser { // swiftlint:disable:this type_body_length
+enum ArtistParser {
     private static let logger = DiagnosticsLogger.api
 
     private struct CarouselSectionItems {

@@ -685,7 +685,9 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
             await self.notificationsViewModel.openInbox()
         }
         .onChange(of: self.hasPersonalAccount) { _, hasAccount in
-            if !hasAccount { self.showingNotifications = false }
+            if !hasAccount {
+                self.showingNotifications = false
+            }
         }
         .task(id: self.authService.hasPersonalAccount) {
             // Poll the notification bell only while signed in; stop and clear
@@ -783,8 +785,7 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @ViewBuilder
-    private var commandBar: some View {
+    @ViewBuilder private var commandBar: some View {
         if !self.usesLegacyMacOS15UI, #available(macOS 26.0, *) {
             CommandBarView(
                 client: self.client,
@@ -943,31 +944,30 @@ struct MainWindow: View { // swiftlint:disable:this type_body_length
         )
     }
 
+    @ViewBuilder
     private func viewForSidebarPinnedItem(
         _ item: SidebarPinnedItem,
         client: any YTMusicClientProtocol
     ) -> some View {
-        Group {
-            if self.settings.isOfflineModeEnabled {
-                self.offlineModePlaceholderView
-            } else {
-                NavigationStack(path: Binding(
-                    get: { self.pinnedNavigationPaths[item.contentId, default: NavigationPath()] },
-                    set: { self.pinnedNavigationPaths[item.contentId] = $0 }
-                )) {
-                    PlaylistDetailRouteView(
-                        playlist: item.playlistRoute,
-                        client: client
-                    )
-                    .id(item.contentId)
-                    .navigationDestinations(client: client)
-                }
-                .environment(\.libraryViewModel, self.libraryViewModel)
-                .environment(\.onPlaylistDeleted, PlaylistDeletionAction(id: Self.playlistDeletionActionID) {
-                    self.selectedSidebarPinnedItem = nil
-                    self.navigationSelection = .home
-                })
+        if self.settings.isOfflineModeEnabled {
+            self.offlineModePlaceholderView
+        } else {
+            NavigationStack(path: Binding(
+                get: { self.pinnedNavigationPaths[item.contentId, default: NavigationPath()] },
+                set: { self.pinnedNavigationPaths[item.contentId] = $0 }
+            )) {
+                PlaylistDetailRouteView(
+                    playlist: item.playlistRoute,
+                    client: client
+                )
+                .id(item.contentId)
+                .navigationDestinations(client: client)
             }
+            .environment(\.libraryViewModel, self.libraryViewModel)
+            .environment(\.onPlaylistDeleted, PlaylistDeletionAction(id: Self.playlistDeletionActionID) {
+                self.selectedSidebarPinnedItem = nil
+                self.navigationSelection = .home
+            })
         }
     }
 

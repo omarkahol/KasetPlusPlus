@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Issue compose
+// MARK: - IssueComposeView
 
 struct IssueComposeView: View {
     @Bindable var viewModel: CommunityViewModel
@@ -88,7 +88,7 @@ struct IssueComposeView: View {
     }
 }
 
-// MARK: - Discussion compose
+// MARK: - DiscussionComposeView
 
 struct DiscussionComposeView: View {
     @Bindable var viewModel: CommunityViewModel

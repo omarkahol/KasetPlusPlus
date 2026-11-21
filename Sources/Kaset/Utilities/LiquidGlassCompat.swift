@@ -66,8 +66,7 @@ private struct CompatGlassModifier<S: Shape>: ViewModifier {
         }
     }
 
-    @available(macOS 26.0, *)
-    private var glass: Glass {
+    @available(macOS 26.0, *) private var glass: Glass {
         var glass: Glass = .regular
         if let tint {
             glass = glass.tint(tint)

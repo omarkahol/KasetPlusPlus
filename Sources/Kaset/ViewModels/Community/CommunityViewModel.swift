@@ -35,7 +35,7 @@ final class CommunityViewModel {
 
     func loadTemplates() async {
         guard self.templates.isEmpty else { return }
-        self.templates = (try? await self.client.issueTemplates()) ?? [.blank]
+        self.templates = await (try? self.client.issueTemplates()) ?? [.blank]
     }
 
     /// Creates an issue, appending the auto-collected diagnostics block.
@@ -65,7 +65,7 @@ final class CommunityViewModel {
             async let discussions = self.client.listDiscussions()
             async let categories = self.client.discussionCategories()
             self.discussions = try await discussions
-            self.categories = (try? await categories) ?? []
+            self.categories = await (try? categories) ?? []
         } catch {
             self.setError(error)
         }
@@ -107,7 +107,9 @@ final class CommunityViewModel {
         }
     }
 
-    func clearError() { self.errorMessage = nil }
+    func clearError() {
+        self.errorMessage = nil
+    }
 
     private func setError(_ error: Error) {
         if case GitHubError.notAuthenticated = error {

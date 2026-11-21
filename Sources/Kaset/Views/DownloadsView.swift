@@ -24,7 +24,9 @@ struct DownloadsView: View {
         case title
         case artist
 
-        var id: String { self.rawValue }
+        var id: String {
+            self.rawValue
+        }
 
         var displayName: String {
             switch self {

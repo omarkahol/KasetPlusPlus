@@ -13,7 +13,7 @@ final class KeychainCredentialStore {
         private static let debugCookieStorageEnvironmentKey = "KASET_DEBUG_COOKIE_STORAGE"
 
         private static var usesDebugFileStorage: Bool {
-            ProcessInfo.processInfo.environment[Self.debugCookieStorageEnvironmentKey]?.lowercased() != "keychain"
+            ProcessInfo.processInfo.environment[debugCookieStorageEnvironmentKey]?.lowercased() != "keychain"
         }
 
         private var debugCredentialsFileURL: URL? {
@@ -185,7 +185,7 @@ final class KeychainCredentialStore {
         ]
 
         let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess && status != errSecItemNotFound {
+        if status != errSecSuccess, status != errSecItemNotFound {
             DiagnosticsLogger.app.warning("Keychain delete failed for \(key) with status: \(status)")
         }
     }

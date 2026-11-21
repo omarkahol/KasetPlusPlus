@@ -159,8 +159,7 @@ struct YouTubeShortsView: View {
     /// service's rating + Return-YouTube-Dislike counts (populated on play).
     /// Gated on `currentShortId` (stable while scrolling) so it doesn't flicker
     /// as `currentVideo` briefly changes between shorts.
-    @ViewBuilder
-    private var shortActions: some View {
+    @ViewBuilder private var shortActions: some View {
         if self.currentShortId != nil {
             VStack(spacing: 10) {
                 self.ratingPill(
@@ -235,10 +234,7 @@ struct YouTubeShortsView: View {
     }
 
     private func play(shortId: String) {
-        guard let short = self.viewModel.shorts.first(where: { $0.videoId == shortId }) else {
-            return
-        }
-        guard self.youtubePlayer.currentVideo?.videoId != short.videoId else { return }
+        guard let short = self.viewModel.shorts.first(where: { $0.videoId == shortId }), self.youtubePlayer.currentVideo?.videoId != short.videoId else { return }
         self.youtubePlayer.play(video: short, usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore)
         self.youtubePlayer.activeInlineVideoId = short.videoId
 
@@ -517,8 +513,7 @@ private struct ShortsCommentsPanel: View {
         defer { self.isLoading = false }
         do {
             let watchNext = try await self.client.getWatchNext(videoId: self.videoId, playlistId: nil)
-            guard let token = watchNext.commentsContinuation else { return }
-            guard !Task.isCancelled else { return }
+            guard let token = watchNext.commentsContinuation, !Task.isCancelled else { return }
             let page = try await self.client.getComments(continuation: token)
             guard self.loadedVideoId == self.videoId else { return }
             self.comments = page.comments
@@ -625,7 +620,9 @@ private struct ShortsCommentRow: View {
     private func toggleLike() {
         let wasLiked = self.isLiked
         self.isLiked = !wasLiked
-        if self.isLiked { self.isDisliked = false }
+        if self.isLiked {
+            self.isDisliked = false
+        }
         guard let token = wasLiked ? self.comment.unlikeAction : self.comment.likeAction else { return }
         Task { try? await self.client.performCommentAction(token) }
     }
@@ -633,7 +630,9 @@ private struct ShortsCommentRow: View {
     private func toggleDislike() {
         let wasDisliked = self.isDisliked
         self.isDisliked = !wasDisliked
-        if self.isDisliked { self.isLiked = false }
+        if self.isDisliked {
+            self.isLiked = false
+        }
         guard let token = wasDisliked ? self.comment.undislikeAction : self.comment.dislikeAction else { return }
         Task { try? await self.client.performCommentAction(token) }
     }

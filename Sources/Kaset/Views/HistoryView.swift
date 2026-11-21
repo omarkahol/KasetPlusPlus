@@ -188,46 +188,46 @@ struct HistoryView: View {
                 SongThumbnailView(song: song)
 
                 VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(song.title)
-                                .font(.system(size: 14))
-                                .lineLimit(1)
-                            if song.isExplicit == true {
-                                ExplicitBadge()
-                            }
-                        }
-
-                        Text(song.artistsDisplay)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(song.title)
+                            .font(.system(size: 14))
                             .lineLimit(1)
+                        if song.isExplicit == true {
+                            ExplicitBadge()
+                        }
                     }
 
-                    Spacer()
-
-                    Text(song.durationDisplay)
+                    Text(song.artistsDisplay)
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
-
-                    LikeButton(song: song, isRowHovered: isHovered)
-
-                    DownloadButton(song: song, isRowHovered: isHovered)
-
-                    Image(systemName: "play.circle")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
-                .background {
-                    Button {
-                        Task { await self.playerService.playQueue(allSongs, startingAt: index) }
-                    } label: {
-                        Color.clear.contentShape(Rectangle())
-                    }
-                    .buttonStyle(.interactiveRow(cornerRadius: 6))
+
+                Spacer()
+
+                Text(song.durationDisplay)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                LikeButton(song: song, isRowHovered: isHovered)
+
+                DownloadButton(song: song, isRowHovered: isHovered)
+
+                Image(systemName: "play.circle")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background {
+                Button {
+                    Task { await self.playerService.playQueue(allSongs, startingAt: index) }
+                } label: {
+                    Color.clear.contentShape(Rectangle())
                 }
+                .buttonStyle(.interactiveRow(cornerRadius: 6))
+            }
         }
         .contextMenu {
             Button {

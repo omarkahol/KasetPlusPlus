@@ -522,6 +522,8 @@ func configurationFetchConfiguration(
     return configuration
 }
 
+// MARK: - ConsentCookie
+
 /// Minimal "consent recorded" cookie. The value is what the web client sets
 /// after the consent interstitial; it carries no account information.
 ///
@@ -533,7 +535,7 @@ enum ConsentCookie {
 
     static func make() -> HTTPCookie? {
         HTTPCookie(properties: [
-            .name: Self.name,
+            .name: self.name,
             .value: "CAI",
             .domain: ".youtube.com",
             .path: "/",
@@ -806,25 +808,24 @@ func buildHeaders(authenticated: Bool = false, authUserIndex: Int? = nil, cookie
         "Origin": activeOrigin,
         "Referer": "\(activeOrigin)/",
     ]
-    if authenticated, let cookies = cookieSnapshot ?? loadCookiesFromAppBackup() {
-        if let authorization = buildSIDAuthorizationHeader(
-            from: cookies,
-            includeAllAvailableProofs: false
-        ),
-            let cookieHeader = buildCookieHeader(from: cookies)
-        {
-            headers["Cookie"] = cookieHeader
-            headers["Authorization"] = authorization
-            headers["X-Goog-AuthUser"] = "\(authUserIndex ?? globalAuthUserIndex)"
-            headers["X-Origin"] = activeOrigin
-            // Brand/delegated channel selection on the wire: real-world clients
-            // (yt-dlp, YouTube.js, playlet) send the brand pageId as an
-            // `X-Goog-PageId` header in addition to `context.user.onBehalfOfUser`.
-            // Some endpoints (notably `player`) reject body-only brand identity, so
-            // expose the header here to probe brand attribution accurately.
-            if let brandId = globalBrandAccountId {
-                headers["X-Goog-PageId"] = brandId
-            }
+    if authenticated, let cookies = cookieSnapshot ?? loadCookiesFromAppBackup(),
+       let authorization = buildSIDAuthorizationHeader(
+           from: cookies,
+           includeAllAvailableProofs: false
+       ),
+       let cookieHeader = buildCookieHeader(from: cookies)
+    {
+        headers["Cookie"] = cookieHeader
+        headers["Authorization"] = authorization
+        headers["X-Goog-AuthUser"] = "\(authUserIndex ?? globalAuthUserIndex)"
+        headers["X-Origin"] = activeOrigin
+        // Brand/delegated channel selection on the wire: real-world clients
+        // (yt-dlp, YouTube.js, playlet) send the brand pageId as an
+        // `X-Goog-PageId` header in addition to `context.user.onBehalfOfUser`.
+        // Some endpoints (notably `player`) reject body-only brand identity, so
+        // expose the header here to probe brand attribution accurately.
+        if let brandId = globalBrandAccountId {
+            headers["X-Goog-PageId"] = brandId
         }
     }
 
@@ -1024,11 +1025,11 @@ private func findFirstRenderer(named key: String, in value: Any) -> [String: Any
 
 private func extractPlaylistTrackCount(from text: String) -> Int? {
     guard let regex = try? NSRegularExpression(
-        pattern: #"([\d,]+)\s+(?:songs?|tracks?)"#,
-        options: .caseInsensitive
-    ),
-        let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-        let countRange = Range(match.range(at: 1), in: text)
+              pattern: #"([\d,]+)\s+(?:songs?|tracks?)"#,
+              options: .caseInsensitive
+          ),
+          let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+          let countRange = Range(match.range(at: 1), in: text)
     else {
         return nil
     }
@@ -2042,21 +2043,19 @@ func exploreBrowse(
         if verbose {
             print("\n📄 Raw response (pretty-printed):")
             if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ),
-                let prettyString = String(data: prettyData, encoding: .utf8)
+                   withJSONObject: data, options: .prettyPrinted
+               ),
+               let prettyString = String(data: prettyData, encoding: .utf8)
             {
                 print(prettyString)
             }
         }
 
-        if let outputFile {
-            if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ) {
-                try writePrivateOutput(prettyData, to: outputFile)
-                print("\n💾 Saved with owner-only permissions: \(outputFile)")
-            }
+        if let outputFile, let prettyData = try? JSONSerialization.data(
+            withJSONObject: data, options: .prettyPrinted
+        ) {
+            try writePrivateOutput(prettyData, to: outputFile)
+            print("\n💾 Saved with owner-only permissions: \(outputFile)")
         }
     } catch {
         print("❌ Error: \(error.localizedDescription)")
@@ -2134,21 +2133,19 @@ func exploreAction(
         if verbose {
             print("\n📄 Raw response (pretty-printed):")
             if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ),
-                let prettyString = String(data: prettyData, encoding: .utf8)
+                   withJSONObject: data, options: .prettyPrinted
+               ),
+               let prettyString = String(data: prettyData, encoding: .utf8)
             {
                 print(prettyString)
             }
         }
 
-        if let outputFile {
-            if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ) {
-                try writePrivateOutput(prettyData, to: outputFile)
-                print("\n💾 Saved with owner-only permissions: \(outputFile)")
-            }
+        if let outputFile, let prettyData = try? JSONSerialization.data(
+            withJSONObject: data, options: .prettyPrinted
+        ) {
+            try writePrivateOutput(prettyData, to: outputFile)
+            print("\n💾 Saved with owner-only permissions: \(outputFile)")
         }
     } catch {
         print("❌ Error: \(error.localizedDescription)")
@@ -2858,21 +2855,19 @@ func exploreContinuation(
         if verbose {
             print("\n📄 Raw response (pretty-printed):")
             if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ),
-                let prettyString = String(data: prettyData, encoding: .utf8)
+                   withJSONObject: data, options: .prettyPrinted
+               ),
+               let prettyString = String(data: prettyData, encoding: .utf8)
             {
                 print(prettyString)
             }
         }
 
-        if let outputFile {
-            if let prettyData = try? JSONSerialization.data(
-                withJSONObject: data, options: .prettyPrinted
-            ) {
-                try writePrivateOutput(prettyData, to: outputFile)
-                print("\n💾 Saved with owner-only permissions: \(outputFile)")
-            }
+        if let outputFile, let prettyData = try? JSONSerialization.data(
+            withJSONObject: data, options: .prettyPrinted
+        ) {
+            try writePrivateOutput(prettyData, to: outputFile)
+            print("\n💾 Saved with owner-only permissions: \(outputFile)")
         }
     } catch {
         print("❌ Error: \(error.localizedDescription)")
@@ -3502,9 +3497,9 @@ func discoverBrandAccounts(verbose: Bool) async {
             if verbose {
                 print("\nResponse structure:")
                 if let prettyData = try? JSONSerialization.data(
-                    withJSONObject: data, options: .prettyPrinted
-                ),
-                    let prettyString = String(data: prettyData, encoding: .utf8)
+                       withJSONObject: data, options: .prettyPrinted
+                   ),
+                   let prettyString = String(data: prettyData, encoding: .utf8)
                 {
                     print(prettyString)
                 }

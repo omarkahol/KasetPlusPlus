@@ -481,8 +481,15 @@ final class YouTubePlayerService {
     /// Read live so the setting takes effect mid-session; injected for tests.
     private let shouldForceOriginalAudioLanguage: @MainActor () -> Bool
 
+    // swiftformat:disable modifierOrder
     /// Notification observer token for mid-playback settings toggle.
     @ObservationIgnored nonisolated(unsafe) private var forceOriginalAudioObserver: NSObjectProtocol?
+    // swiftformat:enable modifierOrder
+
+    /// Set by the source toggle right before switching away from the video
+    /// source: the inline surface pauses in place (no pop-out window) and
+    /// the restored watch view re-adopts it when the user comes back.
+    private var pauseInPlaceOnDisappear = false
 
     init(
         webKitManager: WebKitManager = .shared,
@@ -801,9 +808,11 @@ final class YouTubePlayerService {
         self.isIdentityReloadInFlight = true
         self.beginPlaybackLoading()
     }
+}
 
-    // MARK: - Refresh (⌘R) & network auto-retry
+// MARK: - Refresh (⌘R) & network auto-retry
 
+extension YouTubePlayerService {
     /// User-triggered refresh (⌘R): reloads the current video's playback surface
     /// at its last position, to recover a stuck/black player after a network
     /// interruption without losing the user's place. No-op when nothing is loaded.
@@ -1164,10 +1173,8 @@ final class YouTubePlayerService {
         // stop) after a partial watch, neither of which emits a skip or finish
         // event. `signalWatchConclusion` de-dupes, so a close right after a
         // natural end (already signalled) does not re-signal the finished video.
-        if self.currentVideo != nil, self.progress > 0 {
-            if self.signalWatchConclusion() {
-                self.watchActivityGeneration += 1
-            }
+        if self.currentVideo != nil, self.progress > 0, self.signalWatchConclusion() {
+            self.watchActivityGeneration += 1
         }
         self.currentVideo = nil
         self.resetPlaybackOccurrenceState()
@@ -1641,11 +1648,9 @@ final class YouTubePlayerService {
               let videoId,
               self.userSelectedAudioTrackVideoId != videoId,
               tracks.count > 1,
-              let originalTrack = tracks.first(where: \.isOriginal)
+              let originalTrack = tracks.first(where: \.isOriginal),
+              activeTrackId != originalTrack.id
         else {
-            return false
-        }
-        guard activeTrackId != originalTrack.id else {
             return false
         }
         self.applyAudioTrackSelection(id: originalTrack.id)
@@ -1716,11 +1721,6 @@ final class YouTubePlayerService {
             self.currentRating = previous
         }
     }
-
-    /// Set by the source toggle right before switching away from the video
-    /// source: the inline surface pauses in place (no pop-out window) and
-    /// the restored watch view re-adopts it when the user comes back.
-    private var pauseInPlaceOnDisappear = false
 }
 
 extension YouTubePlayerService {
@@ -2128,7 +2128,7 @@ extension YouTubePlayerService {
            videoId == self.currentVideo?.videoId
         {
             self.currentWatchConcluded = false
-        self.hasRequestedInitialWebAutoplay = false
+            self.hasRequestedInitialWebAutoplay = false
         }
     }
 
@@ -2346,9 +2346,8 @@ extension YouTubePlayerService {
     private func acknowledgeExplicitStartTarget(with update: PlaybackUpdate) {
         guard !update.isAd,
               let target = self.pendingExplicitStartTarget,
-              (update.pendingSeekVideoId ?? update.videoId) == target.videoId
-        else { return }
-        guard update.didApplyPendingSeek else { return }
+              (update.pendingSeekVideoId ?? update.videoId) == target.videoId,
+              update.didApplyPendingSeek else { return }
         self.pendingExplicitStartTarget = nil
     }
 
@@ -2449,7 +2448,7 @@ extension YouTubePlayerService {
         Task { @MainActor in
             guard let client = self.youtubeClient,
                   let next = try? await client.getWatchNext(videoId: expectedVideoId, playlistId: nil)
-                  .related.first(where: { !$0.isShort }),
+                      .related.first(where: { !$0.isShort }),
                   SettingsManager.shared.youtubeAutoplayEnabled,
                   self.currentVideo?.videoId == expectedVideoId,
                   self.autoplayPendingVideo == nil
@@ -2558,7 +2557,7 @@ extension YouTubePlayerService {
             // the watch-level conclusion latch.
             if isResumedNativeTerminal {
                 self.currentWatchConcluded = false
-        self.hasRequestedInitialWebAutoplay = false
+                self.hasRequestedInitialWebAutoplay = false
                 return true
             }
             return !self.currentWatchConcluded
@@ -2570,7 +2569,7 @@ extension YouTubePlayerService {
                   occurrence == self.currentPlaybackOccurrence
             else { return false }
             self.currentWatchConcluded = false
-        self.hasRequestedInitialWebAutoplay = false
+            self.hasRequestedInitialWebAutoplay = false
             return true
         }
         let isNewerThanCurrent = self.currentPlaybackOccurrence.map {
@@ -2584,7 +2583,7 @@ extension YouTubePlayerService {
         }
         if isResumedNativeTerminal || (isNewerThanCurrent && self.currentWatchConcluded) {
             self.currentWatchConcluded = false
-        self.hasRequestedInitialWebAutoplay = false
+            self.hasRequestedInitialWebAutoplay = false
         }
         self.currentPlaybackOccurrence = occurrence
         self.lastEndedPlaybackOccurrence = occurrence

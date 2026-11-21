@@ -24,7 +24,9 @@ enum Telemetry {
     private static let installID: String = {
         let key = "telemetry.installID"
         let defaults = UserDefaults.standard
-        if let existing = defaults.string(forKey: key) { return existing }
+        if let existing = defaults.string(forKey: key) {
+            return existing
+        }
         let id = UUID().uuidString
         defaults.set(id, forKey: key)
         return id

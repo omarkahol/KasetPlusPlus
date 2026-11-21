@@ -90,8 +90,7 @@ struct NotificationsInboxPanel: View {
         .padding(.vertical, 10)
     }
 
-    @ViewBuilder
-    private var content: some View {
+    @ViewBuilder private var content: some View {
         if self.viewModel.notifications.isEmpty {
             self.emptyState
         } else {
@@ -155,7 +154,7 @@ private struct NotificationRow: View {
                 ) { image in
                     image
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                 } placeholder: {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(.quaternary)

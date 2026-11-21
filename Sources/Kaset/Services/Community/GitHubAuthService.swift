@@ -1,6 +1,8 @@
 import Foundation
 import Observation
 
+// MARK: - GitHubAuthService
+
 /// GitHub sign-in via OAuth **Device Flow** — the right fit for a native app:
 /// the user is shown a short code to enter at github.com/login/device, and no
 /// client secret is needed. The resulting token authorizes creating issues,
@@ -32,7 +34,9 @@ final class GitHubAuthService {
     private(set) var token: String?
 
     var isSignedIn: Bool {
-        if case .signedIn = self.state { return true }
+        if case .signedIn = self.state {
+            return true
+        }
         return false
     }
 
@@ -116,7 +120,9 @@ final class GitHubAuthService {
         var interval = code.interval
         while !Task.isCancelled {
             try? await Task.sleep(for: .seconds(interval))
-            if Task.isCancelled { return }
+            if Task.isCancelled {
+                return
+            }
             do {
                 if let token = try await self.exchangeToken(deviceCode: code.deviceCode) {
                     self.token = token
@@ -179,6 +185,8 @@ final class GitHubAuthService {
         }
     }
 }
+
+// MARK: - GitHubError
 
 enum GitHubError: Error {
     case notConfigured

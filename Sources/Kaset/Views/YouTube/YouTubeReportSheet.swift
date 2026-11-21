@@ -122,7 +122,10 @@ struct YouTubeReportSheet: View {
     }
 
     private func centered(@ViewBuilder _ inner: () -> some View) -> some View {
-        HStack { Spacer(); inner(); Spacer() }.frame(maxHeight: .infinity)
+        HStack { Spacer()
+            inner()
+            Spacer()
+        }.frame(maxHeight: .infinity)
     }
 
     private func load() async {

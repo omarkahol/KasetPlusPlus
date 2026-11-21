@@ -105,8 +105,7 @@ final class VideoWindowController {
     /// Closes the video window programmatically (called when showVideo becomes false).
     func close() {
         // Prevent re-entrant calls
-        guard !self.isClosing else { return }
-        guard let window = self.window else { return }
+        guard !self.isClosing, let window = self.window else { return }
 
         self.isClosing = true
 

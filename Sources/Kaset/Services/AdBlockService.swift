@@ -76,13 +76,13 @@ enum AdBlockService {
 
     /// Compiles the content blocking rules. Call once at startup.
     static func compile() async {
-        guard compiledRuleList == nil else { return }
+        guard self.compiledRuleList == nil else { return }
 
         do {
-            compiledRuleList = try await WKContentRuleListStore.default()
+            self.compiledRuleList = try await WKContentRuleListStore.default()
                 .compileContentRuleList(
-                    forIdentifier: ruleListID,
-                    encodedContentRuleList: contentRulesJSON
+                    forIdentifier: self.ruleListID,
+                    encodedContentRuleList: self.contentRulesJSON
                 )
             DiagnosticsLogger.app.info("AdBlock: rules compiled successfully")
         } catch {
@@ -119,111 +119,109 @@ enum AdBlockService {
     /// hooks stay invisible, and prune ad fields *in place* (no object-identity
     /// change). The DOM Skip-button click stays as a backstop. Server-side
     /// (SSAI) ads are stitched into the stream and can't be removed here.
-    static let adBlockScript: String = {
-        """
-        (function() {
-            'use strict';
+    static let adBlockScript: String = """
+    (function() {
+        'use strict';
 
-            // ── toString mask: keep hooked natives reporting [native code] ──
-            var _toString = Function.prototype.toString;
-            var _masks = new WeakMap();
-            function mask(hooked, original) { try { _masks.set(hooked, original); } catch (e) {} return hooked; }
-            var patchedToString = function toString() {
-                var orig = _masks.get(this);
-                return _toString.call(orig !== undefined ? orig : this);
-            };
-            mask(patchedToString, _toString);
-            try {
-                Object.defineProperty(Function.prototype, 'toString', {
-                    value: patchedToString, writable: true, configurable: true
-                });
-            } catch (e) { Function.prototype.toString = patchedToString; }
+        // ── toString mask: keep hooked natives reporting [native code] ──
+        var _toString = Function.prototype.toString;
+        var _masks = new WeakMap();
+        function mask(hooked, original) { try { _masks.set(hooked, original); } catch (e) {} return hooked; }
+        var patchedToString = function toString() {
+            var orig = _masks.get(this);
+            return _toString.call(orig !== undefined ? orig : this);
+        };
+        mask(patchedToString, _toString);
+        try {
+            Object.defineProperty(Function.prototype, 'toString', {
+                value: patchedToString, writable: true, configurable: true
+            });
+        } catch (e) { Function.prototype.toString = patchedToString; }
 
-            // ── ad-field pruning helper (in place: preserves object identity,
-            //    which YouTube's player relies on — a deep copy desynced it) ──
-            var AD_KEYS = ['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adPlacementConfig'];
-            function pruneObject(o) {
-                if (!o || typeof o !== 'object') return o;
-                for (var i = 0; i < AD_KEYS.length; i++) {
-                    if (AD_KEYS[i] in o) { try { delete o[AD_KEYS[i]]; } catch (e) { o[AD_KEYS[i]] = undefined; } }
-                }
-                if (o.playerResponse && typeof o.playerResponse === 'object') { pruneObject(o.playerResponse); }
-                return o;
+        // ── ad-field pruning helper (in place: preserves object identity,
+        //    which YouTube's player relies on — a deep copy desynced it) ──
+        var AD_KEYS = ['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adPlacementConfig'];
+        function pruneObject(o) {
+            if (!o || typeof o !== 'object') return o;
+            for (var i = 0; i < AD_KEYS.length; i++) {
+                if (AD_KEYS[i] in o) { try { delete o[AD_KEYS[i]]; } catch (e) { o[AD_KEYS[i]] = undefined; } }
             }
+            if (o.playerResponse && typeof o.playerResponse === 'object') { pruneObject(o.playerResponse); }
+            return o;
+        }
 
-            // ── Prune the player response where it is actually parsed.
-            //    Measured on music.youtube.com: the page ships NO inline
-            //    ytInitialPlayerResponse at all, and every track (the first one
-            //    included) arrives as fetch → Response.text() → JSON.parse of a
-            //    ~600 KB payload carrying adPlacements/playerAds/adSlots. The
-            //    same path serves YouTube's SPA refetches. So hook JSON.parse
-            //    and prune the parsed object IN PLACE, handing back the very
-            //    object the parser produced: no Response is rebuilt (measured to
-            //    blank the player) and no object identity changes. ──
-            var _parse = JSON.parse;
-            function hasAdKeys(o) {
-                for (var i = 0; i < AD_KEYS.length; i++) { if (AD_KEYS[i] in o) return true; }
-                return !!(o.playerResponse && typeof o.playerResponse === 'object');
-            }
-            var parseHook = function parse(text, reviver) {
-                var out = _parse(text, reviver);
-                try {
-                    if (out && typeof out === 'object' && hasAdKeys(out)) { pruneObject(out); }
-                } catch (e) {}
-                return out;
-            };
-            mask(parseHook, _parse);
-            try { JSON.parse = parseHook; } catch (e) {}
-
-            // ── Prune the inline ytInitialPlayerResponse too (the YouTube watch
-            //    page does ship one, and it is read before any fetch). ──
-            var _ipr;
+        // ── Prune the player response where it is actually parsed.
+        //    Measured on music.youtube.com: the page ships NO inline
+        //    ytInitialPlayerResponse at all, and every track (the first one
+        //    included) arrives as fetch → Response.text() → JSON.parse of a
+        //    ~600 KB payload carrying adPlacements/playerAds/adSlots. The
+        //    same path serves YouTube's SPA refetches. So hook JSON.parse
+        //    and prune the parsed object IN PLACE, handing back the very
+        //    object the parser produced: no Response is rebuilt (measured to
+        //    blank the player) and no object identity changes. ──
+        var _parse = JSON.parse;
+        function hasAdKeys(o) {
+            for (var i = 0; i < AD_KEYS.length; i++) { if (AD_KEYS[i] in o) return true; }
+            return !!(o.playerResponse && typeof o.playerResponse === 'object');
+        }
+        var parseHook = function parse(text, reviver) {
+            var out = _parse(text, reviver);
             try {
-                Object.defineProperty(window, 'ytInitialPlayerResponse', {
-                    get: function() { return _ipr; },
-                    set: function(v) { _ipr = pruneObject(v); },
-                    configurable: true
-                });
+                if (out && typeof out === 'object' && hasAdKeys(out)) { pruneObject(out); }
             } catch (e) {}
+            return out;
+        };
+        mask(parseHook, _parse);
+        try { JSON.parse = parseHook; } catch (e) {}
 
-            // ── DOM backstop for ads that still surface (e.g. SSAI): mute the
-            //       ad and click YouTube's own Skip the instant it appears.
-            //       Measured dead ends (all reverted): forcing playbackRate does
-            //       nothing — YouTube resets the ad to 1x every frame; seeking to
-            //       the clip end restarts the ad from 0; and re-running the
-            //       extraction on ad end blanked the content during the video
-            //       swap. So we only mute + click Skip; the content re-appears on
-            //       its own via the extraction's DOM observer. ──
-            var wasAd = false;
-            function killAd() {
-                try {
-                    var mp = document.getElementById('movie_player');
-                    var video = document.querySelector('#movie_player video') || document.querySelector('video');
-                    if (!video) { return; }
-                    var isAd = !!(mp && mp.classList && mp.classList.contains('ad-showing'));
-                    if (isAd) {
-                        wasAd = true;
-                        document.querySelectorAll(
-                            '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button,' +
-                            '.ytp-ad-skip-button-container button, button[aria-label*=\"Skip\"]'
-                        ).forEach(function(b) { b.click(); });
-                        document.querySelectorAll('.ytp-ad-overlay-close-button').forEach(function(o) { o.click(); });
-                        video.muted = true;
-                    } else if (wasAd) {
-                        wasAd = false;
-                        if (window.__kasetTargetVolume === undefined || window.__kasetTargetVolume > 0) {
-                            video.muted = false;
-                        }
+        // ── Prune the inline ytInitialPlayerResponse too (the YouTube watch
+        //    page does ship one, and it is read before any fetch). ──
+        var _ipr;
+        try {
+            Object.defineProperty(window, 'ytInitialPlayerResponse', {
+                get: function() { return _ipr; },
+                set: function(v) { _ipr = pruneObject(v); },
+                configurable: true
+            });
+        } catch (e) {}
+
+        // ── DOM backstop for ads that still surface (e.g. SSAI): mute the
+        //       ad and click YouTube's own Skip the instant it appears.
+        //       Measured dead ends (all reverted): forcing playbackRate does
+        //       nothing — YouTube resets the ad to 1x every frame; seeking to
+        //       the clip end restarts the ad from 0; and re-running the
+        //       extraction on ad end blanked the content during the video
+        //       swap. So we only mute + click Skip; the content re-appears on
+        //       its own via the extraction's DOM observer. ──
+        var wasAd = false;
+        function killAd() {
+            try {
+                var mp = document.getElementById('movie_player');
+                var video = document.querySelector('#movie_player video') || document.querySelector('video');
+                if (!video) { return; }
+                var isAd = !!(mp && mp.classList && mp.classList.contains('ad-showing'));
+                if (isAd) {
+                    wasAd = true;
+                    document.querySelectorAll(
+                        '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button,' +
+                        '.ytp-ad-skip-button-container button, button[aria-label*=\"Skip\"]'
+                    ).forEach(function(b) { b.click(); });
+                    document.querySelectorAll('.ytp-ad-overlay-close-button').forEach(function(o) { o.click(); });
+                    video.muted = true;
+                } else if (wasAd) {
+                    wasAd = false;
+                    if (window.__kasetTargetVolume === undefined || window.__kasetTargetVolume > 0) {
+                        video.muted = false;
                     }
-                } catch (e) {}
-            }
-            setInterval(killAd, 250);
-            if (window.MutationObserver) {
-                new MutationObserver(killAd).observe(document.documentElement, {
-                    attributes: true, subtree: true, attributeFilter: ['class']
-                });
-            }
-        })();
-        """
-    }()
+                }
+            } catch (e) {}
+        }
+        setInterval(killAd, 250);
+        if (window.MutationObserver) {
+            new MutationObserver(killAd).observe(document.documentElement, {
+                attributes: true, subtree: true, attributeFilter: ['class']
+            });
+        }
+    })();
+    """
 }

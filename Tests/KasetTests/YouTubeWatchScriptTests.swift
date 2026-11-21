@@ -3,6 +3,8 @@ import JavaScriptCore
 import Testing
 @testable import KasetPlus
 
+// MARK: - YouTubeWatchScriptTests
+
 @Suite("YouTubeWatchWebView scripts", .tags(.service))
 @MainActor
 struct YouTubeWatchScriptTests {

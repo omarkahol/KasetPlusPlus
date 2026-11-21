@@ -235,8 +235,7 @@ struct SearchView: View {
 
     // MARK: - Content
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if !self.networkMonitor.isConnected {
             ErrorView(
                 title: String(localized: "No Connection"),
@@ -317,8 +316,7 @@ struct SearchView: View {
     }
 
     /// Load more view that triggers pagination when visible.
-    @ViewBuilder
-    private var loadMoreView: some View {
+    @ViewBuilder private var loadMoreView: some View {
         if self.viewModel.loadingState == .loadingMore {
             HStack {
                 ProgressView()

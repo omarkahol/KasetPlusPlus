@@ -2,6 +2,8 @@ import Foundation
 import Testing
 @testable import KasetPlus
 
+// MARK: - AsyncProcessRunnerTests
+
 @Suite("AsyncProcessRunner & StreamExtractionLimiter", .serialized, .tags(.service))
 struct AsyncProcessRunnerTests {
     @Test("Drains >128 KB stdout without pipe-buffer deadlock")
@@ -67,6 +69,8 @@ struct AsyncProcessRunnerTests {
         #expect(maxObserved >= 1)
     }
 }
+
+// MARK: - ConcurrencyCounter
 
 private actor ConcurrencyCounter {
     private var active = 0

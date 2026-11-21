@@ -169,14 +169,23 @@ struct DearrowCacheTests {
     func voteErrorMapping() async throws {
         let entry = DearrowTitle(title: "Test", original: false, votes: 1, locked: false, uuid: "u1")
 
-        let cases: [(Int, String, DearrowVoteError)] = [
-            (400, "Invalid title", .invalidRequest("Invalid title")),
-            (403, "Locked", .forbidden("Locked")),
-            (429, "Vote already in progress", .rateLimited),
-            (500, "Title not found", .serverError(500, "Title not found")),
+        struct VoteErrorCase {
+            let status: Int
+            let body: String
+            let expectedError: DearrowVoteError
+        }
+
+        let cases: [VoteErrorCase] = [
+            VoteErrorCase(status: 400, body: "Invalid title", expectedError: .invalidRequest("Invalid title")),
+            VoteErrorCase(status: 403, body: "Locked", expectedError: .forbidden("Locked")),
+            VoteErrorCase(status: 429, body: "Vote already in progress", expectedError: .rateLimited),
+            VoteErrorCase(status: 500, body: "Title not found", expectedError: .serverError(500, "Title not found")),
         ]
 
-        for (status, body, expectedError) in cases {
+        for testCase in cases {
+            let status = testCase.status
+            let body = testCase.body
+            let expectedError = testCase.expectedError
             let cache = DearrowCache.makeTestInstance(
                 transport: { request in
                     let url = try #require(request.url)
@@ -278,7 +287,7 @@ struct DearrowCacheTests {
     }
 
     @Test("fetchOriginalTitleOEmbed fetches and caches title from YouTube oEmbed")
-    func fetchOriginalTitleOEmbedFallback() async throws {
+    func fetchOriginalTitleOEmbedFallback() async {
         let cache = DearrowCache.makeTestInstance(
             transport: { request in
                 let url = try #require(request.url)

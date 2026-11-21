@@ -83,8 +83,7 @@ struct SidebarProfileView: View {
         .help(String(localized: "Support Kaset++ on Ko-fi"))
     }
 
-    @ViewBuilder
-    private var supportButtonBackground: some View {
+    @ViewBuilder private var supportButtonBackground: some View {
         if self.support.isSupporter {
             LinearGradient(colors: [Self.supportColor, .purple], startPoint: .leading, endPoint: .trailing)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -151,8 +150,7 @@ struct SidebarProfileView: View {
 
     // MARK: - Logged In Content
 
-    @ViewBuilder
-    private var loggedInContent: some View {
+    @ViewBuilder private var loggedInContent: some View {
         if let account = accountService.currentAccount {
             Button {
                 self.showingAccountSwitcher = true
@@ -430,7 +428,7 @@ struct GitHubMark: View {
             Image(nsImage: image)
                 .resizable()
                 .renderingMode(.template)
-                .aspectRatio(contentMode: .fit)
+                .scaledToFit()
                 .frame(width: self.size, height: self.size)
         } else {
             Image(systemName: "chevron.left.forwardslash.chevron.right")

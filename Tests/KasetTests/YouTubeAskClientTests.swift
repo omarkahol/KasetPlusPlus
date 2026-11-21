@@ -450,7 +450,7 @@ struct YouTubeAskClientTests {
         let session = MockURLProtocol.makeMockSession { request in
             switch requestCount.increment() {
             case 1:
-                return Self.response(for: request, data: Self.panelOnlyNextData)
+                Self.response(for: request, data: Self.panelOnlyNextData)
             case 2:
                 throw URLError(.timedOut)
             default:

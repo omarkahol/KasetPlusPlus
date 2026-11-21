@@ -127,8 +127,8 @@ struct YouTubeChannelView: View {
                     // videos open the watch page.
                     NavigationLink(value: tab == .shorts
                         ? YouTubeRoute.creatorShorts(shorts: videos, startVideoId: video.videoId)
-                        : YouTubeRoute.watch(video)
-                    ) {
+                        : YouTubeRoute.watch(video))
+                    {
                         VideoCard(video: video)
                     }
                     .buttonStyle(.interactiveCard)

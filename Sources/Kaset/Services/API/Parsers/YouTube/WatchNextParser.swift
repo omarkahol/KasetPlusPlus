@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - WatchNextParser
+
 /// Parses YouTube `next` (watch-next) responses: primary video metadata
 /// plus the related-videos rail.
 enum WatchNextParser {
@@ -115,14 +117,14 @@ enum WatchNextParser {
     /// older responses expose them directly via `getReportFormEndpoint.params`.
     /// Both feed `flag/get_form` unchanged.
     static func reportParams(of data: [String: Any]) -> String? {
-        Self.firstReportParams(in: data)
+        self.firstReportParams(in: data)
     }
 
     private static func firstReportParams(in value: Any) -> String? {
         if let dict = value as? [String: Any] {
-            if Self.isFlagMenuItem(dict),
+            if self.isFlagMenuItem(dict),
                let endpoint = dict["serviceEndpoint"] as? [String: Any],
-               let params = Self.reportParams(fromServiceEndpoint: endpoint)
+               let params = reportParams(fromServiceEndpoint: endpoint)
             {
                 return params
             }
@@ -157,8 +159,7 @@ enum WatchNextParser {
         // are URL-percent-encoded on the wire.
         if let params = (((endpoint["showEngagementPanelEndpoint"] as? [String: Any])?[
             "globalConfiguration"
-        ] as? [String: Any])?["params"] as? String), !params.isEmpty
-        {
+        ] as? [String: Any])?["params"] as? String), !params.isEmpty {
             return params.removingPercentEncoding ?? params
         }
         return nil
@@ -186,17 +187,19 @@ enum WatchNextParser {
 
     // MARK: - Mix (radio) queue
 
+    private struct MixQueueData {
+        let videos: [YouTubeVideo]
+        let playlistId: String?
+        let title: String?
+        let description: String?
+        let position: String?
+    }
+
     /// Parses the endless Mix queue from `twoColumnWatchNextResults.playlist.playlist`
     /// (`playlistPanelVideoRenderer` items), present only when a Mix is playing.
     private static func mixQueue(
         from results: [String: Any]?
-    ) -> (
-        videos: [YouTubeVideo],
-        playlistId: String?,
-        title: String?,
-        description: String?,
-        position: String?
-    )? {
+    ) -> MixQueueData? {
         guard let panel = (results?["playlist"] as? [String: Any])?["playlist"] as? [String: Any],
               let contents = panel["contents"] as? [[String: Any]]
         else {
@@ -218,7 +221,13 @@ enum WatchNextParser {
             guard !isInfinite, let index = panel["currentIndex"] as? Int else { return nil }
             return "\(index + 1)/\(videos.count)"
         }()
-        return (videos, playlistId, title, description, position)
+        return MixQueueData(
+            videos: videos,
+            playlistId: playlistId,
+            title: title,
+            description: description,
+            position: position
+        )
     }
 
     // MARK: - Collaboration Owners
@@ -233,10 +242,10 @@ enum WatchNextParser {
         subscribedByKey: [String: Bool]
     ) -> [VideoCollaborator] {
         let dialog = ((((owner["navigationEndpoint"] as? [String: Any])?["showDialogCommand"]
-            as? [String: Any])?["panelLoadingStrategy"] as? [String: Any])?["inlineContent"]
+                as? [String: Any])?["panelLoadingStrategy"] as? [String: Any])?["inlineContent"]
             as? [String: Any])?["dialogViewModel"] as? [String: Any]
         let items = (((dialog?["customContent"] as? [String: Any])?["listViewModel"]
-            as? [String: Any])?["listItems"] as? [[String: Any]]) ?? []
+                as? [String: Any])?["listItems"] as? [[String: Any]]) ?? []
 
         return items.compactMap { item in
             Self.collaborator(
@@ -309,14 +318,16 @@ enum WatchNextParser {
             let iconType = Self.firstImageName(option["leadingImage"]) ?? ""
             let label = (option["title"] as? [String: Any])?["content"] as? String ?? ""
             let command = (((option["rendererContext"] as? [String: Any])?["commandContext"]
-                as? [String: Any])?["onTap"] as? [String: Any])?["innertubeCommand"] as? [String: Any]
+                    as? [String: Any])?["onTap"] as? [String: Any])?["innertubeCommand"] as? [String: Any]
 
             // The unsubscribe row (PERSON_MINUS) uses a different endpoint; keep
             // its localized label but drive unsubscribe through `setSubscribed`.
             guard let params = (command?["modifyChannelNotificationPreferenceEndpoint"]
                 as? [String: Any])?["params"] as? String
             else {
-                if iconType == "PERSON_MINUS", !label.isEmpty { unsubscribeLabel = label }
+                if iconType == "PERSON_MINUS", !label.isEmpty {
+                    unsubscribeLabel = label
+                }
                 continue
             }
 
@@ -399,7 +410,9 @@ enum WatchNextParser {
     /// detect the verified `CHECK_CIRCLE_FILLED` badge on a channel name).
     private static func containsImageName(_ value: Any?, _ imageName: String) -> Bool {
         if let dict = value as? [String: Any] {
-            if (dict["imageName"] as? String) == imageName { return true }
+            if (dict["imageName"] as? String) == imageName {
+                return true
+            }
             return dict.values.contains { Self.containsImageName($0, imageName) }
         }
         if let array = value as? [Any] {
@@ -778,120 +791,5 @@ enum WatchNextParser {
     private static func watchEndpoint(from renderer: [String: Any]) -> [String: Any]? {
         guard let onTap = renderer["onTap"] as? [String: Any] else { return nil }
         return onTap["watchEndpoint"] as? [String: Any]
-    }
-
-    private static func findRepeatChapterCommand(in value: Any?) -> [String: Any]? {
-        if let dict = value as? [String: Any] {
-            if let command = dict["repeatChapterCommand"] as? [String: Any] {
-                return command
-            }
-
-            for nested in dict.values {
-                if let command = self.findRepeatChapterCommand(in: nested) {
-                    return command
-                }
-            }
-        } else if let array = value as? [Any] {
-            for element in array {
-                if let command = self.findRepeatChapterCommand(in: element) {
-                    return command
-                }
-            }
-        }
-
-        return nil
-    }
-
-    private static func intValue(from value: Any?) -> Int? {
-        switch value {
-        case let int as Int:
-            int
-        case let double as Double:
-            Int(double)
-        case let number as NSNumber:
-            Int(number.int64Value)
-        case let string as String:
-            Int(string)
-        default:
-            nil
-        }
-    }
-
-    private static func deduplicateChapters(_ chapters: [YouTubeChapter]) -> [YouTubeChapter] {
-        var indexByKey: [String: Int] = [:]
-        var result: [YouTubeChapter] = []
-
-        for chapter in chapters {
-            let key = self.chapterKey(chapter)
-            if let index = indexByKey[key] {
-                if result[index].endTime == nil, chapter.endTime != nil {
-                    result[index] = self.mergingEndTime(in: result[index], from: chapter)
-                }
-                continue
-            }
-            indexByKey[key] = result.count
-            result.append(chapter)
-        }
-
-        return result.sorted { lhs, rhs in
-            if lhs.startTime != rhs.startTime {
-                return lhs.startTime < rhs.startTime
-            }
-            return lhs.title < rhs.title
-        }
-    }
-
-    private static func mergingEndTimes(
-        in chapters: [YouTubeChapter],
-        from boundedChapters: [YouTubeChapter]
-    ) -> [YouTubeChapter] {
-        let boundsByKey = Dictionary(uniqueKeysWithValues: boundedChapters.map {
-            (self.chapterKey($0), $0)
-        })
-        return chapters.map { chapter in
-            guard chapter.endTime == nil, let boundedChapter = boundsByKey[self.chapterKey(chapter)] else {
-                return chapter
-            }
-            return self.mergingEndTime(in: chapter, from: boundedChapter)
-        }
-    }
-
-    private static func mergingEndTime(
-        in chapter: YouTubeChapter,
-        from boundedChapter: YouTubeChapter
-    ) -> YouTubeChapter {
-        YouTubeChapter(
-            videoId: chapter.videoId,
-            title: chapter.title,
-            startTime: chapter.startTime,
-            endTime: boundedChapter.endTime,
-            timeText: chapter.timeText,
-            thumbnailURL: chapter.thumbnailURL
-        )
-    }
-
-    private static func chapterKey(_ chapter: YouTubeChapter) -> String {
-        "\(chapter.videoId ?? "")|\(Int((chapter.startTime * 1000).rounded()))|\(chapter.title)"
-    }
-
-    // MARK: - Private
-
-    private static func channel(fromVideoOwner owner: [String: Any]) -> YouTubeChannel? {
-        let browseEndpoint = (owner["navigationEndpoint"] as? [String: Any])?["browseEndpoint"]
-            as? [String: Any]
-        guard let name = YouTubeItemParser.text(from: owner["title"]),
-              let channelId = browseEndpoint?["browseId"] as? String
-        else {
-            return nil
-        }
-
-        return YouTubeChannel(
-            channelId: channelId,
-            name: name,
-            handle: (browseEndpoint?["canonicalBaseUrl"] as? String)?
-                .split(separator: "/").last.map(String.init),
-            subscriberCountText: YouTubeItemParser.text(from: owner["subscriberCountText"]),
-            thumbnailURL: YouTubeItemParser.thumbnailURL(fromThumbnail: owner["thumbnail"])
-        )
     }
 }

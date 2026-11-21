@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - VideoCollaborator
+
 /// One channel credited on a collaboration video. YouTube renders multi-channel
 /// uploads with a stacked-avatar owner and a "Collaborators" picker instead of a
 /// single Subscribe button, so the classic single-channel owner parse comes back
@@ -19,7 +21,9 @@ struct VideoCollaborator: Identifiable, Hashable {
     /// The notification "bell" menu (levels + params), when YouTube exposed it.
     let notification: ChannelNotificationPreference?
 
-    var id: String { self.channelId }
+    var id: String {
+        self.channelId
+    }
 
     /// The secondary line for the picker row, e.g. "@VirtualCarbon • 246K subscribers".
     var detail: String? {
@@ -29,5 +33,7 @@ struct VideoCollaborator: Identifiable, Hashable {
 }
 
 private extension String {
-    var nonEmpty: String? { self.isEmpty ? nil : self }
+    var nonEmpty: String? {
+        self.isEmpty ? nil : self
+    }
 }

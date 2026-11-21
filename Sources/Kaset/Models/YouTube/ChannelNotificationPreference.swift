@@ -46,7 +46,9 @@ struct ChannelNotificationPreference: Hashable {
         /// Whether this is the current selection.
         let isCurrent: Bool
 
-        var id: String { self.params }
+        var id: String {
+            self.params
+        }
     }
 
     let channelId: String
@@ -56,8 +58,12 @@ struct ChannelNotificationPreference: Hashable {
     let unsubscribeLabel: String
 
     /// The currently-selected option, if the API marked one.
-    var current: Option? { self.options.first(where: \.isCurrent) }
+    var current: Option? {
+        self.options.first(where: \.isCurrent)
+    }
 
     /// Current level (for the bell icon), falling back to `.unknown`.
-    var currentLevel: Level { self.current?.level ?? .unknown }
+    var currentLevel: Level {
+        self.current?.level ?? .unknown
+    }
 }

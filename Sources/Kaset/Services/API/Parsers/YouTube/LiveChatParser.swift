@@ -49,11 +49,15 @@ enum LiveChatParser {
                 return params
             }
             for nested in dict.values {
-                if let found = Self.findSendParams(in: nested) { return found }
+                if let found = Self.findSendParams(in: nested) {
+                    return found
+                }
             }
         } else if let array = value as? [Any] {
             for element in array {
-                if let found = Self.findSendParams(in: element) { return found }
+                if let found = Self.findSendParams(in: element) {
+                    return found
+                }
             }
         }
         return nil

@@ -185,7 +185,9 @@ final class YouTubeHomeViewModel {
             self.chipContinuation = feed.continuation
             self.chipLoadingState = .loaded
         } catch {
-            if error is CancellationError { return }
+            if error is CancellationError {
+                return
+            }
             guard self.selectedChip?.id == chip.id else { return }
             self.chipLoadingState = .error(LoadingError(from: error))
         }

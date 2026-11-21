@@ -53,8 +53,7 @@ struct SupportView: View {
 
     // MARK: - Verify
 
-    @ViewBuilder
-    private var verifySection: some View {
+    @ViewBuilder private var verifySection: some View {
         if self.support.isVerificationConfigured {
             VStack(alignment: .leading, spacing: 8) {
                 if self.support.isSupporter, let email = self.support.verifiedEmail {
@@ -175,7 +174,6 @@ struct SupportView: View {
 
     // MARK: - Supporter card (active status)
 
-    @ViewBuilder
     private var supporterCard: some View {
         VStack(spacing: 6) {
             HStack(spacing: 8) {
@@ -308,8 +306,7 @@ struct SupportView: View {
 
     // MARK: - Supporters wall
 
-    @ViewBuilder
-    private var supportersSection: some View {
+    @ViewBuilder private var supportersSection: some View {
         if !self.supporters.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {

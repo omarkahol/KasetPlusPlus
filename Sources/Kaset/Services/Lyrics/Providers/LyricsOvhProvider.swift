@@ -16,9 +16,8 @@ final class LyricsOvhProvider: LyricsProvider {
         let artist = LyricsTitleSanitizer.sanitizeArtist(info.artist)
         let title = LyricsTitleSanitizer.sanitizeTitle(info.title)
 
-        guard !artist.isEmpty, !title.isEmpty else { return .unavailable }
-
-        guard let encodedArtist = artist.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+        guard !artist.isEmpty, !title.isEmpty,
+              let encodedArtist = artist.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let encodedTitle = title.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let url = URL(string: "https://api.lyrics.ovh/v1/\(encodedArtist)/\(encodedTitle)")
         else {

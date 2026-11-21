@@ -1,11 +1,15 @@
 import SwiftUI
 
+// MARK: - DearrowTitlesWindowContext
+
 /// Window value passed to `DearrowTitlesWindow` so the original YouTube title
 /// is always available even when a video has no DeArrow entries yet.
 struct DearrowTitlesWindowContext: Hashable, Codable, Sendable {
     let videoId: String
     let originalTitle: String?
 }
+
+// MARK: - DearrowTitlesWindow
 
 /// Window displaying all community-submitted DeArrow titles for a YouTube video,
 /// allowing the user to inspect vote counts and upvote or downvote titles.
@@ -125,8 +129,7 @@ struct DearrowTitlesWindow: View {
         .background(.orange.opacity(0.1))
     }
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if self.isLoading, self.titles.isEmpty {
             VStack(spacing: 10) {
                 ProgressView()

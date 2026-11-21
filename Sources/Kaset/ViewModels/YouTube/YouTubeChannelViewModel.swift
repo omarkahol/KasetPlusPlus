@@ -93,7 +93,9 @@ final class YouTubeChannelViewModel {
                 self.tabContinuations[tab] = continuation
             }
         } catch {
-            if error is CancellationError { return }
+            if error is CancellationError {
+                return
+            }
             self.logger.error("Failed to load channel tab \(tab.rawValue): \(error.localizedDescription)")
             self.failedTabs.insert(tab)
         }
@@ -116,7 +118,9 @@ final class YouTubeChannelViewModel {
             self.tabContinuations[tab] = next
             self.paginationTrigger += 1
         } catch {
-            if error is CancellationError { return }
+            if error is CancellationError {
+                return
+            }
             self.logger.error("Failed to load more in channel tab \(tab.rawValue): \(error.localizedDescription)")
             // Stop retrying this tab so the sentinel doesn't loop on a failure.
             self.tabContinuations[tab] = nil

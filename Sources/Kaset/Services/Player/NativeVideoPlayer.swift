@@ -15,8 +15,8 @@ extension Notification.Name {
 final class NativeVideoPlayer: BaseAVPlayerController {
     static let shared = NativeVideoPlayer()
 
-    private var activeResourceLoader: HLSMasterManifestLoader?
-    private var preloadedResourceLoader: HLSMasterManifestLoader?
+    private var activeResourceLoader: HLSMultivariantManifestLoader?
+    private var preloadedResourceLoader: HLSMultivariantManifestLoader?
     private var pendingStartAt: TimeInterval?
 
     private(set) var isPlaying: Bool = false {
@@ -24,6 +24,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
             self.onStateChange?(self.isPlaying)
         }
     }
+
     private(set) var isLoading: Bool = false {
         didSet {
             self.onLoadingChange?(self.isLoading)
@@ -68,12 +69,12 @@ final class NativeVideoPlayer: BaseAVPlayerController {
     var onAvailableQualityLevelsResolved: (@MainActor ([String]) -> Void)?
 
     private var preferredQualityLevel: String = "auto"
-    private var cachedMasterPlaylist: (url: URL, text: String)?
+    private var cachedMultivariantPlaylist: (url: URL, text: String)?
     private var preferredCaptionLanguageCode: String?
     private var hasExplicitCaptionSelection = false
     private var preferredAudioTrackId: String?
 
-    private override init() {
+    override private init() {
         super.init()
     }
 
@@ -101,7 +102,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
 
         // Buffer ~4s ahead for fast startup at <=720p/auto, and 10s ahead for >=1080p so
         // high-bitrate segments (1080p60/1440p/4K) don't stall at segment boundaries.
-        // For HLS streams, HLSMasterManifestLoader filters variants directly so preferredPeakBitRate
+        // For HLS streams, HLSMultivariantManifestLoader filters variants directly so preferredPeakBitRate
         // stays 0 and never blocks high-bitrate variants.
         playerItem.preferredForwardBufferDuration = Self.preferredForwardBufferDuration(for: self.preferredQualityLevel)
         playerItem.preferredPeakBitRate = HLSAudioSamplePlayer.isHLSURL(url)
@@ -128,7 +129,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
     /// Preloads the next video item into memory to enable instant, gapless transitions.
     func preloadNext(url: URL, videoId: String) {
         guard self.preloadedVideoId != videoId else { return }
-        let built = self.makePlayerItem(for: url, preferredQualityLevel: "auto", cacheMasterPlaylist: false)
+        let built = self.makePlayerItem(for: url, preferredQualityLevel: "auto", cacheMultivariantPlaylist: false)
         built.item.preferredForwardBufferDuration = 0
         self.setPreload(item: built.item, videoId: videoId)
         self.preloadedResourceLoader = built.loader
@@ -213,7 +214,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
 
     /// Applies a quality level to the current and subsequent native `AVPlayerItem`s.
     /// For HLS streams, reloads the item at the current playback position with the filtered
-    /// master manifest so `AVPlayer` switches to the requested resolution immediately.
+    /// multivariant manifest so `AVPlayer` switches to the requested resolution immediately.
     func setQualityLevel(_ level: String) {
         let previousLevel = self.preferredQualityLevel
         self.preferredQualityLevel = level
@@ -274,9 +275,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         guard let item = self.player?.currentItem else { return }
         let videoId = self.currentVideoId
         Task { @MainActor [weak self, weak item] in
-            guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId else { return }
-            guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible) else { return }
-            guard self.player?.currentItem === item, self.currentVideoId == videoId else { return }
+            guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId, let group = try? await item.asset.loadMediaSelectionGroup(for: .legible), self.player?.currentItem === item, self.currentVideoId == videoId else { return }
             guard let languageCode else {
                 item.select(nil, in: group)
                 return
@@ -295,9 +294,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         guard let item = self.player?.currentItem else { return }
         let videoId = self.currentVideoId
         Task { @MainActor [weak self, weak item] in
-            guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId else { return }
-            guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else { return }
-            guard self.player?.currentItem === item, self.currentVideoId == videoId else { return }
+            guard let self, let item, self.player?.currentItem === item, self.currentVideoId == videoId, let group = try? await item.asset.loadMediaSelectionGroup(for: .audible), self.player?.currentItem === item, self.currentVideoId == videoId else { return }
             if let matching = Self.matchingAudibleOption(for: id, in: group.options) {
                 item.select(matching, in: group)
             }
@@ -349,7 +346,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         for id: String,
         in options: [AVMediaSelectionOption]
     ) -> AVMediaSelectionOption? {
-        for (index, option) in options.enumerated() where Self.audibleTrackId(for: option, at: index, in: options) == id {
+        for (index, option) in options.enumerated() where self.audibleTrackId(for: option, at: index, in: options) == id {
             return option
         }
         return options.first { Self.mediaOptionCode($0) == id }
@@ -407,8 +404,8 @@ final class NativeVideoPlayer: BaseAVPlayerController {
                 )
             }
             let activeAudioId: String? = if let audibleGroup,
-                let selected = currentSelection.selectedMediaOption(in: audibleGroup),
-                let index = audibleGroup.options.firstIndex(where: { $0 == selected })
+                                            let selected = currentSelection.selectedMediaOption(in: audibleGroup),
+                                            let index = audibleGroup.options.firstIndex(where: { $0 == selected })
             {
                 Self.audibleTrackId(for: selected, at: index, in: audibleGroup.options)
             } else {
@@ -431,7 +428,7 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         NotificationCenter.default.post(name: .nativeVideoPlayerChanged, object: nil)
         self.currentURL = nil
         self.currentVideoId = nil
-        self.cachedMasterPlaylist = nil
+        self.cachedMultivariantPlaylist = nil
         self.preferredCaptionLanguageCode = nil
         self.hasExplicitCaptionSelection = false
         self.preferredAudioTrackId = nil
@@ -476,63 +473,16 @@ final class NativeVideoPlayer: BaseAVPlayerController {
         // 4. Status KVO
         self.statusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             Task { @MainActor [weak self, weak item] in
-                guard let self, let item, let player = self.player, player.currentItem === item else { return }
-                if item.status == .readyToPlay {
-                    self.cancelStartupTimeout()
-                    let dur = item.duration.seconds
-                    if dur.isFinite, dur > 0 {
-                        self.onDurationResolved?(dur)
-                    }
-                    self.resolveMediaSelectionOptions(for: item, videoId: self.currentVideoId)
-                    if let startAt = self.pendingStartAt, startAt > 0 {
-                        let targetTime = CMTime(seconds: startAt, preferredTimescale: 600)
-                        player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak player, weak item] _ in
-                            Task { @MainActor [weak self, weak player, weak item] in
-                                guard let self, let player, let item,
-                                      self.player === player,
-                                      player.currentItem === item
-                                else { return }
-                                self.pendingStartAt = nil
-                                if item.isPlaybackLikelyToKeepUp || !self.shouldBePlaying {
-                                    self.isLoading = false
-                                }
-                                if self.shouldBePlaying {
-                                    player.rate = self.playbackSpeed
-                                }
-                            }
-                        }
-                    } else {
-                        self.pendingStartAt = nil
-                        self.isLoading = false
-                        if self.shouldBePlaying, player.rate == 0 {
-                            player.rate = self.playbackSpeed
-                        }
-                    }
-                } else if item.status == .failed {
-                    self.cancelStartupTimeout()
-                    self.pendingStartAt = nil
-                    self.shouldBePlaying = false
-                    self.isLoading = false
-                    self.isPlaying = false
-                    self.onPlaybackFailed?()
-                }
+                guard let self, let item else { return }
+                self.handleItemStatusChange(item)
             }
         }
 
         // 5. Buffer / Keep up KVO
         self.likelyToKeepUpObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.player?.currentItem === item else { return }
-                if item.isPlaybackLikelyToKeepUp {
-                    if self.pendingStartAt == nil {
-                        self.isLoading = false
-                        if self.shouldBePlaying, let player = self.player, player.rate == 0 {
-                            player.rate = self.playbackSpeed
-                        }
-                    }
-                } else if self.shouldBePlaying, self.player?.timeControlStatus != .playing {
-                    self.isLoading = true
-                }
+            Task { @MainActor [weak self, weak item] in
+                guard let self, let item else { return }
+                self.handleLikelyToKeepUpChange(item)
             }
         }
 
@@ -567,46 +517,104 @@ final class NativeVideoPlayer: BaseAVPlayerController {
     private func makePlayerItem(
         for url: URL,
         preferredQualityLevel: String,
-        cacheMasterPlaylist: Bool = true
-    ) -> (item: AVPlayerItem, loader: HLSMasterManifestLoader?) {
+        cacheMultivariantPlaylist: Bool = true
+    ) -> (item: AVPlayerItem, loader: HLSMultivariantManifestLoader?) {
         guard HLSAudioSamplePlayer.isHLSURL(url),
-              let customURL = URL(string: "kaset-hls://master/\(UUID().uuidString).m3u8")
+              let customURL = URL(string: "kaset-hls://multivariant/\(UUID().uuidString).m3u8")
         else {
             return (AVPlayerItem(url: url), nil)
         }
         let asset = AVURLAsset(url: customURL)
-        let cachedText = (cacheMasterPlaylist && self.cachedMasterPlaylist?.url == url)
-            ? self.cachedMasterPlaylist?.text
+        let cachedText = (cacheMultivariantPlaylist && self.cachedMultivariantPlaylist?.url == url)
+            ? self.cachedMultivariantPlaylist?.text
             : nil
-        let onLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = if cacheMasterPlaylist {
-            { [weak self] masterText, availableLevels in
+        let onLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = if cacheMultivariantPlaylist {
+            { [weak self] multivariantText, availableLevels in
                 guard let self else { return }
                 if self.currentURL == url {
-                    self.cachedMasterPlaylist = (url, masterText)
+                    self.cachedMultivariantPlaylist = (url, multivariantText)
                     self.onAvailableQualityLevelsResolved?(availableLevels)
                 }
             }
         } else {
             nil
         }
-        let loader = HLSMasterManifestLoader(
+        let loader = HLSMultivariantManifestLoader(
             sourceURL: url,
             preferredQualityLevel: preferredQualityLevel,
-            initialMasterPlaylistText: cachedText,
-            onMasterPlaylistLoaded: onLoaded
+            initialMultivariantPlaylistText: cachedText,
+            onMultivariantPlaylistLoaded: onLoaded
         )
-        asset.resourceLoader.setDelegate(loader, queue: HLSMasterManifestLoader.delegateQueue)
+        asset.resourceLoader.setDelegate(loader, queue: HLSMultivariantManifestLoader.delegateQueue)
         return (AVPlayerItem(asset: asset), loader)
+    }
+
+    private func handleItemStatusChange(_ item: AVPlayerItem) {
+        guard let player = self.player, player.currentItem === item else { return }
+        if item.status == .readyToPlay {
+            self.cancelStartupTimeout()
+            let dur = item.duration.seconds
+            if dur.isFinite, dur > 0 {
+                self.onDurationResolved?(dur)
+            }
+            self.resolveMediaSelectionOptions(for: item, videoId: self.currentVideoId)
+            if let startAt = self.pendingStartAt, startAt > 0 {
+                let targetTime = CMTime(seconds: startAt, preferredTimescale: 600)
+                player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self, weak player, weak item] _ in
+                    Task { @MainActor [weak self, weak player, weak item] in
+                        guard let self, let player, let item,
+                              self.player === player,
+                              player.currentItem === item
+                        else { return }
+                        self.pendingStartAt = nil
+                        if item.isPlaybackLikelyToKeepUp || !self.shouldBePlaying {
+                            self.isLoading = false
+                        }
+                        if self.shouldBePlaying {
+                            player.rate = self.playbackSpeed
+                        }
+                    }
+                }
+            } else {
+                self.pendingStartAt = nil
+                self.isLoading = false
+                if self.shouldBePlaying, player.rate == 0 {
+                    player.rate = self.playbackSpeed
+                }
+            }
+        } else if item.status == .failed {
+            self.cancelStartupTimeout()
+            self.pendingStartAt = nil
+            self.shouldBePlaying = false
+            self.isLoading = false
+            self.isPlaying = false
+            self.onPlaybackFailed?()
+        }
+    }
+
+    private func handleLikelyToKeepUpChange(_ item: AVPlayerItem) {
+        guard self.player?.currentItem === item else { return }
+        if item.isPlaybackLikelyToKeepUp {
+            if self.pendingStartAt == nil {
+                self.isLoading = false
+                if self.shouldBePlaying, let player = self.player, player.rate == 0 {
+                    player.rate = self.playbackSpeed
+                }
+            }
+        } else if self.shouldBePlaying, self.player?.timeControlStatus != .playing {
+            self.isLoading = true
+        }
     }
 }
 
-// MARK: - HLSMasterManifestLoader
+// MARK: - HLSMultivariantManifestLoader
 
-/// Intercepts HLS master manifest loading for `NativeVideoPlayer` so unsupported `vp09` variants
+/// Intercepts HLS multivariant manifest loading for `NativeVideoPlayer` so unsupported `vp09` variants
 /// are filtered out, `avc1`/`hvc1` variants are ordered for ABR or filtered to a user-pinned
 /// quality level, and available quality tiers are reported back to the player UI.
-final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @unchecked Sendable {
-    static let delegateQueue = DispatchQueue(label: "com.kaset.hls-video-master-loader")
+final class HLSMultivariantManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @unchecked Sendable {
+    // swiftlint:disable:next no_dispatch_queue
+    static let delegateQueue = DispatchQueue(label: "com.kaset.hls-video-multivariant-loader")
 
     private static let orderedQualityLevels = [
         "highres", "hd2880", "hd2160", "hd1440", "hd1080", "hd720", "large", "medium", "small", "tiny",
@@ -614,19 +622,19 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
 
     private let sourceURL: URL
     private let preferredQualityLevel: String
-    private let initialMasterPlaylistText: String?
-    private let onMasterPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)?
+    private let initialMultivariantPlaylistText: String?
+    private let onMultivariantPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)?
 
     init(
         sourceURL: URL,
         preferredQualityLevel: String = "auto",
-        initialMasterPlaylistText: String? = nil,
-        onMasterPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = nil
+        initialMultivariantPlaylistText: String? = nil,
+        onMultivariantPlaylistLoaded: (@MainActor @Sendable (String, [String]) -> Void)? = nil
     ) {
         self.sourceURL = sourceURL
         self.preferredQualityLevel = preferredQualityLevel
-        self.initialMasterPlaylistText = initialMasterPlaylistText
-        self.onMasterPlaylistLoaded = onMasterPlaylistLoaded
+        self.initialMultivariantPlaylistText = initialMultivariantPlaylistText
+        self.onMultivariantPlaylistLoaded = onMultivariantPlaylistLoaded
         super.init()
     }
 
@@ -634,8 +642,8 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
         _: AVAssetResourceLoader,
         shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
     ) -> Bool {
-        if let cachedText = self.initialMasterPlaylistText {
-            let rewritten = Self.rewriteMasterPlaylist(cachedText, preferredQualityLevel: self.preferredQualityLevel)
+        if let cachedText = self.initialMultivariantPlaylistText {
+            let rewritten = Self.rewriteMultivariantPlaylist(cachedText, preferredQualityLevel: self.preferredQualityLevel)
             let responseData = rewritten?.data(using: .utf8) ?? Data(cachedText.utf8)
             Self.finish(loadingRequest: loadingRequest, with: responseData)
             return true
@@ -643,7 +651,7 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
 
         let sourceURL = self.sourceURL
         let preferredQualityLevel = self.preferredQualityLevel
-        let onMasterPlaylistLoaded = self.onMasterPlaylistLoaded
+        let onMultivariantPlaylistLoaded = self.onMultivariantPlaylistLoaded
         Task {
             let session = await HLSManifestCache.shared.sharedSession
             var request = URLRequest(url: sourceURL)
@@ -661,12 +669,12 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
             let responseData: Data
             if let text = String(data: rawData, encoding: .utf8) {
                 let availableLevels = Self.availableQualityLevels(in: text)
-                if let onMasterPlaylistLoaded {
+                if let onMultivariantPlaylistLoaded {
                     await MainActor.run {
-                        onMasterPlaylistLoaded(text, availableLevels)
+                        onMultivariantPlaylistLoaded(text, availableLevels)
                     }
                 }
-                if let rewritten = Self.rewriteMasterPlaylist(text, preferredQualityLevel: preferredQualityLevel),
+                if let rewritten = Self.rewriteMultivariantPlaylist(text, preferredQualityLevel: preferredQualityLevel),
                    let rewrittenData = rewritten.data(using: .utf8)
                 {
                     responseData = rewrittenData
@@ -691,18 +699,18 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
     }
 
     /// Returns the distinct YouTube quality levels present in `avc1`/`hvc1` variants, ordered highest-to-lowest.
-    static func availableQualityLevels(in masterText: String) -> [String] {
-        let parsed = Self.parseMasterPlaylist(masterText)
+    static func availableQualityLevels(in multivariantText: String) -> [String] {
+        let parsed = Self.parseMultivariantPlaylist(multivariantText)
         let present = Set(parsed.variants.compactMap(\.qualityLevel))
         return Self.orderedQualityLevels.filter { present.contains($0) }
     }
 
-    static func rewriteMasterPlaylist(_ masterText: String, preferredQualityLevel: String = "auto") -> String? {
-        let parsed = Self.parseMasterPlaylist(masterText)
+    static func rewriteMultivariantPlaylist(_ multivariantText: String, preferredQualityLevel: String = "auto") -> String? {
+        let parsed = Self.parseMultivariantPlaylist(multivariantText)
         let variants = parsed.variants
         guard !variants.isEmpty else { return nil }
 
-        let selected: [MasterVariant]
+        let selected: [MultivariantVariant]
         if preferredQualityLevel.isEmpty || preferredQualityLevel == "auto" {
             // Start with 720p (~1.0-2.5 Mbps) first for fast ~1s startup, followed by 1080p+ so ABR
             // steps up immediately on segment 1, then lower fallback rungs.
@@ -748,29 +756,47 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
 
         let shortSide = min(width, height)
         let longSide = max(width, height)
-        if shortSide >= 4320 || longSide >= 7680 { return "highres" }
-        if shortSide >= 2880 || longSide >= 5120 { return "hd2880" }
-        if shortSide >= 2160 || longSide >= 3840 { return "hd2160" }
-        if shortSide >= 1440 || longSide >= 2560 { return "hd1440" }
-        if shortSide >= 1080 || longSide >= 1920 { return "hd1080" }
-        if shortSide >= 720 || longSide >= 1280 { return "hd720" }
-        if shortSide >= 480 || longSide >= 854 { return "large" }
-        if shortSide >= 360 || longSide >= 640 { return "medium" }
-        if shortSide >= 240 || longSide >= 426 { return "small" }
+        if shortSide >= 4320 || longSide >= 7680 {
+            return "highres"
+        }
+        if shortSide >= 2880 || longSide >= 5120 {
+            return "hd2880"
+        }
+        if shortSide >= 2160 || longSide >= 3840 {
+            return "hd2160"
+        }
+        if shortSide >= 1440 || longSide >= 2560 {
+            return "hd1440"
+        }
+        if shortSide >= 1080 || longSide >= 1920 {
+            return "hd1080"
+        }
+        if shortSide >= 720 || longSide >= 1280 {
+            return "hd720"
+        }
+        if shortSide >= 480 || longSide >= 854 {
+            return "large"
+        }
+        if shortSide >= 360 || longSide >= 640 {
+            return "medium"
+        }
+        if shortSide >= 240 || longSide >= 426 {
+            return "small"
+        }
         return "tiny"
     }
 
-    private struct MasterVariant {
+    private struct MultivariantVariant {
         let bandwidth: Int
         let qualityLevel: String?
         let infLine: String
         let urlLine: String
     }
 
-    private static func parseMasterPlaylist(_ masterText: String) -> (headerLines: [String], variants: [MasterVariant]) {
-        let lines = masterText.components(separatedBy: .newlines)
+    private static func parseMultivariantPlaylist(_ multivariantText: String) -> (headerLines: [String], variants: [MultivariantVariant]) {
+        let lines = multivariantText.components(separatedBy: .newlines)
         var headerLines: [String] = []
-        var variants: [MasterVariant] = []
+        var variants: [MultivariantVariant] = []
 
         var index = 0
         while index < lines.count {
@@ -780,7 +806,7 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
                 if line.contains("avc1") || line.contains("hvc1") {
                     let bandwidth = Self.extractBandwidth(from: line)
                     let quality = Self.qualityLevel(forStreamInfLine: line)
-                    variants.append(MasterVariant(bandwidth: bandwidth, qualityLevel: quality, infLine: line, urlLine: urlLine))
+                    variants.append(MultivariantVariant(bandwidth: bandwidth, qualityLevel: quality, infLine: line, urlLine: urlLine))
                 }
                 index += 2
             } else {
@@ -793,7 +819,7 @@ final class HLSMasterManifestLoader: NSObject, AVAssetResourceLoaderDelegate, @u
         return (headerLines, variants)
     }
 
-    private static func resolvedTargetQualityLevel(requested: String, availableVariants: [MasterVariant]) -> String? {
+    private static func resolvedTargetQualityLevel(requested: String, availableVariants: [MultivariantVariant]) -> String? {
         let availableLevels = Set(availableVariants.compactMap(\.qualityLevel))
         guard !availableLevels.isEmpty else { return nil }
         if availableLevels.contains(requested) {

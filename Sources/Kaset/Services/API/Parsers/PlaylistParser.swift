@@ -812,7 +812,7 @@ enum PlaylistParser {
             return true
         }
 
-        if Self.isNaturalLanguageDuration(text) {
+        if self.isNaturalLanguageDuration(text) {
             return true
         }
 
@@ -868,14 +868,12 @@ enum PlaylistParser {
         }
 
         // Try recursive search if no tracks found
-        if tracks.isEmpty {
-            if let contents = data["contents"] as? [String: Any] {
-                for (_, value) in contents {
-                    if let renderer = value as? [String: Any] {
-                        tracks.append(contentsOf: self.findTracksRecursively(in: renderer, depth: 0, fallbackThumbnailURL: fallbackThumbnailURL))
-                        if !tracks.isEmpty {
-                            break
-                        }
+        if tracks.isEmpty, let contents = data["contents"] as? [String: Any] {
+            for (_, value) in contents {
+                if let renderer = value as? [String: Any] {
+                    tracks.append(contentsOf: self.findTracksRecursively(in: renderer, depth: 0, fallbackThumbnailURL: fallbackThumbnailURL))
+                    if !tracks.isEmpty {
+                        break
                     }
                 }
             }
@@ -1229,7 +1227,7 @@ enum PlaylistParser {
         }
         guard albumId.hasPrefix("MPRE") else { return nil }
 
-        let headerRendererNames: Set<String> = [
+        let headerRendererNames: Set = [
             "musicResponsiveHeaderRenderer",
             "musicDetailHeaderRenderer",
             "musicImmersiveHeaderRenderer",

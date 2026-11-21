@@ -13,6 +13,7 @@ final class ListenBrainzService: ScrobbleServiceProtocol {
 
     private(set) var authState: ScrobbleAuthState = .disconnected
 
+    // swiftformat:disable:next modifierOrder
     nonisolated private static let requestTimeout: TimeInterval = 30
     private static let defaultAPIBaseURL: URL = {
         guard let url = URL(string: "https://api.listenbrainz.org") else {

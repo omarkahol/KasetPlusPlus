@@ -90,13 +90,12 @@ struct MenuBarPlayerView: View {
         return self.playerService.currentTrack?.title ?? String(localized: "Not Playing")
     }
 
-    @ViewBuilder
-    private var thumbnailView: some View {
+    @ViewBuilder private var thumbnailView: some View {
         if self.isVideoActive, let video = self.youtubePlayer.currentVideo {
             CachedAsyncImage(url: video.thumbnailURL, targetSize: CGSize(width: 80, height: 80)) { image in
                 image
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .scaledToFill()
             } placeholder: {
                 Rectangle().fill(.quaternary)
             }

@@ -120,56 +120,57 @@ struct YouTubeSaveToPlaylistView: View {
         .disabled(isBusy)
     }
 
-    private var newPlaylistFooter: some View {
-        Group {
-            if self.creating {
-                VStack(alignment: .leading, spacing: 8) {
-                    TextField(String(localized: "Playlist name", comment: "New playlist name field"), text: self.$newTitle)
-                        .textFieldStyle(.roundedBorder)
-                    HStack {
-                        Picker("", selection: self.$newPrivacy) {
-                            Text("Private", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.private)
-                            Text("Unlisted", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.unlisted)
-                            Text("Public", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.public)
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                        Spacer()
-                        Button {
-                            Task { await self.createPlaylist() }
-                        } label: {
-                            if self.savingNew {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Text("Create", comment: "Create playlist button")
-                            }
-                        }
-                        .disabled(self.newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || self.savingNew)
+    @ViewBuilder private var newPlaylistFooter: some View {
+        if self.creating {
+            VStack(alignment: .leading, spacing: 8) {
+                TextField(String(localized: "Playlist name", comment: "New playlist name field"), text: self.$newTitle)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Picker("", selection: self.$newPrivacy) {
+                        Text("Private", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.private)
+                        Text("Unlisted", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.unlisted)
+                        Text("Public", comment: "Playlist privacy").tag(PlaylistPrivacyStatus.public)
                     }
-                }
-                .padding(16)
-            } else {
-                Button {
-                    self.creating = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "plus")
-                        Text("New playlist", comment: "Create a new playlist from the save popover")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
+                    .labelsHidden()
+                    .fixedSize()
+                    Spacer()
+                    Button {
+                        Task { await self.createPlaylist() }
+                    } label: {
+                        if self.savingNew {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Create", comment: "Create playlist button")
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
+                    .disabled(self.newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || self.savingNew)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(16)
+        } else {
+            Button {
+                self.creating = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus")
+                    Text("New playlist", comment: "Create a new playlist from the save popover")
+                        .font(.system(size: 13, weight: .medium))
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 
     private func centered(@ViewBuilder _ content: () -> some View) -> some View {
-        HStack { Spacer(); content(); Spacer() }
-            .frame(height: 90)
+        HStack { Spacer()
+            content()
+            Spacer()
+        }
+        .frame(height: 90)
     }
 
     // MARK: Actions

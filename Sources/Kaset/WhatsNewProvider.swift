@@ -137,7 +137,7 @@ enum WhatsNewProvider {
 
     /// Fetches the repo's latest published release.
     private static func fetchLatest(session: URLSession = .shared) async -> WhatsNew? {
-        guard let url = URL(string: "https://api.github.com/repos/\(Self.owner)/\(Self.repo)/releases/latest")
+        guard let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")
         else { return nil }
         return await Self.performRequest(url: url, session: session)
     }
@@ -250,12 +250,12 @@ enum WhatsNewProvider {
 
     private static func extractSection(from lines: [String], preferredHeadings: Set<String>) -> [String]? {
         guard let startIndex = lines.firstIndex(where: { line in
-            guard let heading = Self.markdownHeading(in: line) else {
-                return false
-            }
-            return preferredHeadings.contains(heading.text)
-        }),
-            let startHeading = markdownHeading(in: lines[startIndex])
+                  guard let heading = Self.markdownHeading(in: line) else {
+                      return false
+                  }
+                  return preferredHeadings.contains(heading.text)
+              }),
+              let startHeading = markdownHeading(in: lines[startIndex])
         else {
             return nil
         }

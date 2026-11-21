@@ -134,7 +134,9 @@ final class SyncedLyricsService {
     /// Uses the YouTube Music result when available; otherwise queries the free
     /// plain-text fallback providers (Lyrics.ovh) with sanitized metadata.
     func resolvePlainFallback(youTubeMusicLyrics: Lyrics?, info: LyricsSearchInfo) async {
-        if case .synced = self.currentLyrics { return }
+        if case .synced = self.currentLyrics {
+            return
+        }
 
         if let youTubeMusicLyrics, youTubeMusicLyrics.isAvailable {
             self.fallbackToPlainLyrics(youTubeMusicLyrics, videoId: info.videoId)

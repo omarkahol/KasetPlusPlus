@@ -1,6 +1,8 @@
 import Foundation
 import SwiftUI
 
+// MARK: - SponsorSegment
+
 /// A SponsorBlock segment, bridged from the WebView JavaScript.
 struct SponsorSegment: Equatable, Sendable {
     let start: Double
@@ -41,7 +43,7 @@ struct SponsorSegment: Equatable, Sendable {
         case "filler":
             Color(red: 0.45, green: 0, blue: 1)
         default:
-            Self.brandColor
+            self.brandColor
         }
     }
 
@@ -68,6 +70,8 @@ struct SponsorSegment: Equatable, Sendable {
         }
     }
 }
+
+// MARK: - SponsorSkipNotice
 
 /// Transient notice shown after SponsorBlock automatically skips a segment.
 struct SponsorSkipNotice: Equatable, Identifiable, Sendable {

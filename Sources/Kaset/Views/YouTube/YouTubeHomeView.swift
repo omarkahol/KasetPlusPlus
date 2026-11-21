@@ -80,8 +80,7 @@ struct YouTubeHomeView: View {
     // MARK: - Chip Bar
 
     /// The personalized Home (rails + grid), shown for the "All" chip.
-    @ViewBuilder
-    private var homeContent: some View {
+    @ViewBuilder private var homeContent: some View {
         switch self.viewModel.loadingState {
         case .idle, .loading:
             self.loadingGrid
@@ -154,8 +153,7 @@ struct YouTubeHomeView: View {
     }
 
     /// The selected chip's topic-filtered grid.
-    @ViewBuilder
-    private var chipContent: some View {
+    @ViewBuilder private var chipContent: some View {
         switch self.viewModel.chipLoadingState {
         case .idle, .loading:
             self.loadingGrid

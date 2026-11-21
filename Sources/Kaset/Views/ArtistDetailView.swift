@@ -1,5 +1,3 @@
-// swiftlint:disable file_length
-
 import SwiftUI
 
 /// Detail view for an artist showing their songs and albums.
@@ -426,67 +424,72 @@ struct ArtistDetailView: View {
             }
         }
         .contextMenu {
+            self.topSongRowContextMenu(song, index: index)
+        }
+    }
+
+    @ViewBuilder
+    private func topSongRowContextMenu(_ song: Song, index: Int) -> some View {
+        Button {
+            self.viewModel.playTopSong(song, displayedIndex: index, playerService: self.playerService)
+        } label: {
+            Label(String(localized: "Play"), systemImage: "play.fill")
+        }
+
+        if self.authService.hasPersonalAccount {
+            Divider()
+
+            FavoritesContextMenu.menuItem(for: song, manager: self.favoritesManager)
+
+            Divider()
+
+            LikeDislikeContextMenu(song: song, likeStatusManager: self.likeStatusManager)
+        }
+
+        Divider()
+
+        StartRadioContextMenu.menuItem(for: song, playerService: self.playerService)
+
+        if self.authService.hasPersonalAccount {
+            Divider()
+
             Button {
-                self.viewModel.playTopSong(song, displayedIndex: index, playerService: self.playerService)
+                SongActionsHelper.addToLibrary(song, playerService: self.playerService)
             } label: {
-                Label(String(localized: "Play"), systemImage: "play.fill")
-            }
-
-            if self.authService.hasPersonalAccount {
-                Divider()
-
-                FavoritesContextMenu.menuItem(for: song, manager: self.favoritesManager)
-
-                Divider()
-
-                LikeDislikeContextMenu(song: song, likeStatusManager: self.likeStatusManager)
+                Label(String(localized: "Add to Library"), systemImage: "plus.circle")
             }
 
             Divider()
 
-            StartRadioContextMenu.menuItem(for: song, playerService: self.playerService)
+            AddToPlaylistContextMenu(song: song, client: self.viewModel.client)
+        }
 
-            if self.authService.hasPersonalAccount {
-                Divider()
+        Divider()
 
-                Button {
-                    SongActionsHelper.addToLibrary(song, playerService: self.playerService)
-                } label: {
-                    Label(String(localized: "Add to Library"), systemImage: "plus.circle")
-                }
+        ShareContextMenu.menuItem(for: song)
 
-                Divider()
+        Divider()
 
-                AddToPlaylistContextMenu(song: song, client: self.viewModel.client)
-            }
+        AddToQueueContextMenu(song: song, playerService: self.playerService)
 
+        Divider()
+
+        DownloadSongContextMenu(song: song)
+
+        // Go to Album - show if album has valid browse ID
+        if let album = song.album, album.hasNavigableId {
             Divider()
 
-            ShareContextMenu.menuItem(for: song)
-
-            Divider()
-
-            AddToQueueContextMenu(song: song, playerService: self.playerService)
-
-            Divider()
-
-            DownloadSongContextMenu(song: song)
-
-            // Go to Album - show if album has valid browse ID
-            if let album = song.album, album.hasNavigableId {
-                Divider()
-
-                let playlist = Playlist(
-                    id: album.id,
-                    title: album.title,
-                    description: nil,
-                    thumbnailURL: album.thumbnailURL ?? song.thumbnailURL,
-                    trackCount: album.trackCount,
-                    author: Artist.inline(name: album.artistsDisplay, namespace: "album-artist")
-                )
-                NavigationLink(value: playlist) {
-                    Label(String(localized: "Go to Album"), systemImage: "square.stack")
-                }
+            let playlist = Playlist(
+                id: album.id,
+                title: album.title,
+                description: nil,
+                thumbnailURL: album.thumbnailURL ?? song.thumbnailURL,
+                trackCount: album.trackCount,
+                author: Artist.inline(name: album.artistsDisplay, namespace: "album-artist")
+            )
+            NavigationLink(value: playlist) {
+                Label(String(localized: "Go to Album"), systemImage: "square.stack")
             }
         }
     }

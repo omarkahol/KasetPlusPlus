@@ -184,8 +184,8 @@ final class NowPlayingManager {
         state: PlayerService.PlaybackState,
         track: (title: String, artist: String)?,
         activeVideo: ActiveVideoClaim?,
-        isPlayingOffline: Bool = false,
-        hasConfirmedWebPlayback: Bool = false
+        isPlayingOffline _: Bool = false,
+        hasConfirmedWebPlayback _: Bool = false
     ) -> NowPlayingClaim {
         if let activeVideo {
             guard activeVideo.isPlaybackConfirmed else {
@@ -226,11 +226,10 @@ final class NowPlayingManager {
 
         self.artworkLoadTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            let image: NSImage?
-            if thumbnailURL.isFileURL {
-                image = NSImage(contentsOf: thumbnailURL)
+            let image: NSImage? = if thumbnailURL.isFileURL {
+                NSImage(contentsOf: thumbnailURL)
             } else {
-                image = await ImageCache.shared.image(for: thumbnailURL)
+                await ImageCache.shared.image(for: thumbnailURL)
             }
             guard !Task.isCancelled, self.currentArtworkTrackId == itemId else { return }
             self.currentArtworkImage = image
@@ -287,48 +286,65 @@ final class NowPlayingManager {
             center.playbackState = .stopped
             center.nowPlayingInfo = nil
         case let .claim(title, artist, playbackState):
-            var info: [String: Any] = [
-                MPMediaItemPropertyTitle: title,
-                MPNowPlayingInfoPropertyServiceIdentifier: Self.nativeClaimServiceIdentifier,
-            ]
-            if !artist.isEmpty {
-                info[MPMediaItemPropertyArtist] = artist
-            }
-            var publishedElapsed: TimeInterval = 0
-            var publishedRate = 0.0
-            if self.routesToYouTubeVideo, let youtube = self.youtubePlayerService, youtube.currentVideo != nil {
-                if youtube.duration > 0 {
-                    info[MPMediaItemPropertyPlaybackDuration] = youtube.duration
-                }
-                publishedElapsed = youtube.progress
-                publishedRate = (playbackState == .playing && youtube.isPlaying) ? youtube.playbackSpeed : 0.0
-                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
-                info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
-            } else if let player = self.playerService {
-                if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
-                    info[MPMediaItemPropertyAlbumTitle] = albumTitle
-                }
-                if player.duration > 0 {
-                    info[MPMediaItemPropertyPlaybackDuration] = player.duration
-                }
-                publishedElapsed = player.progress
-                publishedRate = (playbackState == .playing && player.isPlaying) ? 1.0 : 0.0
-                info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
-                info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
-            }
-            if let artworkImage = self.currentArtworkImage {
-                info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
-            }
-            center.nowPlayingInfo = info
-            center.playbackState = switch playbackState {
-            case .playing: .playing
-            case .paused: .paused
-            }
-            self.lastPublishedElapsedTime = publishedElapsed
-            self.lastPublishedAt = Date()
-            self.lastPublishedRate = publishedRate
-            self.isAssertingNativeClaim = true
+            self.publishClaim(title: title, artist: artist, playbackState: playbackState, center: center)
         }
+    }
+
+    private func publishClaim(
+        title: String,
+        artist: String,
+        playbackState: NativeClaimPlaybackState,
+        center: MPNowPlayingInfoCenter
+    ) {
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPNowPlayingInfoPropertyServiceIdentifier: Self.nativeClaimServiceIdentifier,
+        ]
+        if !artist.isEmpty {
+            info[MPMediaItemPropertyArtist] = artist
+        }
+        let (publishedElapsed, publishedRate) = self.populateTimingInfo(&info, playbackState: playbackState)
+        if let artworkImage = self.currentArtworkImage {
+            info[MPMediaItemPropertyArtwork] = Self.makeArtwork(from: artworkImage)
+        }
+        center.nowPlayingInfo = info
+        center.playbackState = switch playbackState {
+        case .playing: .playing
+        case .paused: .paused
+        }
+        self.lastPublishedElapsedTime = publishedElapsed
+        self.lastPublishedAt = Date()
+        self.lastPublishedRate = publishedRate
+        self.isAssertingNativeClaim = true
+    }
+
+    private func populateTimingInfo(
+        _ info: inout [String: Any],
+        playbackState: NativeClaimPlaybackState
+    ) -> (elapsed: TimeInterval, rate: Double) {
+        var publishedElapsed: TimeInterval = 0
+        var publishedRate = 0.0
+        if self.routesToYouTubeVideo, let youtube = self.youtubePlayerService, youtube.currentVideo != nil {
+            if youtube.duration > 0 {
+                info[MPMediaItemPropertyPlaybackDuration] = youtube.duration
+            }
+            publishedElapsed = youtube.progress
+            publishedRate = (playbackState == .playing && youtube.isPlaying) ? youtube.playbackSpeed : 0.0
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
+            info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
+        } else if let player = self.playerService {
+            if let albumTitle = player.currentTrack?.album?.title, !albumTitle.isEmpty {
+                info[MPMediaItemPropertyAlbumTitle] = albumTitle
+            }
+            if player.duration > 0 {
+                info[MPMediaItemPropertyPlaybackDuration] = player.duration
+            }
+            publishedElapsed = player.progress
+            publishedRate = (playbackState == .playing && player.isPlaying) ? 1.0 : 0.0
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = publishedElapsed
+            info[MPNowPlayingInfoPropertyPlaybackRate] = publishedRate
+        }
+        return (publishedElapsed, publishedRate)
     }
 
     private func updateHandoffActivity(videoId: String, title: String, isYouTubeVideo: Bool) {
@@ -371,9 +387,11 @@ final class NowPlayingManager {
         info?[MPNowPlayingInfoPropertyServiceIdentifier] as? String == self.nativeClaimServiceIdentifier
     }
 
+    // swiftformat:disable modifierOrder
     /// Creates an MPMediaItemArtwork whose sizing callback is nonisolated and safe to invoke
     /// on MediaPlayer's internal queue without triggering actor isolation checks.
-    private nonisolated static func makeArtwork(from image: NSImage) -> MPMediaItemArtwork {
+    nonisolated private static func makeArtwork(from image: NSImage) -> MPMediaItemArtwork {
+        // swiftformat:enable modifierOrder
         let size = image.size
         return MPMediaItemArtwork(boundsSize: size) { @Sendable _ in
             image

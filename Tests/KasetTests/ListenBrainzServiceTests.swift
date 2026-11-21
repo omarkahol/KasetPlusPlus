@@ -87,8 +87,8 @@ struct ListenBrainzServiceTests {
     }
 
     @Test("HTTP status maps to scrobble errors")
-    func statusMapping() {
-        let url = URL(string: "https://api.listenbrainz.org")!
+    func statusMapping() throws {
+        let url = try #require(URL(string: "https://api.listenbrainz.org"))
         func response(_ code: Int) -> HTTPURLResponse {
             HTTPURLResponse(url: url, statusCode: code, httpVersion: nil, headerFields: nil)!
         }

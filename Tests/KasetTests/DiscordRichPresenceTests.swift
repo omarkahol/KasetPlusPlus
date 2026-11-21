@@ -10,7 +10,7 @@ struct DiscordRichPresenceTests {
     // MARK: - Framing
 
     @Test("A frame is an 8-byte little-endian header followed by the body")
-    func frameEncoding() throws {
+    func frameEncoding() {
         let body = Data(#"{"v":1}"#.utf8)
         let frame = DiscordIPCClient.encodeFrame(opcode: .handshake, body: body)
 
@@ -48,11 +48,13 @@ struct DiscordRichPresenceTests {
     /// at ~8 KB and every later presence update goes into a connection that no
     /// longer listens, with `write` still reporting success.
     @Test("Draining empties a backed-up receive buffer without blocking")
-    func drainEmptiesTheReceiveBuffer() throws {
+    func drainEmptiesTheReceiveBuffer() {
         var descriptors: [Int32] = [0, 0]
         #expect(socketpair(AF_UNIX, SOCK_STREAM, 0, &descriptors) == 0)
         let (ours, discord) = (descriptors[0], descriptors[1])
-        defer { close(ours); close(discord) }
+        defer { close(ours)
+            close(discord)
+        }
 
         // More than one read's worth, so the drain loop has to iterate.
         let responses = [UInt8](repeating: 0x7B, count: 6000)

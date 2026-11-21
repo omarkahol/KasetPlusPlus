@@ -63,9 +63,8 @@ enum SongActionsHelper {
                 intent: intent
             )
             guard playerService.acceptsMusicPlaybackIntent(intent),
-                  playerService.currentTrack?.videoId == song.videoId
-            else { return }
-            guard !playerService.currentTrackInLibrary else { return }
+                  playerService.currentTrack?.videoId == song.videoId,
+                  !playerService.currentTrackInLibrary else { return }
             if playerService.currentTrackFeedbackTokens?.add == nil {
                 await playerService.fetchSongMetadata(
                     videoId: song.videoId,

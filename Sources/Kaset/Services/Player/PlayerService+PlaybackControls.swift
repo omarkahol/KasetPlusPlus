@@ -309,6 +309,121 @@ extension PlayerService {
         }
     }
 
+    private func handleOfflinePlayback(
+        song: Song,
+        queueEntryID: UUID?,
+        startsPaused: Bool,
+        restoreClock: MusicPlaybackRestoreClock?
+    ) {
+        if DownloadManager.shared.isDownloaded(videoId: song.videoId),
+           let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId)
+        {
+            self.playOfflineTrack(
+                song: song,
+                fileURL: localAudioURL,
+                queueEntryID: queueEntryID,
+                startsPaused: startsPaused,
+                restoreClock: restoreClock
+            )
+            return
+        }
+        let errorMsg = String(localized: "Song is not downloaded and cannot be played while offline.")
+        self.logger.error("Cannot play song \(song.title) (\(song.videoId)): device is offline or in Offline Mode and song is not downloaded")
+        self.state = .error(errorMsg)
+        NotificationCenter.default.post(
+            name: .offlinePlaybackUnavailable,
+            object: song,
+            userInfo: ["message": errorMsg]
+        )
+    }
+
+    private func tryFastNativeStreaming(
+        song: Song,
+        episode: ArtistEpisode?,
+        queueEntryID: UUID?,
+        restoreState: (startsPaused: Bool, clock: MusicPlaybackRestoreClock?),
+        intent: MusicPlaybackIntent
+    ) async -> Bool {
+        if let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId) {
+            self.playOfflineTrack(
+                song: song,
+                fileURL: streamURL,
+                queueEntryID: queueEntryID,
+                startsPaused: restoreState.startsPaused,
+                restoreClock: restoreState.clock
+            )
+            self.directStreamTask = Task { [weak self] in
+                await self?.preloadNextQueueTrack()
+            }
+            return true
+        }
+
+        self.currentTrack = song
+        self.activePlaybackQueueEntryID = queueEntryID
+        self.currentEpisode = episode
+        self.duration = song.duration ?? 0
+        self.progress = restoreState.clock?.progress ?? 0
+        self.currentTimeMs = Int(self.progress * 1000)
+        self.state = restoreState.startsPaused ? .paused : .loading
+        self.applyInitialTrackStatus(from: song)
+
+        if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(
+            videoId: song.videoId,
+            timeoutSeconds: 2.5
+        ) {
+            guard !Task.isCancelled, self.acceptsMusicPlaybackIntent(intent) else { return false }
+            self.playOfflineTrack(
+                song: song,
+                fileURL: streamURL,
+                queueEntryID: queueEntryID,
+                startsPaused: restoreState.startsPaused,
+                restoreClock: restoreState.clock
+            )
+            self.directStreamTask = Task { [weak self] in
+                await self?.preloadNextQueueTrack()
+            }
+            return true
+        }
+        return false
+    }
+
+    private func handleSameLogicalPlayback(
+        song: Song,
+        queueEntryID: UUID?,
+        startsPaused: Bool,
+        restore: (clock: MusicPlaybackRestoreClock?, fetchesMetadata: Bool),
+        intent: MusicPlaybackIntent
+    ) async {
+        if let restoreClock = restore.clock {
+            self.logger.debug("Song \(song.videoId) already loaded; restoring playback clock")
+            let targetProgress = self.beginPlaybackClockRestoration(
+                restoreClock,
+                songDuration: song.duration,
+                startsPaused: startsPaused
+            )
+            SingletonPlayerWebView.shared.seekAndPause(to: targetProgress)
+            self.saveQueueForPersistence()
+            if restore.fetchesMetadata, song.feedbackTokens == nil {
+                await self.fetchSongMetadata(
+                    videoId: song.videoId,
+                    queueOwner: queueEntryID.map(MusicQueueMetadataOwner.entry) ?? .none
+                )
+            }
+            return
+        }
+        if startsPaused {
+            self.logger.debug("Song \(song.videoId) already loaded; preserving paused playback")
+            self.shouldResumeAfterInterruption = false
+            self.isAwaitingPlaybackConfirmation = false
+            self.isExplicitPauseIntentActive = true
+            self.state = .paused
+            SingletonPlayerWebView.shared.pause()
+        } else {
+            self.logger.debug("Song \(song.videoId) already loaded; resuming existing playback")
+            await self.resume(intent: intent)
+        }
+    }
+
     // swiftlint:disable function_body_length
     func play(
         song: Song,
@@ -337,29 +452,13 @@ extension PlayerService {
 
         let isOffline = SettingsManager.shared.isOfflineModeEnabled || !NetworkMonitor.shared.isConnected
         if isOffline {
-            if DownloadManager.shared.isDownloaded(videoId: song.videoId),
-               let localAudioURL = DownloadManager.shared.fileURL(for: song.videoId)
-            {
-                self.playOfflineTrack(
-                    song: song,
-                    fileURL: localAudioURL,
-                    queueEntryID: queueEntryID,
-                    startsPaused: startsPaused,
-                    restoreClock: restoreClock
-                )
-                return
-            } else {
-                // Not downloaded while offline
-                let errorMsg = String(localized: "Song is not downloaded and cannot be played while offline.")
-                self.logger.error("Cannot play song \(song.title) (\(song.videoId)): device is offline or in Offline Mode and song is not downloaded")
-                self.state = .error(errorMsg)
-                NotificationCenter.default.post(
-                    name: .offlinePlaybackUnavailable,
-                    object: song,
-                    userInfo: ["message": errorMsg]
-                )
-                return
-            }
+            self.handleOfflinePlayback(
+                song: song,
+                queueEntryID: queueEntryID,
+                startsPaused: startsPaused,
+                restoreClock: restoreClock
+            )
+            return
         }
 
         // Instant Local-First: if already downloaded, play immediately via NativeAudioPlayer with zero WebView delay
@@ -377,44 +476,13 @@ extension PlayerService {
         // Fast Native Streaming: play immediately if stream URL is already cached, or resolve
         // via InnerTube when Fast Native Streaming is enabled before falling back to WebKit.
         if SettingsManager.shared.isFastNativeStreamingEnabled, !UITestConfig.isRunningUnitTests {
-            if let streamURL = DirectStreamResolver.shared.cachedStreamURL(for: song.videoId) {
-                self.playOfflineTrack(
-                    song: song,
-                    fileURL: streamURL,
-                    queueEntryID: queueEntryID,
-                    startsPaused: startsPaused,
-                    restoreClock: restoreClock
-                )
-                self.directStreamTask = Task { [weak self] in
-                    await self?.preloadNextQueueTrack()
-                }
-                return
-            }
-
-            self.currentTrack = song
-            self.activePlaybackQueueEntryID = queueEntryID
-            self.currentEpisode = episode
-            self.duration = song.duration ?? 0
-            self.progress = restoreClock?.progress ?? 0
-            self.currentTimeMs = Int(self.progress * 1000)
-            self.state = startsPaused ? .paused : .loading
-            self.applyInitialTrackStatus(from: song)
-
-            if let streamURL = await DirectStreamResolver.shared.resolveStreamURL(
-                videoId: song.videoId,
-                timeoutSeconds: 2.5
+            if await self.tryFastNativeStreaming(
+                song: song,
+                episode: episode,
+                queueEntryID: queueEntryID,
+                restoreState: (startsPaused: startsPaused, clock: restoreClock),
+                intent: intent
             ) {
-                guard !Task.isCancelled, self.acceptsMusicPlaybackIntent(intent) else { return }
-                self.playOfflineTrack(
-                    song: song,
-                    fileURL: streamURL,
-                    queueEntryID: queueEntryID,
-                    startsPaused: startsPaused,
-                    restoreClock: restoreClock
-                )
-                self.directStreamTask = Task { [weak self] in
-                    await self?.preloadNextQueueTrack()
-                }
                 return
             }
             guard !Task.isCancelled, self.acceptsMusicPlaybackIntent(intent) else { return }
@@ -444,34 +512,13 @@ extension PlayerService {
             || !isSameLogicalPlayback
             || (acceptsPlaybackRequest && !hasPendingSameLogicalLoad)
         else {
-            if let restoreClock {
-                self.logger.debug("Song \(song.videoId) already loaded; restoring playback clock")
-                let targetProgress = self.beginPlaybackClockRestoration(
-                    restoreClock,
-                    songDuration: song.duration,
-                    startsPaused: startsPaused
-                )
-                SingletonPlayerWebView.shared.seekAndPause(to: targetProgress)
-                self.saveQueueForPersistence()
-                if fetchesMetadata, song.feedbackTokens == nil {
-                    await self.fetchSongMetadata(
-                        videoId: song.videoId,
-                        queueOwner: queueEntryID.map(MusicQueueMetadataOwner.entry) ?? .none
-                    )
-                }
-                return
-            }
-            if startsPaused {
-                self.logger.debug("Song \(song.videoId) already loaded; preserving paused playback")
-                self.shouldResumeAfterInterruption = false
-                self.isAwaitingPlaybackConfirmation = false
-                self.isExplicitPauseIntentActive = true
-                self.state = .paused
-                SingletonPlayerWebView.shared.pause()
-            } else {
-                self.logger.debug("Song \(song.videoId) already loaded; resuming existing playback")
-                await self.resume(intent: intent)
-            }
+            await self.handleSameLogicalPlayback(
+                song: song,
+                queueEntryID: queueEntryID,
+                startsPaused: startsPaused,
+                restore: (clock: restoreClock, fetchesMetadata: fetchesMetadata),
+                intent: intent
+            )
             return
         }
         let effectiveLoadStrategy: SingletonPlayerWebView.VideoLoadStrategy = acceptsPlaybackRequest

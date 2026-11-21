@@ -12,6 +12,7 @@ final class LastFMService: ScrobbleServiceProtocol {
     /// Current authentication state.
     private(set) var authState: ScrobbleAuthState = .disconnected
 
+    // swiftformat:disable:next modifierOrder
     nonisolated private static let requestTimeout: TimeInterval = 30
 
     private let credentialStore: KeychainCredentialStore

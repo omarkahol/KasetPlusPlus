@@ -12,7 +12,9 @@ final class GitHubClient {
     private let owner = GitHubConfig.owner
     private let repo = GitHubConfig.repo
 
-    private var token: String? { GitHubAuthService.shared.token }
+    private var token: String? {
+        GitHubAuthService.shared.token
+    }
 
     private init() {}
 
@@ -29,7 +31,9 @@ final class GitHubClient {
     func createIssue(title: String, body: String, labels: [String]) async throws -> GitHubIssue {
         guard self.token != nil else { throw GitHubError.notAuthenticated }
         var payload: [String: Any] = ["title": title, "body": body]
-        if !labels.isEmpty { payload["labels"] = labels }
+        if !labels.isEmpty {
+            payload["labels"] = labels
+        }
         let data = try await self.rest(
             "/repos/\(self.owner)/\(self.repo)/issues",
             method: "POST",
@@ -168,7 +172,9 @@ final class GitHubClient {
         request.httpMethod = method
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         if let body {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -194,7 +200,7 @@ final class GitHubClient {
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200 else { throw GitHubError.requestFailed(status) }
-        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        return try (JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
     private func dig(_ root: Any?, _ keys: String...) -> Any? {
@@ -211,7 +217,9 @@ final class GitHubClient {
 
     private static func issue(from dict: [String: Any]) -> GitHubIssue? {
         // Pull requests come through the issues endpoint too; skip them.
-        if dict["pull_request"] != nil { return nil }
+        if dict["pull_request"] != nil {
+            return nil
+        }
         guard let id = dict["id"] as? Int,
               let number = dict["number"] as? Int,
               let title = dict["title"] as? String
@@ -273,7 +281,9 @@ final class GitHubClient {
             let stripped = html
                 .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !stripped.isEmpty { return stripped }
+            if !stripped.isEmpty {
+                return stripped
+            }
         }
         return dict["emoji"] as? String ?? "💬"
     }
@@ -285,7 +295,7 @@ final class GitHubClient {
     }
 
     private static func date(_ value: Any?) -> Date {
-        (value as? String).flatMap(Self.isoFormatter.date(from:)) ?? Date()
+        (value as? String).flatMap(self.isoFormatter.date(from:)) ?? Date()
     }
 
     /// Parses a YAML front-matter issue template (`--- … ---` header + Markdown body).
@@ -353,10 +363,13 @@ final class GitHubClient {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if isTopLevel {
-                if line.hasPrefix("name:") { name = scalar(line) }
-                else if line.hasPrefix("description:") { about = scalar(line) }
-                else if line.hasPrefix("title:") { title = scalar(line) }
-                else if line.hasPrefix("labels:") {
+                if line.hasPrefix("name:") {
+                    name = scalar(line)
+                } else if line.hasPrefix("description:") {
+                    about = scalar(line)
+                } else if line.hasPrefix("title:") {
+                    title = scalar(line)
+                } else if line.hasPrefix("labels:") {
                     let inline = scalar(line)
                     if inline.hasPrefix("[") {
                         labels = inline.dropFirst().dropLast()
@@ -370,7 +383,9 @@ final class GitHubClient {
                             guard item.hasPrefix("-") else { break }
                             let label = String(item.dropFirst())
                                 .trimmingCharacters(in: CharacterSet(charactersIn: " \"'"))
-                            if !label.isEmpty { labels.append(label) }
+                            if !label.isEmpty {
+                                labels.append(label)
+                            }
                             next += 1
                         }
                     }
@@ -379,7 +394,9 @@ final class GitHubClient {
 
             if trimmed.hasPrefix("label:") {
                 let label = scalar(trimmed)
-                if !label.isEmpty { sections.append("### \(label)\n") }
+                if !label.isEmpty {
+                    sections.append("### \(label)\n")
+                }
             }
         }
 

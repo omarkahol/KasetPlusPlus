@@ -34,16 +34,14 @@ struct YouTubeNotificationsParserTests {
                 message: "Veritasium uploaded: How To Slow Aging",
                 sentTime: "3 hours ago",
                 read: false,
-                videoId: "abc123",
-                url: "/watch?v=abc123"
+                target: (videoId: "abc123", url: "/watch?v=abc123")
             ),
             Self.notificationRenderer(
                 id: "n2",
                 message: "Reply to your comment",
                 sentTime: "1 day ago",
                 read: true,
-                videoId: nil,
-                url: "/post/xyz"
+                target: (videoId: nil, url: "/post/xyz")
             ),
         ])
 
@@ -67,8 +65,7 @@ struct YouTubeNotificationsParserTests {
                 message: "New comment reply",
                 sentTime: nil,
                 read: false,
-                videoId: nil,
-                url: "/watch?v=urlvid42&lc=comment"
+                target: (videoId: nil, url: "/watch?v=urlvid42&lc=comment")
             ),
         ])
         #expect(YouTubeNotificationsParser.parse(data).first?.videoId == "urlvid42")
@@ -87,8 +84,8 @@ struct YouTubeNotificationsParserTests {
     @Test("Deduplicates repeated notification IDs")
     func parseDeduplicates() {
         let data = Self.menu(items: [
-            Self.notificationRenderer(id: "dup", message: "A", sentTime: nil, read: false, videoId: "vid", url: nil),
-            Self.notificationRenderer(id: "dup", message: "A", sentTime: nil, read: false, videoId: "vid", url: nil),
+            Self.notificationRenderer(id: "dup", message: "A", sentTime: nil, read: false, target: (videoId: "vid", url: nil)),
+            Self.notificationRenderer(id: "dup", message: "A", sentTime: nil, read: false, target: (videoId: "vid", url: nil)),
         ])
         #expect(YouTubeNotificationsParser.parse(data).count == 1)
     }
@@ -110,8 +107,7 @@ struct YouTubeNotificationsParserTests {
         message: String,
         sentTime: String?,
         read: Bool,
-        videoId: String?,
-        url: String?
+        target: (videoId: String?, url: String?)
     ) -> [String: Any] {
         var renderer: [String: Any] = [
             "notificationId": id,
@@ -124,10 +120,10 @@ struct YouTubeNotificationsParserTests {
         }
 
         var navigationEndpoint: [String: Any] = [:]
-        if let videoId {
+        if let videoId = target.videoId {
             navigationEndpoint["watchEndpoint"] = ["videoId": videoId]
         }
-        if let url {
+        if let url = target.url {
             navigationEndpoint["commandMetadata"] = ["webCommandMetadata": ["url": url]]
         }
         if !navigationEndpoint.isEmpty {

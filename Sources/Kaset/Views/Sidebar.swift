@@ -299,8 +299,7 @@ struct Sidebar: View {
         .help(String(localized: "Toggle Offline Mode (⌘⌥O)"))
     }
 
-    @ViewBuilder
-    private var offlineModeRowBackground: some View {
+    @ViewBuilder private var offlineModeRowBackground: some View {
         if self.settings.isOfflineModeEnabled {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(self.settings.accentColor.opacity(0.12))

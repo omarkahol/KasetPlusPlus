@@ -798,7 +798,9 @@ struct YouTubePlayerServiceTests {
         sut.inlineSurfaceWillDisappear(videoId: "abc")
         #expect(sut.surfaceLocation == .floating)
     }
+}
 
+extension YouTubePlayerServiceTests {
     @Test("Keep-playing option: inline disappearance while playing keeps playing docked (no PiP, no stop)")
     func disappearWhilePlayingKeepsPlayingDockedWhenEnabled() {
         let controller = MockYouTubeWatchPlaybackController()
@@ -2137,13 +2139,13 @@ extension YouTubePlayerServiceTests {
         #expect(self.sut.popInRequest == nil)
     }
 
-    // Updated for the current API: the fork replaced the synchronous,
-    // bool-returning `startStoryboardSpecRefreshIfNeeded()` with the async
-    // `refreshStoryboardSpec()` that guards against duplicate fetches
-    // internally (by video id). We assert the resolved-once, cached-negative
-    // behaviour instead of the old task-start return value.
+    /// Updated for the current API: the fork replaced the synchronous,
+    /// bool-returning `startStoryboardSpecRefreshIfNeeded()` with the async
+    /// `refreshStoryboardSpec()` that guards against duplicate fetches
+    /// internally (by video id). We assert the resolved-once, cached-negative
+    /// behaviour instead of the old task-start return value.
     @Test("Storyboard refresh resolves once and caches the result per video")
-    func storyboardRefreshResolvesOncePerVideo() async throws {
+    func storyboardRefreshResolvesOncePerVideo() async {
         self.controller.storyboardSpecResponse = "mock-storyboard-spec"
         self.sut.play(video: MockYouTubeClient.makeVideo(videoId: "abc"))
 

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Issues tab
+// MARK: - IssuesTabView
 
 struct IssuesTabView: View {
     @Bindable var viewModel: CommunityViewModel
@@ -50,6 +50,8 @@ struct IssuesTabView: View {
     }
 }
 
+// MARK: - IssueRow
+
 private struct IssueRow: View {
     let issue: GitHubIssue
 
@@ -69,7 +71,9 @@ private struct IssueRow: View {
 
                     HStack(spacing: 8) {
                         Text("#\(self.issue.number)")
-                        if let author = self.issue.author { Text("by \(author.login)") }
+                        if let author = self.issue.author {
+                            Text("by \(author.login)")
+                        }
                         Label("\(self.issue.commentCount)", systemImage: "text.bubble")
                     }
                     .font(.system(size: 11))
@@ -98,7 +102,7 @@ private struct IssueRow: View {
     }
 }
 
-// MARK: - Discussions tab
+// MARK: - DiscussionsTabView
 
 struct DiscussionsTabView: View {
     @Bindable var viewModel: CommunityViewModel
@@ -152,6 +156,8 @@ struct DiscussionsTabView: View {
     }
 }
 
+// MARK: - DiscussionRow
+
 private struct DiscussionRow: View {
     let discussion: GitHubDiscussion
     let onUpvote: () -> Void
@@ -188,7 +194,9 @@ private struct DiscussionRow: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 8) {
-                        if let author = self.discussion.author { Text("by \(author.login)") }
+                        if let author = self.discussion.author {
+                            Text("by \(author.login)")
+                        }
                         Label("\(self.discussion.commentCount)", systemImage: "text.bubble")
                     }
                     .font(.system(size: 11))
@@ -204,7 +212,7 @@ private struct DiscussionRow: View {
     }
 }
 
-// MARK: - Empty state
+// MARK: - CommunityEmptyState
 
 /// A friendly empty state with a brand-tinted icon and a call to action.
 struct CommunityEmptyState: View {
@@ -214,7 +222,9 @@ struct CommunityEmptyState: View {
     let ctaTitle: String
     let onCTA: () -> Void
 
-    @MainActor private static var accent: Color { SettingsManager.shared.accentColor }
+    @MainActor private static var accent: Color {
+        SettingsManager.shared.accentColor
+    }
 
     var body: some View {
         VStack(spacing: 14) {

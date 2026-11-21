@@ -164,7 +164,7 @@ final class YouTubeVideoWindowController {
                   window.styleMask.contains(.fullScreen),
                   window.sheets.isEmpty,
                   event.keyCode == 53,
-                  event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
+                  event.modifierFlags.isDisjoint(with: [.command, .option, .control, .shift])
             else {
                 return event
             }
@@ -228,8 +228,7 @@ final class YouTubeVideoWindowController {
 
     /// Closes the window programmatically (e.g. when docking back inline).
     func close() {
-        guard !self.isClosing else { return }
-        guard let window = self.window else { return }
+        guard !self.isClosing, let window = self.window else { return }
 
         self.isClosing = true
         NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: window)

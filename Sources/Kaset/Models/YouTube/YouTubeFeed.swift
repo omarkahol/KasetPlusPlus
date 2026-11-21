@@ -154,10 +154,14 @@ struct YouTubeSearchFilterGroup: Identifiable, Hashable {
     let title: String
     let options: [Option]
 
-    var id: String { self.title }
+    var id: String {
+        self.title
+    }
 
     /// The currently-applied option in this group, if any.
-    var selectedOption: Option? { self.options.first(where: \.isSelected) }
+    var selectedOption: Option? {
+        self.options.first(where: \.isSelected)
+    }
 
     struct Option: Identifiable, Hashable {
         /// Localized label straight from YouTube (e.g. "This week").
@@ -171,7 +175,9 @@ struct YouTubeSearchFilterGroup: Identifiable, Hashable {
         /// Whether the option is unavailable for the current query/filters.
         let isDisabled: Bool
 
-        var id: String { self.label }
+        var id: String {
+            self.label
+        }
     }
 }
 

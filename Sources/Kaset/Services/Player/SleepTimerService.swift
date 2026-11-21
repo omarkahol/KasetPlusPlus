@@ -102,8 +102,7 @@ final class SleepTimerService {
         self.timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { break }
-                guard let self else { break }
+                guard !Task.isCancelled, let self else { break }
 
                 let remaining = max(0, endDate.timeIntervalSinceNow)
                 self.remainingSeconds = remaining
@@ -126,15 +125,15 @@ final class SleepTimerService {
         self.timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { break }
-                guard let self else { break }
+                guard !Task.isCancelled, let self else { break }
                 guard let player = PlayerService.shared else { continue }
 
                 // Check if track has changed
                 let currentVideoId = player.currentTrack?.videoId
                 if let initialId = self.trackObservationId,
                    let currentId = currentVideoId,
-                   initialId != currentId {
+                   initialId != currentId
+                {
                     // Track transitioned to next track -> sleep timer triggered
                     await self.handleTimerExpired()
                     break

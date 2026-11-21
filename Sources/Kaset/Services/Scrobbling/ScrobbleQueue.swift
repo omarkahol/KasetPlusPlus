@@ -1,6 +1,8 @@
 import Foundation
 import os
 
+// MARK: - ScrobbleQueue
+
 /// Persistent queue for pending scrobbles.
 /// Serializes to JSON in `~/Library/Application Support/Kaset/scrobble-queue.json`.
 /// Thread safety is ensured by `@MainActor` callers (ScrobblingCoordinator).
@@ -107,12 +109,10 @@ final class ScrobbleQueue {
     func pendingTracks(for serviceName: String, limit: Int) -> [ScrobbleTrack] {
         var result: [ScrobbleTrack] = []
         result.reserveCapacity(min(limit, self.items.count))
-        for track in self.items {
-            if self.completedServicesByTrackId[track.id]?.contains(serviceName) != true {
-                result.append(track)
-                if result.count >= limit {
-                    break
-                }
+        for track in self.items where self.completedServicesByTrackId[track.id]?.contains(serviceName) != true {
+            result.append(track)
+            if result.count >= limit {
+                break
             }
         }
         return result
@@ -332,7 +332,7 @@ final class ScrobbleQueue {
             logger.info("Loaded \(legacyItems.count) legacy pending scrobbles from disk")
             return PersistedState(items: legacyItems)
         } catch {
-            Self.preserveCorruptBackup(at: fileURL, logger: logger, error: error)
+            self.preserveCorruptBackup(at: fileURL, logger: logger, error: error)
             return PersistedState()
         }
     }
@@ -352,6 +352,7 @@ final class ScrobbleQueue {
         }
     }
 
+    // swiftformat:disable:next modifierOrder
     nonisolated private static func preserveCorruptBackup(
         at fileURL: URL,
         logger: Logger,

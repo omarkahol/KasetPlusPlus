@@ -7,4 +7,3 @@ enum CookieRestoreResult: Equatable, Sendable {
     case unavailable
     case failed
 }
-

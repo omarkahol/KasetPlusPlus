@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - CommunityView
+
 /// The in-app community hub: report/browse GitHub issues and browse/vote/create
 /// GitHub Discussions for Kaset++, all in native SwiftUI. Signed-out users see
 /// a sign-in screen first.
@@ -10,7 +12,9 @@ struct CommunityView: View {
     @State private var showsCompose = false
     @Environment(\.dismiss) private var dismiss
 
-    @MainActor private static var accent: Color { SettingsManager.shared.accentColor }
+    @MainActor private static var accent: Color {
+        SettingsManager.shared.accentColor
+    }
 
     enum Tab: Hashable {
         case issues
@@ -105,15 +109,14 @@ struct CommunityView: View {
         .padding(.bottom, 14)
     }
 
-    @ViewBuilder
-    private var accountMenu: some View {
+    @ViewBuilder private var accountMenu: some View {
         if case let .signedIn(user) = self.auth.state {
             Menu {
                 Button(String(localized: "Sign Out"), role: .destructive) { self.auth.signOut() }
             } label: {
                 HStack(spacing: 6) {
                     CachedAsyncImage(url: user.avatarURL, targetSize: CGSize(width: 22, height: 22)) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
+                        image.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(.quaternary)
                     }
@@ -147,13 +150,15 @@ struct CommunityView: View {
     }
 }
 
-// MARK: - Login gate
+// MARK: - CommunityLoginView
 
 /// The sign-in screen shown before anything else when signed out: a short pitch
 /// plus the GitHub device-flow login.
 struct CommunityLoginView: View {
     @State private var auth = GitHubAuthService.shared
-    @MainActor private static var accent: Color { SettingsManager.shared.accentColor }
+    @MainActor private static var accent: Color {
+        SettingsManager.shared.accentColor
+    }
 
     var body: some View {
         VStack(spacing: 22) {
@@ -209,8 +214,7 @@ struct CommunityLoginView: View {
         }
     }
 
-    @ViewBuilder
-    private var signInSection: some View {
+    @ViewBuilder private var signInSection: some View {
         switch self.auth.state {
         case .connecting:
             HStack(spacing: 8) {

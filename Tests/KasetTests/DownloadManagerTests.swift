@@ -1,6 +1,6 @@
 import Foundation
-@testable import KasetPlus
 import Testing
+@testable import KasetPlus
 
 @Suite("Download Manager Tests")
 struct DownloadManagerTests {
@@ -154,7 +154,7 @@ struct DownloadManagerTests {
         #expect(decodedVideo.mediaType == .video)
 
         // Test backward compatibility without mediaType key in JSON
-        let legacyJSON = """
+        let legacyJSON = Data("""
         {
             "id": "legacy_vid",
             "videoId": "legacy_vid",
@@ -164,7 +164,7 @@ struct DownloadManagerTests {
             "downloadDate": 0,
             "audioFormat": "m4a"
         }
-        """.data(using: .utf8)!
+        """.utf8)
 
         let decodedLegacy = try decoder.decode(DownloadedSong.self, from: legacyJSON)
         #expect(decodedLegacy.mediaType == .audio)

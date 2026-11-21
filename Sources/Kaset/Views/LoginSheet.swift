@@ -419,8 +419,7 @@ struct LoginSheet: View {
     }
 
     private func checkForSuccessfulLogin() {
-        guard self.isActive else { return }
-        guard !self.isCheckingLogin, self.loginCheckTask == nil else { return }
+        guard self.isActive, !self.isCheckingLogin, self.loginCheckTask == nil else { return }
 
         self.loginCheckTask = Task {
             await self.checkForSuccessfulLoginAsync()
@@ -441,9 +440,8 @@ struct LoginSheet: View {
 
         // Small delay to allow cookies to settle.
         try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled, self.isActive else { return }
-
-        guard await self.webKitManager.getSAPISID() != nil,
+        guard !Task.isCancelled, self.isActive,
+              await self.webKitManager.getSAPISID() != nil,
               await self.webKitManager.hasLoginCookieSnapshotChanged(transaction)
         else {
             return
@@ -564,14 +562,14 @@ struct LoginCompletionGate {
             persistBeforeCommit: {
                 guard !Task.isCancelled,
                       let committedSessionValue = await self.webKitManager
-                      .commitLoginCookieBackup(transaction)
+                          .commitLoginCookieBackup(transaction)
                 else { return nil }
                 return committedSessionValue
             },
             persistFinalSession: {
                 guard !Task.isCancelled,
                       let finalSessionValue = await self.webKitManager
-                      .finalizeLoginCookieBackup(transaction)
+                          .finalizeLoginCookieBackup(transaction)
                 else { return nil }
                 return finalSessionValue
             },

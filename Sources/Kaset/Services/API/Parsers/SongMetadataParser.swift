@@ -58,12 +58,9 @@ enum SongMetadataParser {
               let queueContent = musicQueueRenderer["content"] as? [String: Any],
               let playlistPanelRenderer = queueContent["playlistPanelRenderer"] as? [String: Any],
               let playlistContents = playlistPanelRenderer["contents"] as? [[String: Any]],
-              let firstItem = playlistContents.first
+              let firstItem = playlistContents.first,
+              let unwrapped = PanelVideoRendererParser.unwrap(firstItem)
         else {
-            throw YTMusicError.parseError(message: "Failed to parse song metadata for \(videoId)")
-        }
-
-        guard let unwrapped = PanelVideoRendererParser.unwrap(firstItem) else {
             throw YTMusicError.parseError(message: "Failed to parse song metadata for \(videoId)")
         }
         return unwrapped

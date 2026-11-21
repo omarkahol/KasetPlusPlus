@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - YouTubeChannelTab
+
 /// A section (tab) of a YouTube channel page — mirrors the tabs YouTube shows
 /// (Home, Videos, Shorts, Live, Playlists).
 enum YouTubeChannelTab: String, CaseIterable, Identifiable, Sendable {
@@ -9,7 +11,9 @@ enum YouTubeChannelTab: String, CaseIterable, Identifiable, Sendable {
     case live
     case playlists
 
-    var id: String { self.rawValue }
+    var id: String {
+        self.rawValue
+    }
 
     var title: String {
         switch self {
@@ -40,6 +44,8 @@ enum YouTubeChannelTab: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
+
+// MARK: - YouTubeChannelTabContent
 
 /// The content of a channel tab: either a grid of videos (Home/Videos/Shorts/
 /// Live) or a grid of playlists (Playlists), plus a continuation token for the

@@ -254,7 +254,7 @@ struct YouTubePlaylistCard: View {
     }
 }
 
-// MARK: - Stacked Poster (playlists and mixes)
+// MARK: - StackedPosterBackground
 
 /// The layered "stack" cue for playlist and mix posters: two cards peeking in a
 /// thin strip *above* the poster, like a stack of thumbnails.

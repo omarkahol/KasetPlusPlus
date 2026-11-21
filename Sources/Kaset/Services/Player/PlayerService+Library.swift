@@ -175,8 +175,7 @@ extension PlayerService {
             }
             do {
                 try await request.value.get()
-                guard self.accountSessionGeneration == accountSessionGeneration else { return }
-                guard self.isCurrentLibraryMutation(key: mutationKey, revision: mutationRevision) else { return }
+                guard self.accountSessionGeneration == accountSessionGeneration, self.isCurrentLibraryMutation(key: mutationKey, revision: mutationRevision) else { return }
                 let action = isCurrentlyInLibrary ? "removed from" : "added to"
                 self.logger.info("Successfully \(action) library")
 
@@ -218,9 +217,8 @@ extension PlayerService {
                 self.logger.error("Failed to toggle library status: \(error.localizedDescription)")
                 // Revert the exact optimistic queue entry when this mutation is still latest.
                 guard self.accountSessionGeneration == accountSessionGeneration,
-                      self.isCurrentLibraryMutation(key: mutationKey, revision: mutationRevision)
-                else { return }
-                guard let confirmedState = self.confirmedLibraryStateByKey[mutationKey] else { return }
+                      self.isCurrentLibraryMutation(key: mutationKey, revision: mutationRevision),
+                      let confirmedState = self.confirmedLibraryStateByKey[mutationKey] else { return }
                 self.applyLibraryState(
                     videoId: track.videoId,
                     isInLibrary: confirmedState.isInLibrary,

@@ -30,7 +30,7 @@ final class DownloadManager {
 
         var progress: Double {
             switch self {
-            case .downloading(let progress, _):
+            case let .downloading(progress, _):
                 progress
             case .completed:
                 1.0
@@ -149,7 +149,7 @@ final class DownloadManager {
         in directories: [URL],
         fileManager: FileManager = .default
     ) -> Int {
-        let partialExtensions: Set<String> = ["part", "ytdl", "temp"]
+        let partialExtensions: Set = ["part", "ytdl", "temp"]
         var removedCount = 0
         for directory in directories {
             guard let contents = try? fileManager.contentsOfDirectory(
@@ -305,10 +305,8 @@ final class DownloadManager {
         if let status = self.activeDownloads[videoId] {
             return status
         }
-        if self.isDownloaded(videoId: videoId) {
-            if let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) {
-                return .completed(fileURL: self.mediaFileURL(for: song))
-            }
+        if self.isDownloaded(videoId: videoId), let song = self.downloadedSongs.first(where: { $0.videoId == videoId }) {
+            return .completed(fileURL: self.mediaFileURL(for: song))
         }
         return nil
     }
@@ -495,43 +493,15 @@ final class DownloadManager {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ytdlp)
 
-        var args: [String] = [
-            "--newline", // Line-by-line progress updates
-            "--no-playlist",
-            "--no-mtime",
-            "--add-metadata",
-            "-o", "\(targetDirectory.path)/%(title)s [%(id)s].%(ext)s",
-        ]
-
-        if item.mediaType == .audio {
-            args.append("--embed-thumbnail")
-        }
-
-        if let ffmpeg = self.ffmpegPath {
-            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
-        }
-
         let audioFormat = SettingsManager.shared.downloadAudioFormat
         let videoQuality = SettingsManager.shared.videoDownloadQuality
-
-        if item.mediaType == .video {
-            args.append(contentsOf: videoQuality.ytDlpArguments)
-        } else {
-            args.append(contentsOf: audioFormat.ytDlpArguments)
-        }
-
-        args.append("https://www.youtube.com/watch?v=\(videoId)")
-        proc.arguments = args
-
-        // Configure environment with standard Homebrew and deno paths so yt-dlp can locate external tools
-        var env = ProcessInfo.processInfo.environment
-        let extraPaths = "/opt/homebrew/bin:/usr/local/bin:\(NSHomeDirectory())/.deno/bin"
-        if let currentPath = env["PATH"] {
-            env["PATH"] = "\(extraPaths):\(currentPath)"
-        } else {
-            env["PATH"] = extraPaths
-        }
-        proc.environment = env
+        proc.arguments = self.buildDownloadArguments(
+            item: item,
+            targetDirectory: targetDirectory,
+            audioFormat: audioFormat,
+            videoQuality: videoQuality
+        )
+        proc.environment = Self.configuredDownloadEnvironment()
 
         let pipe = Pipe()
         proc.standardOutput = pipe
@@ -545,44 +515,7 @@ final class DownloadManager {
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
             guard !chunk.isEmpty else { return }
-
-            var latestProgress: (percent: Double, speed: String)?
-            let lines = chunk.components(separatedBy: "\n")
-            for line in lines {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.contains("[download] Destination:") {
-                    progressState.setDestination(
-                        trimmed
-                            .replacingOccurrences(of: "[download] Destination: ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                    )
-                } else if trimmed.contains("[ExtractAudio] Destination:") {
-                    progressState.setDestination(
-                        trimmed
-                            .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                    )
-                } else if trimmed.contains("[Merger] Merging formats into") {
-                    progressState.setDestination(
-                        trimmed
-                            .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                            .replacingOccurrences(of: "\"", with: "")
-                    )
-                } else if trimmed.contains("%") {
-                    latestProgress = (Self.parsePercent(trimmed), Self.parseSpeed(trimmed))
-                }
-            }
-
-            if let latestProgress, progressState.shouldEmitProgress(latestProgress.percent) {
-                let percent = latestProgress.percent
-                let speed = latestProgress.speed
-                Task { @MainActor in
-                    if DownloadManager.shared.activeDownloads[videoId] != nil {
-                        DownloadManager.shared.activeDownloads[videoId] = .downloading(progress: percent, speed: speed)
-                    }
-                }
-            }
+            Self.handleDownloadOutputChunk(chunk, videoId: videoId, progressState: progressState)
         }
 
         proc.terminationHandler = { [weak self] process in
@@ -623,12 +556,10 @@ final class DownloadManager {
     private func finalizeDownload(item: DownloadItem, fileExtension: String, detectedDestination: String) {
         let baseDir = self.baseDirectory(for: item.mediaType)
         let fallbackFileName = "\(item.title) [\(item.videoId)].\(fileExtension)"
-        let actualFileName: String
-
-        if !detectedDestination.isEmpty {
-            actualFileName = (detectedDestination as NSString).lastPathComponent
+        let actualFileName: String = if !detectedDestination.isEmpty {
+            (detectedDestination as NSString).lastPathComponent
         } else {
-            actualFileName = fallbackFileName
+            fallbackFileName
         }
 
         let localRelativePath = (item.mediaType == .video) ? actualFileName : "Music/\(actualFileName)"
@@ -640,13 +571,12 @@ final class DownloadManager {
         Task {
             let relativeArtworkPath = await self.cacheArtwork(videoId: item.videoId, thumbnailURL: item.thumbnailURL)
 
-            let artists: [Artist]
-            if let song = item.song {
-                artists = song.artists
+            let artists: [Artist] = if let song = item.song {
+                song.artists
             } else if !item.artistsDisplay.isEmpty {
-                artists = [Artist(id: "", name: item.artistsDisplay)]
+                [Artist(id: "", name: item.artistsDisplay)]
             } else {
-                artists = []
+                []
             }
 
             let downloaded = DownloadedSong(
@@ -697,7 +627,9 @@ final class DownloadManager {
         let providers: [LyricsProvider] = [LRCLibProvider(), LyricsOvhProvider()]
         for provider in providers {
             let result = await provider.search(info: info)
-            if case .unavailable = result { continue }
+            if case .unavailable = result {
+                continue
+            }
             self.saveLyrics(result, for: videoId)
             self.logger.info("Cached lyrics sidecar for \(videoId) from \(provider.name)")
             return
@@ -732,6 +664,94 @@ final class DownloadManager {
             return "Artworks/\(artworkFileName)"
         } catch {
             return nil
+        }
+    }
+}
+
+// MARK: - Index Persistence & Output Parsers
+
+extension DownloadManager {
+    private func buildDownloadArguments(
+        item: DownloadItem,
+        targetDirectory: URL,
+        audioFormat: SettingsManager.DownloadAudioFormat,
+        videoQuality: SettingsManager.VideoDownloadQuality
+    ) -> [String] {
+        var args: [String] = [
+            "--newline", // Line-by-line progress updates
+            "--no-playlist",
+            "--no-mtime",
+            "--add-metadata",
+            "-o", "\(targetDirectory.path)/%(title)s [%(id)s].%(ext)s",
+        ]
+        if item.mediaType == .audio {
+            args.append("--embed-thumbnail")
+        }
+        if let ffmpeg = self.ffmpegPath {
+            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
+        }
+        if item.mediaType == .video {
+            args.append(contentsOf: videoQuality.ytDlpArguments)
+        } else {
+            args.append(contentsOf: audioFormat.ytDlpArguments)
+        }
+        args.append("https://www.youtube.com/watch?v=\(item.videoId)")
+        return args
+    }
+
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func configuredDownloadEnvironment() -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let extraPaths = "/opt/homebrew/bin:/usr/local/bin:\(NSHomeDirectory())/.deno/bin"
+        if let currentPath = env["PATH"] {
+            env["PATH"] = "\(extraPaths):\(currentPath)"
+        } else {
+            env["PATH"] = extraPaths
+        }
+        return env
+    }
+
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func handleDownloadOutputChunk(
+        _ chunk: String,
+        videoId: String,
+        progressState: ProcessProgressState
+    ) {
+        var latestProgress: (percent: Double, speed: String)?
+        for line in chunk.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("[download] Destination:") {
+                progressState.setDestination(
+                    trimmed
+                        .replacingOccurrences(of: "[download] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                )
+            } else if trimmed.contains("[ExtractAudio] Destination:") {
+                progressState.setDestination(
+                    trimmed
+                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                )
+            } else if trimmed.contains("[Merger] Merging formats into") {
+                progressState.setDestination(
+                    trimmed
+                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: "\"", with: "")
+                )
+            } else if trimmed.contains("%") {
+                latestProgress = (Self.parsePercent(trimmed), Self.parseSpeed(trimmed))
+            }
+        }
+
+        if let latestProgress, progressState.shouldEmitProgress(latestProgress.percent) {
+            let percent = latestProgress.percent
+            let speed = latestProgress.speed
+            Task { @MainActor in
+                if DownloadManager.shared.activeDownloads[videoId] != nil {
+                    DownloadManager.shared.activeDownloads[videoId] = .downloading(progress: percent, speed: speed)
+                }
+            }
         }
     }
 
@@ -896,7 +916,8 @@ final class DownloadManager {
         }
     }
 
-    private nonisolated static func parsePercent(_ line: String) -> Double {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func parsePercent(_ line: String) -> Double {
         guard let range = line.range(of: #"\d+\.?\d*%"#, options: .regularExpression) else {
             return 0
         }
@@ -904,7 +925,8 @@ final class DownloadManager {
         return (Double(str) ?? 0) / 100.0
     }
 
-    private nonisolated static func parseSpeed(_ line: String) -> String {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func parseSpeed(_ line: String) -> String {
         guard let range = line.range(of: #"at\s+\S+"#, options: .regularExpression) else {
             return ""
         }

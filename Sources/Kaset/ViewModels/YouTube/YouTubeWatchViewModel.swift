@@ -146,7 +146,9 @@ final class YouTubeWatchViewModel {
     // MARK: - Live Chat State
 
     /// Whether this video is a live stream.
-    var isLive: Bool { self.video.isLive }
+    var isLive: Bool {
+        self.video.isLive
+    }
 
     /// Live-chat messages accumulated while polling (oldest first, capped).
     private(set) var liveChatMessages: [YouTubeLiveChatMessage] = []
@@ -282,7 +284,9 @@ final class YouTubeWatchViewModel {
                     // hammer the endpoint or stall the chat.
                     try await Task.sleep(for: .milliseconds(min(max(page.timeoutMs, 1000), 10000)))
                 } catch {
-                    if error is CancellationError { return }
+                    if error is CancellationError {
+                        return
+                    }
                     // Transient failure: back off and retry with the same token.
                     try? await Task.sleep(for: .seconds(3))
                 }
@@ -458,8 +462,12 @@ final class YouTubeWatchViewModel {
                 self.createCommentParams = params
             }
             // The sort menu only rides along on the first page.
-            if let top = page.sortTopToken { self.sortTopToken = top }
-            if let newest = page.sortNewestToken { self.sortNewestToken = newest }
+            if let top = page.sortTopToken {
+                self.sortTopToken = top
+            }
+            if let newest = page.sortNewestToken {
+                self.sortNewestToken = newest
+            }
             if marksInitialCompletion {
                 self.didCompleteInitialCommentsLoad = true
             }
@@ -481,8 +489,7 @@ final class YouTubeWatchViewModel {
     /// Re-orders the comments (Top / Newest) by restarting the list from the
     /// matching sort token.
     func setCommentSort(_ sort: CommentSort) async {
-        guard sort != self.commentSort else { return }
-        guard let token = (sort == .top) ? self.sortTopToken : self.sortNewestToken else { return }
+        guard sort != self.commentSort, let token = (sort == .top) ? self.sortTopToken : self.sortNewestToken else { return }
         self.commentSort = sort
         self.comments = []
         self.commentsContinuation = token

@@ -553,11 +553,11 @@ final class YouTubeClient: YouTubeClientProtocol { // swiftlint:disable:this typ
         add(bundle.feed.shorts)
 
         // `#shorts` search is the deepest single source (~30) and is fast.
-        add((try? await self.searchShortsFallback()) ?? [])
+        await add((try? self.searchShortsFallback()) ?? [])
 
         // Only reach for the destination feeds (several requests) if still thin.
         if results.count < 40 {
-            add(await self.publicDestinationShorts())
+            await add(self.publicDestinationShorts())
         }
 
         self.logger.info("YouTube Shorts aggregated: \(results.count)")
@@ -1129,9 +1129,9 @@ final class YouTubeClient: YouTubeClientProtocol { // swiftlint:disable:this typ
         var context = snapshot.context
         if let clickTrackingContextData {
             guard let clickTrackingContext = try JSONSerialization.jsonObject(
-                with: clickTrackingContextData
-            ) as? [String: Any],
-                let clickTracking = clickTrackingContext["clickTracking"] as? [String: Any]
+                      with: clickTrackingContextData
+                  ) as? [String: Any],
+                  let clickTracking = clickTrackingContext["clickTracking"] as? [String: Any]
             else {
                 throw YouTubeAskClientError.invalidResponse
             }

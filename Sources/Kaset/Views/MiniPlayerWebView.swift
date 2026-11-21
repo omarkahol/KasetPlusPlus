@@ -270,14 +270,12 @@ final class SingletonPlayerWebView {
                       isMainFrame: message.frameInfo.isMainFrame,
                       sourceScheme: message.frameInfo.securityOrigin.protocol,
                       sourceHost: message.frameInfo.securityOrigin.host
-                  )
-            else { return }
-
-            guard SingletonPlayerWebView.acceptsBridgeDocumentID(
-                body["documentID"] as? Int,
-                expectedDocumentID: owner.expectedBridgeDocumentID,
-                messageType: type
-            ) else { return }
+                  ),
+                  SingletonPlayerWebView.acceptsBridgeDocumentID(
+                      body["documentID"] as? Int,
+                      expectedDocumentID: owner.expectedBridgeDocumentID,
+                      messageType: type
+                  ) else { return }
 
             switch type {
             case "QUEUE_INJECTION_RESULT":
@@ -573,8 +571,7 @@ final class SingletonPlayerWebView {
             isSuppressedForDeferredRestore: self.isHomePreloadSuppressedForDeferredRestore,
             hasStartedHomePreload: self.hasStartedHomePreload,
             currentVideoId: self.currentVideoId
-        ) else { return }
-        guard let webView, let playerService = self.coordinator?.playerService else { return }
+        ), let webView, let playerService = self.coordinator?.playerService else { return }
 
         self.cancelActiveDocumentNavigation(on: webView)
         if self.documentGeneration.pendingGeneration != nil {
@@ -942,8 +939,8 @@ final class SingletonPlayerWebView {
         )
 
         webView.evaluateJavaScript(routerScript) { [weak self] result, _ in
-            guard let self, let webView = self.webView else { return }
-            guard self.loadGeneration == generation,
+            guard let self, let webView = self.webView,
+                  self.loadGeneration == generation,
                   self.currentVideoId == videoId,
                   let pendingRouterNavigation = self.pendingRouterNavigation,
                   pendingRouterNavigation.videoId == videoId,

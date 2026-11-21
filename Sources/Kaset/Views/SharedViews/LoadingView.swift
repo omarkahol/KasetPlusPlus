@@ -18,17 +18,17 @@ struct FixedProgressView: View {
     private var frameSize: CGFloat {
         switch self.controlSize {
         case .mini:
-            return 12 * self.scale
+            12 * self.scale
         case .small:
-            return 16 * self.scale
+            16 * self.scale
         case .regular:
-            return 20 * self.scale
+            20 * self.scale
         case .large:
-            return 24 * self.scale
+            24 * self.scale
         case .extraLarge:
-            return 32 * self.scale
+            32 * self.scale
         @unknown default:
-            return 20 * self.scale
+            20 * self.scale
         }
     }
 

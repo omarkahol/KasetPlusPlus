@@ -10,7 +10,6 @@ struct NavigationDestinationsModifier: ViewModifier {
     @Environment(\.libraryViewModel) private var libraryViewModel: LibraryViewModel?
     @Environment(\.usesLegacyMacOS15UI) private var usesLegacyMacOS15UI
 
-    // swiftlint:disable:next function_body_length
     func body(content: Content) -> some View {
         content
             .navigationDestination(for: Playlist.self) { playlist in

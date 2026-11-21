@@ -51,10 +51,10 @@ final class YouTubeDownloadService {
     // MARK: - Formats
 
     struct DownloadFormat: Identifiable {
-        let id: String           // yt-dlp format code
-        let label: String        // "1080p (mp4)" / "MP3 (audio)"
+        let id: String // yt-dlp format code
+        let label: String // "1080p (mp4)" / "MP3 (audio)"
         let isAudioOnly: Bool
-        let fileSize: Int64?     // bytes, nil if unknown
+        let fileSize: Int64? // bytes, nil if unknown
         var sizeLabel: String {
             guard let size = fileSize else { return "" }
             let formatter = ByteCountFormatter()
@@ -63,7 +63,8 @@ final class YouTubeDownloadService {
         }
     }
 
-    private nonisolated static func configuredEnvironment(customFfmpegPath: String = "") -> [String: String] {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func configuredEnvironment(customFfmpegPath: String = "") -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         var extraPaths = ["/opt/homebrew/bin", "/usr/local/bin", "\(NSHomeDirectory())/.deno/bin"]
         if !customFfmpegPath.isEmpty {
@@ -110,7 +111,8 @@ final class YouTubeDownloadService {
         return Self.parseFormatsStatic(formats)
     }
 
-    private nonisolated static func parseFormatsStatic(_ formats: [[String: Any]]) -> [DownloadFormat] {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func parseFormatsStatic(_ formats: [[String: Any]]) -> [DownloadFormat] {
         struct HeightCandidate {
             let filesize: Int64?
             let isPreferredCodec: Bool
@@ -198,10 +200,12 @@ final class YouTubeDownloadService {
         return Self.transcriptText(fromDir: tmpDir)
     }
 
+    // swiftformat:disable modifierOrder
     /// Parses the first `.vtt` file in `dir` into deduplicated plain text.
     /// yt-dlp auto-captions roll and repeat lines, so consecutive duplicates and
     /// inline timing tags are stripped.
-    private nonisolated static func transcriptText(fromDir dir: URL) -> String? {
+    nonisolated private static func transcriptText(fromDir dir: URL) -> String? {
+        // swiftformat:enable modifierOrder
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil),
               let vtt = files.first(where: { $0.pathExtension.lowercased() == "vtt" }),
               let raw = try? String(contentsOf: vtt, encoding: .utf8)
@@ -269,48 +273,12 @@ final class YouTubeDownloadService {
             ? DownloadManager.shared.musicDirectory
             : DownloadManager.shared.videosDirectory
 
-        var args = [
-            "--no-playlist",
-            "--no-mtime",
-            "-o", "\(targetDir.path)/%(title)s [%(id)s].%(ext)s",
-        ]
-
-        if let ffmpeg = DownloadManager.shared.ffmpegPath {
-            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
-        }
-
-        if format.isAudioOnly {
-            args.append(contentsOf: [
-                "-x",
-                "--audio-format", "mp3",
-                "--audio-quality", "0",
-                "--embed-thumbnail",
-            ])
-        } else {
-            args.append(contentsOf: [
-                "-f", format.id,
-                "--merge-output-format", "mp4",
-                "--remux-video", "mp4",
-            ])
-        }
-
-        if downloadSubtitles {
-            // Real + auto-generated captions in the user's language and English,
-            // written as .srt next to the file; embedded into the container for
-            // video downloads (mp3 has no subtitle track).
-            let lang = Locale.current.language.languageCode?.identifier ?? "en"
-            args.append(contentsOf: [
-                "--write-subs", "--write-auto-subs",
-                "--sub-langs", "\(lang),\(lang).*,en,en.*",
-                "--convert-subs", "srt",
-            ])
-            if !format.isAudioOnly {
-                args.append("--embed-subs")
-            }
-        }
-
-        args.append(url.absoluteString)
-        proc.arguments = args
+        proc.arguments = Self.buildDownloadArguments(
+            url: url,
+            targetDir: targetDir,
+            format: format,
+            downloadSubtitles: downloadSubtitles
+        )
 
         let pipe = Pipe()
         proc.standardOutput = pipe
@@ -332,42 +300,7 @@ final class YouTubeDownloadService {
         pipe.fileHandleForReading.readabilityHandler = { handle in
             let chunk = String(data: handle.availableData, encoding: .utf8) ?? ""
             guard !chunk.isEmpty else { return }
-
-            let lines = chunk.components(separatedBy: "\n")
-            for line in lines {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.contains("[download] Destination:") {
-                    lastFilename.set(
-                        trimmed
-                            .replacingOccurrences(of: "[download] Destination: ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                    )
-                } else if trimmed.contains("[ExtractAudio] Destination:") {
-                    lastFilename.set(
-                        trimmed
-                            .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                    )
-                } else if trimmed.contains("[Merger] Merging formats into") {
-                    lastFilename.set(
-                        trimmed
-                            .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
-                            .trimmingCharacters(in: .whitespaces)
-                            .replacingOccurrences(of: "\"", with: "")
-                    )
-                } else if trimmed.contains("[VideoRemuxer] Remuxing video from"),
-                          let destinationPart = trimmed.components(separatedBy: " to ").last
-                {
-                    lastFilename.set(
-                        destinationPart
-                            .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
-                    )
-                } else if trimmed.contains("%") {
-                    let percent = Self.parsePercent(trimmed)
-                    let speed = Self.parseSpeed(trimmed)
-                    onUpdateSendable(.downloading(progress: percent, speed: speed))
-                }
-            }
+            Self.processOutputChunk(chunk, lastFilename: lastFilename, onUpdate: onUpdateSendable)
         }
 
         proc.terminationHandler = { [weak self] process in
@@ -424,7 +357,94 @@ final class YouTubeDownloadService {
 
     // MARK: - Helpers
 
-    private nonisolated static func parsePercent(_ line: String) -> Double {
+    private static func buildDownloadArguments(
+        url: URL,
+        targetDir: URL,
+        format: DownloadFormat,
+        downloadSubtitles: Bool
+    ) -> [String] {
+        var args = [
+            "--no-playlist",
+            "--no-mtime",
+            "-o", "\(targetDir.path)/%(title)s [%(id)s].%(ext)s",
+        ]
+        if let ffmpeg = DownloadManager.shared.ffmpegPath {
+            args.append(contentsOf: ["--ffmpeg-location", ffmpeg])
+        }
+        if format.isAudioOnly {
+            args.append(contentsOf: [
+                "-x",
+                "--audio-format", "mp3",
+                "--audio-quality", "0",
+                "--embed-thumbnail",
+            ])
+        } else {
+            args.append(contentsOf: [
+                "-f", format.id,
+                "--merge-output-format", "mp4",
+                "--remux-video", "mp4",
+            ])
+        }
+        if downloadSubtitles {
+            // Real + auto-generated captions in the user's language and English,
+            // written as .srt next to the file; embedded into the container for
+            // video downloads (mp3 has no subtitle track).
+            let lang = Locale.current.language.languageCode?.identifier ?? "en"
+            args.append(contentsOf: [
+                "--write-subs", "--write-auto-subs",
+                "--sub-langs", "\(lang),\(lang).*,en,en.*",
+                "--convert-subs", "srt",
+            ])
+            if !format.isAudioOnly {
+                args.append("--embed-subs")
+            }
+        }
+        args.append(url.absoluteString)
+        return args
+    }
+
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func processOutputChunk(
+        _ chunk: String,
+        lastFilename: LockedDestination,
+        onUpdate: @Sendable (DownloadState) -> Void
+    ) {
+        for line in chunk.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.contains("[download] Destination:") {
+                lastFilename.set(
+                    trimmed
+                        .replacingOccurrences(of: "[download] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                )
+            } else if trimmed.contains("[ExtractAudio] Destination:") {
+                lastFilename.set(
+                    trimmed
+                        .replacingOccurrences(of: "[ExtractAudio] Destination: ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                )
+            } else if trimmed.contains("[Merger] Merging formats into") {
+                lastFilename.set(
+                    trimmed
+                        .replacingOccurrences(of: "[Merger] Merging formats into ", with: "")
+                        .trimmingCharacters(in: .whitespaces)
+                        .replacingOccurrences(of: "\"", with: "")
+                )
+            } else if trimmed.contains("[VideoRemuxer] Remuxing video from"),
+                      let destinationPart = trimmed.components(separatedBy: " to ").last
+            {
+                lastFilename.set(
+                    destinationPart
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\"; "))
+                )
+            } else if trimmed.contains("%") {
+                onUpdate(.downloading(progress: Self.parsePercent(trimmed), speed: Self.parseSpeed(trimmed)))
+            }
+        }
+    }
+
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func parsePercent(_ line: String) -> Double {
         // "[download]  45.3% of ~50MiB at ..."
         guard let range = line.range(of: #"\d+\.?\d*%"#, options: .regularExpression) else {
             return 0
@@ -433,7 +453,8 @@ final class YouTubeDownloadService {
         return (Double(str) ?? 0) / 100.0
     }
 
-    private nonisolated static func parseSpeed(_ line: String) -> String {
+    // swiftformat:disable:next modifierOrder
+    nonisolated private static func parseSpeed(_ line: String) -> String {
         // "... at 2.3MiB/s ..."
         guard let range = line.range(of: #"at\s+\S+"#, options: .regularExpression) else {
             return ""

@@ -31,6 +31,8 @@ extension EnvironmentValues {
     @Entry var libraryViewModel: LibraryViewModel?
 }
 
+// MARK: - PlaylistDeletionAction
+
 struct PlaylistDeletionAction: Equatable {
     let id: UUID
     private let handler: () -> Void
@@ -343,10 +345,10 @@ struct KasetApp: App {
                     let signOutSequence = self.authService.signOutSequence
                     // Check if user is already logged in from previous session
                     guard await self.authService.checkLoginStatusForStartup(
-                        expectedState: startupState
-                    ), !Task.isCancelled,
-                    self.authService.startupState == startupState,
-                    self.authService.signOutSequence == signOutSequence
+                              expectedState: startupState
+                          ), !Task.isCancelled,
+                          self.authService.startupState == startupState,
+                          self.authService.signOutSequence == signOutSequence
                     else { return }
                     DiagnosticsLogger.app.info("KasetApp: Login status check complete")
                     if !self.didCompleteStartupPlaybackCleanup {
@@ -739,8 +741,7 @@ struct KasetApp: App {
         }
     }
 
-    @ViewBuilder
-    private var menuBarIcon: some View {
+    @ViewBuilder private var menuBarIcon: some View {
         if self.playerService.isPlaying {
             Image(systemName: "waveform")
                 .symbolEffect(.variableColor.iterative, isActive: true)
@@ -748,7 +749,11 @@ struct KasetApp: App {
             Image(systemName: "music.note")
         }
     }
+}
 
+// MARK: - KasetApp Helpers
+
+extension KasetApp {
     private func handleYouTubeSurfaceLocationChange(_ location: YouTubePlayerService.SurfaceLocation) {
         // The floating window hosts the video surface whenever it is popped out
         // (or the inline watch view went away).

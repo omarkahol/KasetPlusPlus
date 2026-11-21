@@ -50,7 +50,7 @@ final class NativeAudioPlayer: BaseAVPlayerController {
     var onNearEnd: (@MainActor (TimeInterval) -> Void)?
     var onPlaybackFailed: (@MainActor (String?, (any Error)?) -> Void)?
 
-    private override init() {
+    override private init() {
         super.init()
         self.setupSamplePlayerCallbacks()
     }
@@ -159,7 +159,7 @@ final class NativeAudioPlayer: BaseAVPlayerController {
     func preloadNext(url: URL, videoId: String) {
         if HLSAudioSamplePlayer.isHLSURL(url) {
             Task {
-                await HLSManifestCache.shared.prewarm(masterURL: url)
+                await HLSManifestCache.shared.prewarm(multivariantURL: url)
             }
             return
         }

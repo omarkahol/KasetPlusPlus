@@ -63,13 +63,17 @@ final class SupportManager {
             env["KASET_LASTFM_WORKER_URL"],
         ]
         for case let string? in candidates {
-            if let url = URL(string: string) { return url }
+            if let url = URL(string: string) {
+                return url
+            }
         }
         return nil
     }()
 
     /// Whether real Ko-fi verification is wired (a worker URL is configured).
-    var isVerificationConfigured: Bool { Self.workerBaseURL != nil }
+    var isVerificationConfigured: Bool {
+        Self.workerBaseURL != nil
+    }
 
     private init() {
         self.tier = Self.loadTier()
@@ -169,8 +173,13 @@ final class SupportManager {
         let months: Int
         let lastPaid: Date
 
-        var id: String { "\(self.name)-\(self.lastPaid.timeIntervalSince1970)" }
-        var isSubscriber: Bool { self.tier == "subscription" }
+        var id: String {
+            "\(self.name)-\(self.lastPaid.timeIntervalSince1970)"
+        }
+
+        var isSubscriber: Bool {
+            self.tier == "subscription"
+        }
     }
 
     /// Fetches the active supporters (newest payer first) from the worker.

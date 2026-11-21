@@ -45,16 +45,20 @@ enum YouTubeCommentsParser {
                let items = submenu["subMenuItems"] as? [[String: Any]]
             {
                 let tokens = items.map { Self.firstString(forKey: "token", in: $0) }
-                return (tokens.first ?? nil, tokens.count > 1 ? tokens[1] : nil)
+                return (tokens.first.flatMap(\.self), tokens.count > 1 ? tokens[1] : nil)
             }
             for nested in dict.values {
                 let found = Self.sortTokens(of: nested)
-                if found.top != nil || found.newest != nil { return found }
+                if found.top != nil || found.newest != nil {
+                    return found
+                }
             }
         } else if let array = value as? [Any] {
             for element in array {
                 let found = Self.sortTokens(of: element)
-                if found.top != nil || found.newest != nil { return found }
+                if found.top != nil || found.newest != nil {
+                    return found
+                }
             }
         }
         return (nil, nil)
@@ -111,7 +115,7 @@ enum YouTubeCommentsParser {
 
         // Preferred path: walk the view models for order, thread replies,
         // and the toolbar-surface linkage.
-        var viewModels: [(vm: [String: Any], replies: String?, isPinned: Bool)] = []
+        var viewModels: [CommentViewModelEntry] = []
         Self.collectCommentViewModels(in: data, into: &viewModels)
 
         if !viewModels.isEmpty {
@@ -164,25 +168,31 @@ enum YouTubeCommentsParser {
         return Self.firstString(forKey: "action", in: command)
     }
 
+    private struct CommentViewModelEntry {
+        let vm: [String: Any]
+        let replies: String?
+        let isPinned: Bool
+    }
+
     /// Collects comment view models in display order, with each thread's
     /// replies continuation. Handles top-level threads
     /// (`commentThreadRenderer`) and bare view models (reply pages).
     private static func collectCommentViewModels(
         in value: Any,
-        into results: inout [(vm: [String: Any], replies: String?, isPinned: Bool)]
+        into results: inout [CommentViewModelEntry]
     ) {
         if let dict = value as? [String: Any] {
             if let thread = dict["commentThreadRenderer"] as? [String: Any] {
                 if let viewModel = innerCommentViewModel(of: thread["commentViewModel"]) {
                     let repliesToken = (thread["replies"] as? [String: Any])
                         .flatMap { Self.firstString(forKey: "token", in: $0) }
-                    results.append((viewModel, repliesToken, Self.isPinned(viewModel: viewModel)))
+                    results.append(CommentViewModelEntry(vm: viewModel, replies: repliesToken, isPinned: Self.isPinned(viewModel: viewModel)))
                 }
                 return
             }
 
             if let viewModel = Self.innerCommentViewModel(of: dict["commentViewModel"]) {
-                results.append((viewModel, nil, Self.isPinned(viewModel: viewModel)))
+                results.append(CommentViewModelEntry(vm: viewModel, replies: nil, isPinned: Self.isPinned(viewModel: viewModel)))
                 return
             }
 
@@ -200,8 +210,12 @@ enum YouTubeCommentsParser {
     /// exposes this as a `pinnedText` run ("Pinned by …") on the view model or a
     /// nested `pinnedCommentBadge`.
     private static func isPinned(viewModel: [String: Any]) -> Bool {
-        if viewModel["pinnedText"] != nil { return true }
-        if viewModel["pinnedCommentBadge"] != nil { return true }
+        if viewModel["pinnedText"] != nil {
+            return true
+        }
+        if viewModel["pinnedCommentBadge"] != nil {
+            return true
+        }
         return false
     }
 

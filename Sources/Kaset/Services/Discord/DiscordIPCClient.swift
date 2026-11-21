@@ -41,10 +41,14 @@ actor DiscordIPCClient {
     private var descriptor: Int32?
     private let logger = DiagnosticsLogger.player
 
-    var isConnected: Bool { self.descriptor != nil }
+    var isConnected: Bool {
+        self.descriptor != nil
+    }
 
     deinit {
-        if let descriptor { Darwin.close(descriptor) }
+        if let descriptor {
+            Darwin.close(descriptor)
+        }
     }
 
     // MARK: - Connection
@@ -79,7 +83,9 @@ actor DiscordIPCClient {
                 return
             } catch let error as DiscordIPCError {
                 self.disconnect()
-                if case .rejected = error { throw error }
+                if case .rejected = error {
+                    throw error
+                }
                 lastError = error
             }
         }
@@ -158,7 +164,9 @@ actor DiscordIPCClient {
 
         var arguments: [String: Any] = ["pid": Int(processID)]
         // A nil activity clears the presence; Discord expects the key omitted.
-        if let activity { arguments["activity"] = activity }
+        if let activity {
+            arguments["activity"] = activity
+        }
         try self.send(
             opcode: .frame,
             payload: [
@@ -193,8 +201,12 @@ actor DiscordIPCClient {
             let read = buffer.withUnsafeMutableBytes { pointer in
                 recv(descriptor, pointer.baseAddress, pointer.count, MSG_DONTWAIT)
             }
-            if read > 0 { continue }
-            if read == 0 { return .closed }
+            if read > 0 {
+                continue
+            }
+            if read == 0 {
+                return .closed
+            }
             return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR ? .open : .closed
         }
     }

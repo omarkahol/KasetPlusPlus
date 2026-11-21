@@ -33,7 +33,7 @@ struct StoryboardHoverPreview: View {
                 if let cellImage = self.cellImage {
                     Image(decorative: cellImage, scale: 1)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .scaledToFill()
                 }
             }
             .frame(width: Self.previewWidth, height: Self.previewWidth * 9 / 16)
@@ -63,11 +63,11 @@ struct StoryboardHoverPreview: View {
         .accessibilityHidden(true)
     }
 
+    // swiftformat:disable modifierOrder
     /// Fetches (via the shared cache) the sheet containing `fraction` at the
     /// spec's highest-resolution level and crops out its cell. `nonisolated`
     /// so decode/crop stays off the main actor; only the Sendable `CGImage`
     /// crosses back.
-    // swiftformat:disable modifierOrder
     nonisolated private static func loadCell(spec: String, fraction: Double) async -> CGImage? {
         // ponytail: maxSheets 50 covers ~4h at typical high-level cell
         // intervals; beyond that the preview pins to the last covered frame.
@@ -75,8 +75,8 @@ struct StoryboardHoverPreview: View {
             return nil
         }
         let location = sheet.frameLocation(forFraction: fraction)
-        guard sheet.sheetURLs.indices.contains(location.sheet) else { return nil }
-        guard let nsImage = await ImageCache.shared.image(for: sheet.sheetURLs[location.sheet]),
+        guard sheet.sheetURLs.indices.contains(location.sheet),
+              let nsImage = await ImageCache.shared.image(for: sheet.sheetURLs[location.sheet]),
               let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil)
         else {
             return nil

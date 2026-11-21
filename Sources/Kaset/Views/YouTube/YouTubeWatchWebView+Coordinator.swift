@@ -68,14 +68,14 @@ extension YouTubeWatchWebView {
             }
 
             guard let messageDocumentGeneration = WebPlaybackDocumentGeneration.decode(
-                body["documentGeneration"]
-            ),
-                YouTubeWatchWebView.acceptsBridgeMessage(
-                    sourceWebView: message.webView,
-                    currentWebView: watchWebView.webView,
-                    documentGeneration: watchWebView.documentGeneration,
-                    rawDocumentGeneration: messageDocumentGeneration
-                )
+                      body["documentGeneration"]
+                  ),
+                  YouTubeWatchWebView.acceptsBridgeMessage(
+                      sourceWebView: message.webView,
+                      currentWebView: watchWebView.webView,
+                      documentGeneration: watchWebView.documentGeneration,
+                      rawDocumentGeneration: messageDocumentGeneration
+                  )
             else { return }
 
             switch type {

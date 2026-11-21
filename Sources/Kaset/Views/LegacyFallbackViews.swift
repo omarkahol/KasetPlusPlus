@@ -275,8 +275,7 @@ struct SimpleLyricsView: View {
         .accessibilityIdentifier(AccessibilityID.Lyrics.fallbackPanel)
     }
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if self.playerService.currentTrack == nil {
             self.noTrackPlayingView
         } else if self.syncedLyricsService.isLoading || self.isLoadingFallback {
@@ -397,8 +396,7 @@ struct SimpleLyricsView: View {
         self.lastLoadedVideoId = videoId
         self.isLoadingFallback = false
 
-        guard let track = self.playerService.currentTrack else { return }
-        guard track.videoId == videoId else { return }
+        guard let track = self.playerService.currentTrack, track.videoId == videoId else { return }
 
         let info = LyricsSearchInfo(
             title: track.title,
@@ -415,8 +413,7 @@ struct SimpleLyricsView: View {
             self.syncedLyricsService.activeProvider = nil
         }
 
-        guard self.lastLoadedVideoId == videoId else { return }
-        guard self.playerService.currentTrack?.videoId == videoId else { return }
+        guard self.lastLoadedVideoId == videoId, self.playerService.currentTrack?.videoId == videoId else { return }
 
         if case .unavailable = self.syncedLyricsService.currentLyrics {
             self.isLoadingFallback = true

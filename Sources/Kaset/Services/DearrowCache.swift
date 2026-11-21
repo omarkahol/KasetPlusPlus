@@ -1,5 +1,7 @@
 import Foundation
 
+// MARK: - DearrowTitle
+
 /// A single community-submitted or original title entry from the DeArrow API.
 struct DearrowTitle: Codable, Sendable, Identifiable, Equatable {
     let title: String
@@ -8,7 +10,9 @@ struct DearrowTitle: Codable, Sendable, Identifiable, Equatable {
     let locked: Bool
     let uuid: String
 
-    var id: String { self.uuid }
+    var id: String {
+        self.uuid
+    }
 
     /// Title formatted for display with DeArrow's `>` auto-formatter markers stripped.
     var displayTitle: String {
@@ -24,11 +28,15 @@ struct DearrowTitle: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+// MARK: - DearrowVoteDirection
+
 /// Local user vote state for a DeArrow title entry.
 enum DearrowVoteDirection: String, Sendable, Equatable, Codable {
     case up
     case down
 }
+
+// MARK: - DearrowVoteError
 
 /// Errors returned when fetching all DeArrow titles or submitting a vote.
 enum DearrowVoteError: LocalizedError, Equatable {
@@ -59,6 +67,8 @@ enum DearrowVoteError: LocalizedError, Equatable {
         }
     }
 }
+
+// MARK: - DearrowCache
 
 /// Centralized DeArrow title cache. Fetches community-submitted accurate
 /// titles from the DeArrow API and makes them available to any view.
@@ -458,15 +468,19 @@ final class DearrowCache {
     }
 }
 
-// MARK: - API Models
+// MARK: - OEmbedResponse
 
 private struct OEmbedResponse: Decodable {
     let title: String
 }
 
+// MARK: - BrandingResponse
+
 private struct BrandingResponse: Decodable {
     let titles: [DearrowTitle]
 }
+
+// MARK: - VoteRequest
 
 private struct VoteRequest: Encodable {
     struct TitlePayload: Encodable {

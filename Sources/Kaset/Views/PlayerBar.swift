@@ -6,7 +6,10 @@ import SwiftUI
 
 /// Player bar shown at the bottom of the content area, styled like Apple Music with Liquid Glass.
 struct PlayerBar: View { // swiftlint:disable:this type_body_length
-    @MainActor private static var brandAccent: Color { SettingsManager.shared.accentColor }
+    @MainActor private static var brandAccent: Color {
+        SettingsManager.shared.accentColor
+    }
+
     private static let fullSongInfoWidth: CGFloat = 234
     private static let compactSongInfoWidth: CGFloat = 116
 
@@ -117,8 +120,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
         }
     }
 
-    @ViewBuilder
-    private var thumbnailView: some View {
+    @ViewBuilder private var thumbnailView: some View {
         if let track = self.playerService.currentTrack {
             if self.canOpenCurrentAlbum {
                 Button {
@@ -298,7 +300,6 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
         )
     }
 
-    @ViewBuilder
     private var songActionButtons: some View {
         HStack(spacing: 6) {
             if self.hasPersonalAccount {
@@ -875,8 +876,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
     }
 
     private func openCurrentArtist() {
-        guard self.canOpenCurrentArtist else { return }
-        guard !self.isResolvingArtist else { return }
+        guard self.canOpenCurrentArtist, !self.isResolvingArtist else { return }
         HapticService.toggle()
 
         if let artist = self.currentArtistTarget {
@@ -884,8 +884,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
             return
         }
 
-        guard let query = self.currentArtistSearchName else { return }
-        guard let client = self.playerService.ytMusicClient else { return }
+        guard let query = self.currentArtistSearchName, let client = self.playerService.ytMusicClient else { return }
         let identity = self.currentTitleIdentity
 
         self.isResolvingArtist = true
@@ -902,8 +901,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
     }
 
     private func openCurrentAlbum() {
-        guard self.canOpenCurrentAlbum else { return }
-        guard !self.isResolvingAlbum else { return }
+        guard self.canOpenCurrentAlbum, !self.isResolvingAlbum else { return }
         HapticService.toggle()
 
         if let album = self.currentAlbumTarget {
@@ -1149,8 +1147,7 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
 
     // MARK: - Download Button
 
-    @ViewBuilder
-    private var downloadButton: some View {
+    @ViewBuilder private var downloadButton: some View {
         if let currentTrack = self.playerService.currentTrack {
             let isDownloaded = DownloadManager.shared.isDownloaded(videoId: currentTrack.videoId)
             let status = DownloadManager.shared.status(for: currentTrack.videoId)
@@ -1189,13 +1186,14 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                     },
                     isSelected: false,
                     accessibilityID: AccessibilityID.PlayerBar.downloadButton,
-                    accessibilityLabel: DownloadButton(song: currentTrack).downloadingHelpText(for: status)
-                ) {
-                    ProgressView(value: max(0.05, status.progress))
-                        .progressViewStyle(.circular)
-                        .controlSize(.mini)
-                        .frame(width: 14, height: 14)
-                }
+                    accessibilityLabel: DownloadButton(song: currentTrack).downloadingHelpText(for: status),
+                    icon: {
+                        ProgressView(value: max(0.05, status.progress))
+                            .progressViewStyle(.circular)
+                            .controlSize(.mini)
+                            .frame(width: 14, height: 14)
+                    }
+                )
                 .help(DownloadButton(song: currentTrack).downloadingHelpText(for: status))
             } else {
                 PlayerBarIconButton(
@@ -1204,14 +1202,15 @@ struct PlayerBar: View { // swiftlint:disable:this type_body_length
                     },
                     isSelected: false,
                     accessibilityID: AccessibilityID.PlayerBar.downloadButton,
-                    accessibilityLabel: String(localized: "Download for Offline Playback")
-                ) {
-                    Image(systemName: "arrow.down.circle")
-                        .font(.system(size: 15, weight: .regular))
-                        .frame(width: 12, height: 15)
-                        .foregroundStyle(.primary)
-                        .contentTransition(.symbolEffect(.replace))
-                }
+                    accessibilityLabel: String(localized: "Download for Offline Playback"),
+                    icon: {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 15, weight: .regular))
+                            .frame(width: 12, height: 15)
+                            .foregroundStyle(.primary)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                )
                 .help(String(localized: "Download for Offline Playback"))
             }
         }

@@ -63,8 +63,7 @@ struct MoodsAndGenresView: View {
 
     // MARK: - Views
 
-    @ViewBuilder
-    private var contentView: some View {
+    @ViewBuilder private var contentView: some View {
         if self.viewModel.sections.isEmpty {
             VStack(spacing: 16) {
                 ContentUnavailableView(

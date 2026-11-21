@@ -36,7 +36,7 @@ enum ReportFormParser {
     ) {
         if let dict = value as? [String: Any] {
             if let row = dict["optionSelectableItemRenderer"] as? [String: Any],
-               let reason = Self.reason(fromSelectableItem: row),
+               let reason = reason(fromSelectableItem: row),
                seen.insert(reason.submitParams).inserted
             {
                 reasons.append(reason)
@@ -92,7 +92,7 @@ enum ReportFormParser {
                 }
             }
             for nested in dict.values {
-                if let params = Self.firstFlagParams(in: nested) {
+                if let params = firstFlagParams(in: nested) {
                     return params
                 }
             }
@@ -119,7 +119,7 @@ enum ReportFormParser {
                 }
             }
             for nested in dict.values {
-                if let title = Self.firstFormTitle(in: nested) {
+                if let title = firstFormTitle(in: nested) {
                     return title
                 }
             }

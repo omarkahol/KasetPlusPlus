@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - SponsorBlockSkipNoticeOverlay
+
 /// Native feedback shown over the video after SponsorBlock skips a segment.
 /// Keeping this outside the watch-page DOM makes it visible even while Kaset
 /// hides all of YouTube's chrome.
@@ -22,6 +24,8 @@ struct SponsorBlockSkipNoticeOverlay: View {
         .animation(.spring(duration: 0.3), value: self.youtubePlayer.sponsorSkipNotice?.id)
     }
 }
+
+// MARK: - SponsorBlockSkipNoticeView
 
 private struct SponsorBlockSkipNoticeView: View {
     let notice: SponsorSkipNotice

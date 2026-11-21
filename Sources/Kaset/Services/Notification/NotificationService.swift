@@ -223,27 +223,24 @@ final class NotificationService {
         let tempDir = FileManager.default.temporaryDirectory
         let targetURL = tempDir.appendingPathComponent("notif-art-\(UUID().uuidString).jpg")
 
-        let loadedImage: NSImage?
-        if thumbnailURL.isFileURL {
-            loadedImage = NSImage(contentsOf: thumbnailURL)
+        let loadedImage: NSImage? = if thumbnailURL.isFileURL {
+            NSImage(contentsOf: thumbnailURL)
         } else if let cached = await ImageCache.shared.image(for: thumbnailURL) {
-            loadedImage = cached
+            cached
         } else if let (data, _) = try? await URLSession.shared.data(from: thumbnailURL),
                   let img = NSImage(data: data)
         {
-            loadedImage = img
+            img
         } else {
-            loadedImage = nil
+            nil
         }
 
         guard let loadedImage,
-              let jpgData = self.jpegData(from: loadedImage)
-        else { return nil }
-
-        guard (try? jpgData.write(to: targetURL, options: .atomic)) != nil else { return nil }
+              let jpgData = self.jpegData(from: loadedImage),
+              (try? jpgData.write(to: targetURL, options: .atomic)) != nil else { return nil }
 
         let options: [AnyHashable: Any] = [
-            UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg"
+            UNNotificationAttachmentOptionsTypeHintKey: "public.jpeg",
         ]
         return try? UNNotificationAttachment(
             identifier: "artwork-\(UUID().uuidString)",
@@ -273,10 +270,8 @@ final class NotificationService {
         content.body = track.artistsDisplay.isEmpty ? "Unknown Artist" : track.artistsDisplay
         content.sound = nil // Silent notification
 
-        if let thumbnailURL = track.thumbnailURL {
-            if let attachment = await self.createNotificationAttachment(for: thumbnailURL) {
-                content.attachments = [attachment]
-            }
+        if let thumbnailURL = track.thumbnailURL, let attachment = await self.createNotificationAttachment(for: thumbnailURL) {
+            content.attachments = [attachment]
         }
 
         let center = UNUserNotificationCenter.current()
