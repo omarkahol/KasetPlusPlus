@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "Sources/APIExplorer/**"
+      - "Sources/YouTubeAskCore/**"
       - "Package.swift"
       - "Package.resolved"
       - ".github/workflows/api-explorer.yml"
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "Sources/APIExplorer/**"
+      - "Sources/YouTubeAskCore/**"
       - "Package.swift"
       - "Package.resolved"
       - ".github/workflows/api-explorer.yml"
@@ -32,7 +34,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
 
       - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+        run: Scripts/select-xcode.sh
 
       - name: Show Swift version
         run: swift --version
@@ -40,9 +42,7 @@ jobs:
       - name: Cache SPM dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            ~/Library/Caches/org.swift.swiftpm/spm-repositories
-            .build
+          path: ~/Library/Caches/org.swift.swiftpm/spm-repositories
           key: ${{ runner.os }}-spm-api-explorer-${{ hashFiles('Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-api-explorer-

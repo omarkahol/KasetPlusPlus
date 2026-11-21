@@ -33,13 +33,13 @@ jobs:
       - name: Cache Homebrew
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            /usr/local/Homebrew
-            ~/Library/Caches/Homebrew
+          path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-homebrew-swiftlint
 
       - name: Install SwiftLint
-        run: brew install swiftlint
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: command -v swiftlint >/dev/null 2>&1 || brew install swiftlint
 
       - name: Run SwiftLint
         run: |
@@ -57,14 +57,14 @@ jobs:
       - name: Cache Homebrew
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            /usr/local/Homebrew
-            ~/Library/Caches/Homebrew
+          path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-homebrew-swiftformat
 
       - name: Install SwiftFormat
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
-          brew install swiftformat
+          command -v swiftformat >/dev/null 2>&1 || brew install swiftformat
           swiftformat --version
 
       - name: Check formatting

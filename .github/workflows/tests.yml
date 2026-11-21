@@ -46,26 +46,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
 
       - name: Select Xcode version
-        run: |
-          set -euo pipefail
-          # Swift 6.2 requires Xcode 26.x. Both runner images carry one or
-          # more Xcode 26.x installs; prefer the newest available.
-          for candidate in \
-            /Applications/Xcode_26.2.app \
-            /Applications/Xcode_26.1.app \
-            /Applications/Xcode_26.0.app \
-            /Applications/Xcode_26.app
-          do
-            if [ -d "$candidate" ]; then
-              sudo xcode-select -s "$candidate/Contents/Developer"
-              echo "Selected $candidate"
-              xcodebuild -version
-              exit 0
-            fi
-          done
-          echo "::error::No Xcode 26.x install found on $RUNNER_NAME" >&2
-          ls /Applications | grep -i xcode || true
-          exit 1
+        run: Scripts/select-xcode.sh
 
       - name: Show Swift version
         run: swift --version
@@ -107,24 +88,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v4
 
       - name: Select Xcode version
-        run: |
-          set -euo pipefail
-          for candidate in \
-            /Applications/Xcode_26.2.app \
-            /Applications/Xcode_26.1.app \
-            /Applications/Xcode_26.0.app \
-            /Applications/Xcode_26.app
-          do
-            if [ -d "$candidate" ]; then
-              sudo xcode-select -s "$candidate/Contents/Developer"
-              echo "Selected $candidate"
-              xcodebuild -version
-              exit 0
-            fi
-          done
-          echo "::error::No Xcode 26.x install found on $RUNNER_NAME" >&2
-          ls /Applications | grep -i xcode || true
-          exit 1
+        run: Scripts/select-xcode.sh
 
       - name: Show Xcode version
         run: xcodebuild -version

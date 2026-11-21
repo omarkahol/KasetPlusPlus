@@ -41,7 +41,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+        run: Scripts/select-xcode.sh
 
       - name: Show Swift version
         run: swift --version
@@ -66,10 +66,11 @@ jobs:
         run: |
           if [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
-          elif [ -n "${{ github.ref_name }}" ]; then
+          elif [ "${{ github.ref_type }}" = "tag" ] && [ -n "${{ github.ref_name }}" ]; then
             TAG="${{ github.ref_name }}"
           else
-            TAG="0.0.0"
+            echo "::error::Release workflow requires a tag (push a v* tag or provide the 'tag' workflow_dispatch input)." >&2
+            exit 1
           fi
           VERSION="${TAG#v}"  # Remove 'v' prefix if present
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -201,13 +202,13 @@ jobs:
         id: cache-homebrew
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            /usr/local/Homebrew
-            ~/Library/Caches/Homebrew
+          path: ~/Library/Caches/Homebrew
           key: ${{ runner.os }}-homebrew-create-dmg
 
       - name: Install create-dmg
-        run: brew install create-dmg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: command -v create-dmg >/dev/null 2>&1 || brew install create-dmg
 
       - name: Create DMG
         run: |
@@ -338,8 +339,8 @@ jobs:
             exit 0
           fi
 
-          # Find Sparkle's sign_update binary
-          SIGN_UPDATE=$(find ./.build -name "sign_update" -type f 2>/dev/null | head -1)
+          # Find Sparkle's sign_update binary (avoid old_dsa_scripts/sign_update)
+          SIGN_UPDATE=$(find ./.build -path "*/Sparkle/bin/sign_update" -type f 2>/dev/null | head -1)
           if [ -z "$SIGN_UPDATE" ]; then
             echo "Warning: sign_update not found, skipping Sparkle signing"
             echo "signature=" >> "$GITHUB_OUTPUT"
@@ -381,11 +382,11 @@ jobs:
             PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || echo "")
           fi
 
-          # Generate changelog
-          if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$CURRENT_TAG" ]; then
+          # Generate changelog only if CURRENT_TAG exists as a git tag
+          if git rev-parse -q --verify "refs/tags/${CURRENT_TAG}" >/dev/null && [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "$CURRENT_TAG" ]; then
             CHANGELOG=$(git log --pretty=format:"- %s" "$PREV_TAG".."$CURRENT_TAG" --no-merges | head -50)
           else
-            CHANGELOG="- Initial release"
+            CHANGELOG="- Release ${CURRENT_TAG}"
           fi
 
           # Create release notes
@@ -469,10 +470,10 @@ jobs:
             version "$VERSION"
             sha256 "${{ steps.sha256.outputs.sha256 }}"
 
-            url "https://github.com/sozercan/kaset/releases/download/v#{version}/kaset-v#{version}.dmg"
-            name "Kaset"
-            desc "Native YouTube Music client"
-            homepage "https://github.com/sozercan/kaset"
+            url "https://github.com/${{ github.repository }}/releases/download/${TAG}/KasetPlusPlus-${TAG}.dmg"
+            name "KasetPlusPlus"
+            desc "Native YouTube Music and YouTube client"
+            homepage "https://github.com/${{ github.repository }}"
 
             auto_updates true
             # Homebrew casks can gate on macOS release symbols, but not this
@@ -480,18 +481,18 @@ jobs:
             # Sparkle's appcast enforce 15.4 at launch/update time.
             depends_on macos: :sequoia
 
-            app "Kaset.app"
+            app "KasetPlusPlus.app"
 
-            postflight_steps do
-              run "/usr/bin/xattr", args: ["-cr", "{{appdir}}/Kaset.app"], sudo: false
+            postflight do
+              system_command "/usr/bin/xattr", args: ["-cr", "#{appdir}/KasetPlusPlus.app"], sudo: false
             end
 
             zap trash: [
               "~/Library/Application Support/Kaset",
-              "~/Library/Caches/com.sertacozercan.Kaset",
-              "~/Library/Preferences/com.sertacozercan.Kaset.plist",
-              "~/Library/Saved Application State/com.sertacozercan.Kaset.savedState",
-              "~/Library/WebKit/com.sertacozercan.Kaset",
+              "~/Library/Caches/com.sertacozercan.KasetPlus",
+              "~/Library/Preferences/com.sertacozercan.KasetPlus.plist",
+              "~/Library/Saved Application State/com.sertacozercan.KasetPlus.savedState",
+              "~/Library/WebKit/com.sertacozercan.KasetPlus",
             ]
           end
           EOF
@@ -529,33 +530,73 @@ jobs:
           DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.artifact.outputs.filename }}"
           RELEASE_NOTES_URL="https://github.com/${{ github.repository }}/releases/tag/${TAG}"
 
-          # Create updated appcast.xml with the new item at the top
-          cat > appcast.xml << APPCAST_EOF
-          <?xml version="1.0" encoding="utf-8"?>
+          # Prepend the new item into appcast.xml while preserving existing release items.
+          python3 - \
+            "appcast.xml" \
+            "https://github.com/${{ github.repository }}/releases" \
+            "${VERSION}" \
+            "${{ github.run_number }}" \
+            "${RELEASE_NOTES_URL}" \
+            "${PUB_DATE}" \
+            "${DOWNLOAD_URL}" \
+            "${LENGTH}" \
+            "${SIGNATURE}" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+          from xml.sax.saxutils import escape
+
+          path = Path(sys.argv[1])
+          channel_link, version, build_number, notes_url, pub_date, download_url, length, signature = sys.argv[2:10]
+
+          new_item = f"""        <item>
+                      <title>Version {escape(version)}</title>
+                      <sparkle:releaseNotesLink>{escape(notes_url)}</sparkle:releaseNotesLink>
+                      <pubDate>{escape(pub_date)}</pubDate>
+                      <enclosure
+                          url="{escape(download_url)}"
+                          sparkle:version="{escape(build_number)}"
+                          sparkle:shortVersionString="{escape(version)}"
+                          length="{escape(length)}"
+                          type="application/octet-stream"
+                          sparkle:edSignature="{escape(signature)}"/>
+                      <sparkle:minimumSystemVersion>15.4</sparkle:minimumSystemVersion>
+                  </item>"""
+
+          if path.exists():
+              content = path.read_text(encoding="utf-8")
+              content = re.sub(
+                  rf'\s*<item>\s*<title>Version {re.escape(version)}</title>.*?</item>',
+                  "",
+                  content,
+                  flags=re.DOTALL,
+              )
+              if "<item>" in content:
+                  content = content.replace("<item>", f"{new_item}\n\n        <item>", 1)
+              elif "</channel>" in content:
+                  content = content.replace("</channel>", f"{new_item}\n\n    </channel>", 1)
+              else:
+                  content = ""
+          else:
+              content = ""
+
+          if not content:
+              content = f"""<?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
               <channel>
                   <title>KasetPlusPlus Updates</title>
-                  <link>https://github.com/${{ github.repository }}/releases</link>
+                  <link>{escape(channel_link)}</link>
                   <description>Most recent updates for KasetPlusPlus, a native macOS YouTube Music and YouTube client.</description>
                   <language>en</language>
 
-                  <item>
-                      <title>Version ${VERSION}</title>
-                      <sparkle:releaseNotesLink>${RELEASE_NOTES_URL}</sparkle:releaseNotesLink>
-                      <pubDate>${PUB_DATE}</pubDate>
-                      <enclosure
-                          url="${DOWNLOAD_URL}"
-                          sparkle:version="${{ github.run_number }}"
-                          sparkle:shortVersionString="${VERSION}"
-                          length="${LENGTH}"
-                          type="application/octet-stream"
-                          sparkle:edSignature="${SIGNATURE}"/>
-                      <sparkle:minimumSystemVersion>15.4</sparkle:minimumSystemVersion>
-                  </item>
+          {new_item}
 
               </channel>
           </rss>
-          APPCAST_EOF
+          """
+
+          path.write_text(content, encoding="utf-8")
+          PY
 
           git add appcast.xml
           if git diff --cached --quiet; then
@@ -576,8 +617,8 @@ jobs:
           # The default branch requires 0 approving reviews, so the PR is
           # immediately mergeable. Retry while GitHub computes mergeability.
           for attempt in 1 2 3 4 5 6; do
-            if gh pr merge "$BRANCH" --squash --delete-branch; then
-              echo "Merged appcast PR"
+            if gh pr merge "$BRANCH" --auto --squash --delete-branch || gh pr merge "$BRANCH" --squash --delete-branch; then
+              echo "Merged (or queued auto-merge for) appcast PR"
               exit 0
             fi
             echo "Merge attempt ${attempt} failed; retrying in 10s..."

@@ -260,8 +260,9 @@ YTDLP_BIN="$ROOT/.build/yt-dlp"
 YTDLP_URL="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp"
 if [[ ! -f "$YTDLP_BIN" ]]; then
   echo "⬇️  Downloading yt-dlp..."
-  curl -sSL "$YTDLP_URL" -o "$YTDLP_BIN"
-  chmod +x "$YTDLP_BIN"
+  curl -fsSL --retry 3 --retry-delay 2 "$YTDLP_URL" -o "${YTDLP_BIN}.tmp"
+  chmod +x "${YTDLP_BIN}.tmp"
+  mv "${YTDLP_BIN}.tmp" "$YTDLP_BIN"
 fi
 echo "📦 Bundling yt-dlp..."
 cp "$YTDLP_BIN" "$APP_BUNDLE/Contents/Resources/yt-dlp"

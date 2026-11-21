@@ -68,7 +68,7 @@ kill_all_kaset() {
     pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${DEBUG_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${RELEASE_PROCESS_PATTERN}" >/dev/null 2>&1 \
-      || pgrep -x "KasetPlusPlus" >/dev/null 2>&1
+      || pgrep -x "KasetPlusPlus" >/dev/null 2>&1 \
       || pgrep -x "KasetPlus" >/dev/null 2>&1
   }
 
