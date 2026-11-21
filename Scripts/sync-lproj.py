@@ -31,11 +31,11 @@ def value_for(entry: dict, lang: str):
     # Emit any non-empty translated value (don't filter on state — "needs_review"
     # and stateless entries are still real translations we must not drop).
     unit = loc.get("stringUnit")
-    if unit and unit.get("value"):
+    if unit and unit.get("value") is not None:
         return unit["value"]
     # Fall back to the "other" plural form for pluralized keys.
     other = ((loc.get("variations") or {}).get("plural") or {}).get("other", {}).get("stringUnit")
-    if other and other.get("value"):
+    if other and other.get("value") is not None:
         return other.get("value")
     return None
 

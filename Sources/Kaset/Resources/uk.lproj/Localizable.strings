@@ -1,5 +1,6 @@
 /* Regenerated from Localizable.xcstrings by Scripts/sync-lproj.py — do not edit by hand. */
 
+"" = "";
 "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work." = "\"Keep Playing in the Player Bar\" takes precedence: the video keeps playing docked with no pop-out window, and you return to it from the bar. Otherwise, when \"Pop Out\" is off, navigating back from a playing video stops it. The pop-out and full-view buttons still work.";
 "\"Live\" shifts the colors as the video plays; the others stay constant" = "\"Наживо\" змінює кольори під час відтворення відео; інші варіанти залишаються сталими";
 "%@ %@" = "%1$@ %2$@";
