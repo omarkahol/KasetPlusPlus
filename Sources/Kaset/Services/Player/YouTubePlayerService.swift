@@ -30,6 +30,7 @@ protocol YouTubeWatchPlaybackControlling: AnyObject {
     func cancelPendingRecoverySeek()
     func markCurrentPlaybackOccurrenceEnded()
     func setVolume(_ volume: Double)
+    func setSpeed(_ speed: Double)
     func showAirPlayPicker(at screenPoint: CGPoint?)
     func availableCaptionTracks() async -> [YouTubeCaptionTrack]
     func currentCaptionLanguageCode() async -> String?
@@ -42,6 +43,10 @@ protocol YouTubeWatchPlaybackControlling: AnyObject {
     func setQualityLevel(_ level: String)
     func storyboardSpec(expectedVideoId: String?) async -> String?
     func tearDown()
+}
+
+extension YouTubeWatchPlaybackControlling {
+    func setSpeed(_: Double) {}
 }
 
 // MARK: - YouTubeWatchWebView + YouTubeWatchPlaybackControlling
@@ -279,7 +284,7 @@ final class YouTubePlayerService {
             if self.isPlayingNativeVideo {
                 NativeVideoPlayer.shared.playbackSpeed = Float(self.playbackSpeed)
             }
-            YouTubeWatchWebView.shared.setSpeed(self.playbackSpeed)
+            self.playbackController.setSpeed(self.playbackSpeed)
             self.defaults.set(self.playbackSpeed, forKey: Self.playbackSpeedKey)
         }
     }

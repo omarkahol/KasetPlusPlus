@@ -12,28 +12,13 @@ extension Notification.Name {
 /// Provides hardware-accelerated video decoding (VideoToolbox/Metal), instant playback,
 /// 60fps seek responsiveness, and gapless queue prebuffering.
 @MainActor
-final class NativeVideoPlayer: NSObject {
+final class NativeVideoPlayer: BaseAVPlayerController {
     static let shared = NativeVideoPlayer()
 
-    private(set) var player: AVPlayer?
-    private var timeObserverToken: Any?
-    private var playerItemEndObserver: (any NSObjectProtocol)?
-    private var durationObserver: NSKeyValueObservation?
-    private var statusObserver: NSKeyValueObservation?
-    private var likelyToKeepUpObserver: NSKeyValueObservation?
-    private var timeControlStatusObserver: NSKeyValueObservation?
-    private var startupTimeoutTask: Task<Void, Never>?
     private var activeResourceLoader: HLSMasterManifestLoader?
     private var preloadedResourceLoader: HLSMasterManifestLoader?
     private var pendingStartAt: TimeInterval?
-    private var shouldBePlaying = false
 
-    /// Preloaded next item to provide instant transitions between videos or shorts.
-    private(set) var preloadedItem: AVPlayerItem?
-    private(set) var preloadedVideoId: String?
-
-    private(set) var currentURL: URL?
-    private(set) var currentVideoId: String?
     private(set) var isPlaying: Bool = false {
         didSet {
             self.onStateChange?(self.isPlaying)
@@ -46,18 +31,13 @@ final class NativeVideoPlayer: NSObject {
     }
 
     var duration: TimeInterval {
-        guard let item = self.player?.currentItem else { return 0 }
-        let duration = item.duration.seconds
-        return duration.isFinite && duration > 0 ? duration : 0
+        self.avDuration
     }
 
     var currentTime: TimeInterval {
-        guard let item = self.player?.currentItem else { return 0 }
-        let time = item.currentTime().seconds
-        return time.isFinite && time >= 0 ? time : 0
+        self.avCurrentTime
     }
 
-    private var storedVolume: Float = 1.0
     var volume: Float {
         get { self.player?.volume ?? self.storedVolume }
         set {
@@ -92,7 +72,6 @@ final class NativeVideoPlayer: NSObject {
     private var preferredCaptionLanguageCode: String?
     private var hasExplicitCaptionSelection = false
     private var preferredAudioTrackId: String?
-    private var hasFiredNearEnd = false
 
     private override init() {
         super.init()
@@ -109,18 +88,11 @@ final class NativeVideoPlayer: NSObject {
         self.isLoading = true
 
         let playerItem: AVPlayerItem
-        if let preloaded = self.preloadedItem,
-           self.preloadedVideoId == videoId,
-           preloaded.status != .failed
-        {
+        if let preloaded = self.consumePreloadedItem(forVideoId: videoId) {
             playerItem = preloaded
             self.activeResourceLoader = self.preloadedResourceLoader
-            self.preloadedItem = nil
-            self.preloadedVideoId = nil
             self.preloadedResourceLoader = nil
         } else {
-            self.preloadedItem = nil
-            self.preloadedVideoId = nil
             self.preloadedResourceLoader = nil
             let built = self.makePlayerItem(for: url, preferredQualityLevel: self.preferredQualityLevel)
             playerItem = built.item
@@ -147,27 +119,7 @@ final class NativeVideoPlayer: NSObject {
 
         self.setupItemObservers(for: playerItem, in: player)
 
-        let scheme = url.scheme?.lowercased()
-        if scheme == "https" || scheme == "http" {
-            self.startupTimeoutTask = Task { @MainActor [weak self, weak playerItem, weak player] in
-                do {
-                    try await Task.sleep(for: .seconds(8))
-                } catch {
-                    return
-                }
-                guard let self,
-                      let playerItem,
-                      let player,
-                      self.player === player,
-                      self.player?.currentItem === playerItem,
-                      self.shouldBePlaying,
-                      playerItem.status != .readyToPlay,
-                      player.timeControlStatus != .playing
-                else { return }
-                self.stop()
-                self.onPlaybackFailed?()
-            }
-        }
+        self.scheduleVideoStartupTimeout(for: playerItem, in: player, url: url, timeoutSeconds: 8)
 
         player.rate = self.playbackSpeed
         self.isPlaying = true
@@ -178,9 +130,8 @@ final class NativeVideoPlayer: NSObject {
         guard self.preloadedVideoId != videoId else { return }
         let built = self.makePlayerItem(for: url, preferredQualityLevel: "auto", cacheMasterPlaylist: false)
         built.item.preferredForwardBufferDuration = 0
-        self.preloadedItem = built.item
+        self.setPreload(item: built.item, videoId: videoId)
         self.preloadedResourceLoader = built.loader
-        self.preloadedVideoId = videoId
     }
 
     /// Pauses playback.
@@ -279,13 +230,12 @@ final class NativeVideoPlayer: NSObject {
     }
 
     private func reloadCurrentHLSItemForQuality(_ level: String, on player: AVPlayer, url: URL) {
-        self.startupTimeoutTask?.cancel()
-        self.startupTimeoutTask = nil
+        self.cancelStartupTimeout()
 
         let resumeTime = self.pendingStartAt ?? self.currentTime
         let wasPlaying = self.shouldBePlaying
 
-        self.removeObservers()
+        self.removeAVObservers()
         if resumeTime > 0 {
             player.pause()
         }
@@ -301,32 +251,17 @@ final class NativeVideoPlayer: NSObject {
 
         player.replaceCurrentItem(with: built.item)
         self.setupItemObservers(for: built.item, in: player)
-        self.scheduleStartupTimeout(for: built.item, in: player, url: url, timeoutSeconds: 10)
+        self.scheduleVideoStartupTimeout(for: built.item, in: player, url: url, timeoutSeconds: 10)
     }
 
-    private func scheduleStartupTimeout(
+    private func scheduleVideoStartupTimeout(
         for playerItem: AVPlayerItem,
         in player: AVPlayer,
         url: URL,
         timeoutSeconds: Int
     ) {
-        let scheme = url.scheme?.lowercased()
-        guard scheme == "https" || scheme == "http" else { return }
-        self.startupTimeoutTask = Task { @MainActor [weak self, weak playerItem, weak player] in
-            do {
-                try await Task.sleep(for: .seconds(timeoutSeconds))
-            } catch {
-                return
-            }
-            guard let self,
-                  let playerItem,
-                  let player,
-                  self.player === player,
-                  self.player?.currentItem === playerItem,
-                  self.shouldBePlaying,
-                  playerItem.status != .readyToPlay,
-                  player.timeControlStatus != .playing
-            else { return }
+        self.scheduleStartupTimeout(for: playerItem, in: player, url: url, timeoutSeconds: timeoutSeconds) { [weak self] in
+            guard let self else { return }
             self.stop()
             self.onPlaybackFailed?()
         }
@@ -460,10 +395,9 @@ final class NativeVideoPlayer: NSObject {
     /// Stops playback and tears down observers.
     func stop() {
         self.shouldBePlaying = false
-        self.startupTimeoutTask?.cancel()
-        self.startupTimeoutTask = nil
+        self.cancelStartupTimeout()
         self.pendingStartAt = nil
-        self.removeObservers()
+        self.removeAVObservers()
         self.player?.pause()
         self.player = nil
         self.activeResourceLoader = nil
@@ -484,33 +418,23 @@ final class NativeVideoPlayer: NSObject {
     private func setupItemObservers(for item: AVPlayerItem, in player: AVPlayer) {
         // 1. Periodic time observer (4 Hz = 250ms for smooth progress & marquee)
         let interval = CMTime(value: 1, timescale: 4)
-        self.timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            let seconds = time.seconds
-            guard seconds.isFinite, seconds >= 0 else { return }
-            Task { @MainActor [weak self] in
-                guard let self, self.pendingStartAt == nil else { return }
-                self.onProgressUpdate?(seconds)
+        self.installPeriodicTimeObserver(on: player, interval: interval) { [weak self] seconds in
+            guard let self, self.pendingStartAt == nil else { return }
+            self.onProgressUpdate?(seconds)
 
-                // Trigger near-end callback when within 15 seconds of the end for next-item preloading
-                let dur = self.duration
-                if dur > 20.0, seconds >= dur - 15.0, !self.hasFiredNearEnd {
-                    self.hasFiredNearEnd = true
-                    self.onNearEnd?(seconds)
-                }
+            // Trigger near-end callback when within 15 seconds of the end for next-item preloading
+            let dur = self.duration
+            if dur > 20.0, seconds >= dur - 15.0, !self.hasFiredNearEnd {
+                self.hasFiredNearEnd = true
+                self.onNearEnd?(seconds)
             }
         }
 
         // 2. Playback ended notification
-        self.playerItemEndObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: item,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.isPlaying = false
-                self.onPlaybackEnded?()
-            }
+        self.installPlaybackEndObserver(for: item) { [weak self] in
+            guard let self else { return }
+            self.isPlaying = false
+            self.onPlaybackEnded?()
         }
 
         // 3. Duration KVO
@@ -527,8 +451,7 @@ final class NativeVideoPlayer: NSObject {
             Task { @MainActor [weak self, weak item] in
                 guard let self, let item, let player = self.player, player.currentItem === item else { return }
                 if item.status == .readyToPlay {
-                    self.startupTimeoutTask?.cancel()
-                    self.startupTimeoutTask = nil
+                    self.cancelStartupTimeout()
                     let dur = item.duration.seconds
                     if dur.isFinite, dur > 0 {
                         self.onDurationResolved?(dur)
@@ -559,8 +482,7 @@ final class NativeVideoPlayer: NSObject {
                         }
                     }
                 } else if item.status == .failed {
-                    self.startupTimeoutTask?.cancel()
-                    self.startupTimeoutTask = nil
+                    self.cancelStartupTimeout()
                     self.pendingStartAt = nil
                     self.shouldBePlaying = false
                     self.isLoading = false
@@ -588,52 +510,31 @@ final class NativeVideoPlayer: NSObject {
         }
 
         // 6. Time control status KVO
-        self.timeControlStatusObserver = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.player === player else { return }
-                switch player.timeControlStatus {
-                case .playing:
-                    self.startupTimeoutTask?.cancel()
-                    self.startupTimeoutTask = nil
-                    self.isLoading = false
-                    self.isPlaying = true
-                case .waitingToPlayAtSpecifiedRate:
-                    if self.shouldBePlaying,
-                       player.currentItem?.isPlaybackLikelyToKeepUp != true
-                    {
-                        self.isLoading = true
-                    }
-                case .paused:
-                    if !self.shouldBePlaying {
-                        self.isPlaying = false
-                        self.isLoading = false
-                    } else if player.currentItem?.status == .readyToPlay, self.pendingStartAt == nil {
-                        player.rate = self.playbackSpeed
-                    }
-                @unknown default:
-                    break
+        self.installTimeControlStatusObserver(
+            on: player,
+            onPlaying: { [weak self] in
+                self?.isLoading = false
+                self?.isPlaying = true
+            },
+            onWaiting: { [weak self] observedPlayer in
+                guard let self else { return }
+                if self.shouldBePlaying,
+                   observedPlayer.currentItem?.isPlaybackLikelyToKeepUp != true
+                {
+                    self.isLoading = true
+                }
+            },
+            onPausedWhileStopped: { [weak self] in
+                self?.isPlaying = false
+                self?.isLoading = false
+            },
+            onPausedWhileShouldBePlaying: { [weak self] observedPlayer in
+                guard let self else { return }
+                if observedPlayer.currentItem?.status == .readyToPlay, self.pendingStartAt == nil {
+                    observedPlayer.rate = self.playbackSpeed
                 }
             }
-        }
-    }
-
-    private func removeObservers() {
-        if let token = self.timeObserverToken {
-            self.player?.removeTimeObserver(token)
-            self.timeObserverToken = nil
-        }
-        if let endObserver = self.playerItemEndObserver {
-            NotificationCenter.default.removeObserver(endObserver)
-            self.playerItemEndObserver = nil
-        }
-        self.durationObserver?.invalidate()
-        self.durationObserver = nil
-        self.statusObserver?.invalidate()
-        self.statusObserver = nil
-        self.likelyToKeepUpObserver?.invalidate()
-        self.likelyToKeepUpObserver = nil
-        self.timeControlStatusObserver?.invalidate()
-        self.timeControlStatusObserver = nil
+        )
     }
 
     private func makePlayerItem(

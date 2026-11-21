@@ -225,215 +225,6 @@ enum WebPlaybackTransitionFallbackPolicy {
     }
 }
 
-// MARK: - MiniPlayerWebView
-
-/// A visible WebView that displays the YouTube Music player.
-/// This is required because YouTube Music won't initialize the video player
-/// without user interaction - autoplay is blocked in hidden WebViews.
-/// Uses SingletonPlayerWebView for the actual WebView instance.
-struct MiniPlayerWebView: NSViewRepresentable {
-    @Environment(WebKitManager.self) private var webKitManager
-    @Environment(PlayerService.self) private var playerService
-    @Environment(AuthService.self) private var authService
-
-    /// The video ID to play.
-    let videoId: String
-
-    /// Callback for player state changes.
-    var onStateChange: ((PlayerState) -> Void)?
-
-    /// Callback for metadata updates (title, artist, duration).
-    var onMetadataChange: ((String, String, Double) -> Void)?
-
-    enum PlayerState {
-        case loading
-        case playing
-        case paused
-        case ended
-        case error(String)
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onStateChange: self.onStateChange, onMetadataChange: self.onMetadataChange)
-    }
-
-    func makeNSView(context: Context) -> NSView {
-        let container = NSView(frame: .zero)
-        container.wantsLayer = true
-
-        // Get or create the singleton WebView
-        let webView = SingletonPlayerWebView.shared.getWebView(
-            webKitManager: self.webKitManager,
-            playerService: self.playerService,
-            usesCookieFreeDataStore: self.authService.shouldUseCookieFreePlaybackDataStore,
-            suppressesHomePreload: true
-        )
-
-        // Remove existing handler if present to avoid duplicates, then add fresh one
-        // This handles the case where makeNSView is called multiple times
-        let contentController = webView.configuration.userContentController
-        contentController.removeScriptMessageHandler(forName: "miniPlayer")
-        contentController.add(context.coordinator, name: "miniPlayer")
-
-        // Ensure WebView is in this container
-        SingletonPlayerWebView.shared.ensureInHierarchy(container: container)
-
-        // Load the video if needed
-        SingletonPlayerWebView.shared.loadVideo(videoId: self.videoId)
-
-        return container
-    }
-
-    func updateNSView(_ container: NSView, context _: Context) {
-        // Update WebView frame if needed
-        SingletonPlayerWebView.shared.ensureInHierarchy(container: container)
-    }
-
-    static func dismantleNSView(_: NSView, coordinator _: Coordinator) {
-        // WebView is managed by SingletonPlayerWebView.shared - it persists
-        // Remove the message handler to avoid duplicate handlers
-        SingletonPlayerWebView.shared.webView?.configuration.userContentController
-            .removeScriptMessageHandler(forName: "miniPlayer")
-    }
-
-    // MARK: - Observer Script
-
-    /// Script that observes the YouTube Music player bar and sends updates
-    private static var observerScript: String {
-        """
-        (function() {
-            'use strict';
-
-            const bridge = window.webkit.messageHandlers.miniPlayer;
-
-            function log(msg) {
-                console.log('[MiniPlayer] ' + msg);
-            }
-
-            // Wait for the player bar to appear and observe it
-            function waitForPlayerBar() {
-                const playerBar = document.querySelector('ytmusic-player-bar');
-                if (playerBar) {
-                    log('Player bar found, setting up observer');
-                    setupObserver(playerBar);
-                    return;
-                }
-                setTimeout(waitForPlayerBar, 500);
-            }
-
-            function setupObserver(playerBar) {
-                const observer = new MutationObserver(function(mutations) {
-                    sendUpdate();
-                });
-
-                observer.observe(playerBar, {
-                    attributes: true,
-                    characterData: true,
-                    childList: true,
-                    subtree: true,
-                    attributeOldValue: true,
-                    characterDataOldValue: true
-                });
-
-                // Send initial update
-                sendUpdate();
-
-                // Also send periodic updates
-                setInterval(sendUpdate, 1000);
-            }
-
-            function sendUpdate() {
-                try {
-                    const titleEl = document.querySelector('.ytmusic-player-bar.title');
-                    const artistEl = document.querySelector('.ytmusic-player-bar.byline');
-                    const progressBar = document.querySelector('#progress-bar');
-
-                    const title = titleEl ? titleEl.textContent : '';
-                    const artist = artistEl ? artistEl.textContent : '';
-                    const progress = progressBar ? parseInt(progressBar.getAttribute('value') || '0') : 0;
-                    const duration = progressBar ? parseInt(progressBar.getAttribute('aria-valuemax') || '0') : 0;
-
-                    // Use video element's paused property for language-agnostic detection
-                    // Previously checked button title/aria-label which fails for non-English locales
-                    const video = document.querySelector('video');
-                    const isPlaying = video ? !video.paused : false;
-
-                    bridge.postMessage({
-                        type: 'STATE_UPDATE',
-                        title: title,
-                        artist: artist,
-                        progress: progress,
-                        duration: duration,
-                        isPlaying: isPlaying
-                    });
-                } catch (e) {
-                    log('Error sending update: ' + e);
-                }
-            }
-
-            // Start waiting
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', waitForPlayerBar);
-            } else {
-                waitForPlayerBar();
-            }
-        })();
-        """
-    }
-
-    // MARK: - Coordinator
-
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        var onStateChange: ((PlayerState) -> Void)?
-        var onMetadataChange: ((String, String, Double) -> Void)?
-
-        init(
-            onStateChange: ((PlayerState) -> Void)?,
-            onMetadataChange: ((String, String, Double) -> Void)?
-        ) {
-            self.onStateChange = onStateChange
-            self.onMetadataChange = onMetadataChange
-        }
-
-        func webView(_: WKWebView, didFinish _: WKNavigation!) {
-            // Page loaded
-        }
-
-        func webView(_: WKWebView, didFail _: WKNavigation!, withError error: Error) {
-            self.onStateChange?(.error(error.localizedDescription))
-        }
-
-        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-            // WebView content process crashed - attempt recovery by reloading
-            DiagnosticsLogger.player.error("MiniPlayer WebView content process terminated, attempting reload")
-            self.onStateChange?(.error("Player crashed, reloading..."))
-            webView.reload()
-        }
-
-        func userContentController(
-            _: WKUserContentController,
-            didReceive message: WKScriptMessage
-        ) {
-            guard let body = message.body as? [String: Any],
-                  let type = body["type"] as? String
-            else { return }
-
-            if type == "STATE_UPDATE" {
-                let title = body["title"] as? String ?? ""
-                let artist = body["artist"] as? String ?? ""
-                let duration = body["duration"] as? Double ?? 0
-                let isPlaying = body["isPlaying"] as? Bool ?? false
-
-                if !title.isEmpty {
-                    self.onMetadataChange?(title, artist, duration)
-                }
-
-                self.onStateChange?(isPlaying ? .playing : .paused)
-            }
-        }
-    }
-}
-
 // MARK: - SingletonPlayerWebView
 
 /// Manages a single WebView instance for the entire app lifetime.
@@ -457,9 +248,11 @@ final class SingletonPlayerWebView {
     }
 
     private final class PlaybackBridgeMultiplexer: NSObject, WKScriptMessageHandler {
+        private weak var owner: SingletonPlayerWebView?
         private weak var coordinator: Coordinator?
 
-        init(coordinator: Coordinator) {
+        init(owner: SingletonPlayerWebView, coordinator: Coordinator) {
+            self.owner = owner
             self.coordinator = coordinator
         }
 
@@ -467,10 +260,10 @@ final class SingletonPlayerWebView {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            let singleton = SingletonPlayerWebView.shared
-            guard let coordinator = self.coordinator,
-                  singleton.coordinator === coordinator,
-                  message.webView === singleton.webView,
+            guard let owner = self.owner,
+                  let coordinator = self.coordinator,
+                  owner.coordinator === coordinator,
+                  message.webView === owner.webView,
                   let body = message.body as? [String: Any],
                   let type = body["type"] as? String,
                   SingletonPlayerWebView.acceptsBridgeSource(
@@ -482,7 +275,7 @@ final class SingletonPlayerWebView {
 
             guard SingletonPlayerWebView.acceptsBridgeDocumentID(
                 body["documentID"] as? Int,
-                expectedDocumentID: singleton.expectedBridgeDocumentID,
+                expectedDocumentID: owner.expectedBridgeDocumentID,
                 messageType: type
             ) else { return }
 
@@ -501,7 +294,7 @@ final class SingletonPlayerWebView {
                 // Keep an uncertain occurrence unclaimed so a resolved retry can consume it.
                 guard body["mediaIdentityUncertain"] as? Bool != true else { return }
             case "TRACK_ENDED_IDENTITY_DEADLINE":
-                guard let expectedDocumentID = singleton.expectedBridgeDocumentID,
+                guard let expectedDocumentID = owner.expectedBridgeDocumentID,
                       body["documentID"] as? Int == expectedDocumentID,
                       WebPlaybackIdentityTransition.isValidTrackEndedIdentityDeadlinePayload(
                           .init(
@@ -728,7 +521,7 @@ final class SingletonPlayerWebView {
 
         // Preserve feature-specific queue/SPA ingress checks while the main
         // coordinator owns generation-scoped bridge decoding.
-        let playbackBridgeMultiplexer = PlaybackBridgeMultiplexer(coordinator: coordinator)
+        let playbackBridgeMultiplexer = PlaybackBridgeMultiplexer(owner: self, coordinator: coordinator)
         self.playbackBridgeMultiplexer = playbackBridgeMultiplexer
         configuration.userContentController.add(
             playbackBridgeMultiplexer,

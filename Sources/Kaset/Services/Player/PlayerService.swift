@@ -121,18 +121,18 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Native play/pause intent survives transient ad buffering/pauses where
     /// observable transport state is not authoritative for recovery.
-    var shouldResumeAfterInterruption = false
-    var isStoppingPlayback = false
+    @ObservationIgnored var shouldResumeAfterInterruption = false
+    @ObservationIgnored var isStoppingPlayback = false
 
-    var isAwaitingPlaybackConfirmation = false
-    var isExplicitPauseIntentActive = false
+    @ObservationIgnored var isAwaitingPlaybackConfirmation = false
+    @ObservationIgnored var isExplicitPauseIntentActive = false
 
     /// Whether the currently playing track is being played via native offline audio player (AVPlayer).
     var isPlayingOfflineTrack: Bool = false
 
     /// Whether the web player has confirmed playback for the current session.
     /// When confirmed, WebKit owns the macOS Now Playing card and media keys.
-    var hasConfirmedWebPlayback: Bool = false
+    @ObservationIgnored var hasConfirmedWebPlayback: Bool = false
 
     /// In-flight task resolving direct audio stream via yt-dlp.
     @ObservationIgnored var directStreamTask: Task<Void, Never>?
@@ -155,12 +155,18 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         self.state.isPlaying
     }
 
+    /// Isolated observable clock for high-frequency playback progress ticks.
+    @ObservationIgnored let playbackClock = PlaybackClock()
+
     /// Current playback position in seconds.
-    var progress: TimeInterval = 0
+    var progress: TimeInterval {
+        get { self.playbackClock.progress }
+        set { self.playbackClock.progress = newValue }
+    }
 
     /// Explicit native playback clock mirror used by restoration/history transitions.
     /// Synced-lyrics rendering uses `currentLyricsDisplayTimeMs` instead.
-    var currentTimeMs = 0
+    @ObservationIgnored var currentTimeMs = 0
 
     /// Current synced-lyrics line index, updated only when the displayed lyric line changes.
     var currentLyricsLineIndex: Int?
@@ -191,25 +197,25 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     }
 
     /// Only advancing, authoritative ad media refreshes the transition watchdog.
-    var lastAdPlaybackProgress: TimeInterval?
-    var lastAdPlaybackProgressAt: ContinuousClock.Instant?
+    @ObservationIgnored var lastAdPlaybackProgress: TimeInterval?
+    @ObservationIgnored var lastAdPlaybackProgressAt: ContinuousClock.Instant?
 
     /// Invalidates asynchronous snapshots that span an ad transition.
     @ObservationIgnored private(set) var adPlaybackStateGeneration = 0
 
     /// Last clock sample known to belong to the requested music content.
-    var lastNonAdContentProgress: TimeInterval = 0
+    @ObservationIgnored var lastNonAdContentProgress: TimeInterval = 0
 
     /// Video identity owning `lastNonAdContentProgress`.
-    var lastNonAdContentVideoId: String?
+    @ObservationIgnored var lastNonAdContentVideoId: String?
 
     /// Video ID carried by the latest playback-state bridge update. This gives consumers
     /// provenance for `progress`/`duration`, which can otherwise remain stale across track changes.
-    private(set) var playbackStateVideoId: String?
+    @ObservationIgnored private(set) var playbackStateVideoId: String?
 
     /// Monotonic identity for playback-state bridge observations. Consumers use this to distinguish
     /// a fresh same-video sample from progress/duration left behind by an earlier metadata identity.
-    private(set) var playbackStateObservationSequence = 0
+    @ObservationIgnored private(set) var playbackStateObservationSequence = 0
 
     /// Updates only playback identity; it must not infer duration provenance from existing state.
     func setPlaybackStateVideoId(_ videoId: String?) {
@@ -314,14 +320,14 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Set when guest-startup privacy cleanup empties visible queue state but
     /// must not delete a saved guest queue/session on the next persistence pass.
-    var suppressNextEmptyQueuePersistence = false
+    @ObservationIgnored var suppressNextEmptyQueuePersistence = false
 
     /// Ownership scope restored from the persisted playback session payload.
     /// `nil` means legacy/unknown and must not be trusted across guest privacy boundaries.
-    var restoredPlaybackSessionOwnerScope: String?
+    @ObservationIgnored var restoredPlaybackSessionOwnerScope: String?
 
     /// Startup must classify the restored queue before authentication can change its ownership.
-    var hasResolvedStartupPlaybackOwnership = false
+    @ObservationIgnored var hasResolvedStartupPlaybackOwnership = false
 
     var shouldPreserveRestoredPlaybackOwnership: Bool {
         self.isPendingRestoredLoadDeferred && !self.hasResolvedStartupPlaybackOwnership
@@ -351,7 +357,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     private(set) var currentQueueEntryID: UUID?
 
     /// Queue occurrence currently represented by active Web media.
-    var activePlaybackQueueEntryID: UUID?
+    @ObservationIgnored var activePlaybackQueueEntryID: UUID?
 
     var queuePlaybackContext: QueuePlaybackContext {
         QueuePlaybackContext(
@@ -400,11 +406,11 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// The visible queue pointer remains on the outgoing entry until the expected
     /// target media is observed. While pending, the persistent player must not
     /// autoload the target through Kaset's deterministic navigation path.
-    var pendingNativeQueueAdvance: PendingNativeQueueAdvance?
+    @ObservationIgnored var pendingNativeQueueAdvance: PendingNativeQueueAdvance?
 
-    var pendingNativeQueueAdvanceGeneration: Int = 0
-    var nativeQueueMaintenanceGeneration: Int = 0
-    var nativeQueueMaintenanceTask: Task<Void, Never>?
+    @ObservationIgnored var pendingNativeQueueAdvanceGeneration: Int = 0
+    @ObservationIgnored var nativeQueueMaintenanceGeneration: Int = 0
+    @ObservationIgnored var nativeQueueMaintenanceTask: Task<Void, Never>?
     @ObservationIgnored var nativeQueueMaintenanceWaiters: [Int: [CheckedContinuation<Void, Never>]] = [:]
 
     var pendingNativeQueueAdvanceVideoId: String? {
@@ -413,38 +419,38 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Whether the user has successfully interacted at least once this session.
     /// After first successful playback, we can auto-play without showing the popup.
-    private(set) var hasUserInteractedThisSession: Bool = false
+    @ObservationIgnored private(set) var hasUserInteractedThisSession: Bool = false
 
     /// Saved seek position to apply once a restored session finishes loading.
-    var pendingRestoredSeek: TimeInterval?
+    @ObservationIgnored var pendingRestoredSeek: TimeInterval?
 
     /// Whether a restored session is waiting for an explicit user-triggered load.
-    var isPendingRestoredLoadDeferred: Bool = false
+    @ObservationIgnored var isPendingRestoredLoadDeferred: Bool = false
 
     /// Whether the deferred restored load must force a full page navigation even
     /// when the same video ID is already present in the WebView.
-    var shouldForcePendingRestoredLoad: Bool = false
+    @ObservationIgnored var shouldForcePendingRestoredLoad: Bool = false
 
     /// Whether launch-time session restoration is still reconciling with the player observer.
-    var isRestoringPlaybackSession: Bool = false
+    @ObservationIgnored var isRestoringPlaybackSession: Bool = false
 
     /// Whether a restored load should automatically resume after seeking to the saved position.
-    var shouldAutoResumeAfterRestoredLoad: Bool = false
+    @ObservationIgnored var shouldAutoResumeAfterRestoredLoad: Bool = false
 
     /// Whether the active restore clock belongs to an explicit source re-anchor during native handoff.
-    var isRestoringExplicitTransportSeek = false
+    @ObservationIgnored var isRestoringExplicitTransportSeek = false
 
     /// Whether an explicit transport restore must route an eventual authoritative end position through track-ended handling.
-    var shouldFinishRestoredSeekAtEnd = false
+    @ObservationIgnored var shouldFinishRestoredSeekAtEnd = false
 
     /// Monotonic generation for deferred restored-session fallback tasks.
-    var restoredPlaybackSessionGeneration: Int = 0
+    @ObservationIgnored var restoredPlaybackSessionGeneration: Int = 0
 
     /// Whether startup is waiting for YT Music to report its own server-restored track.
-    var isAwaitingWebRestoredTrack: Bool = false
+    @ObservationIgnored var isAwaitingWebRestoredTrack: Bool = false
 
     /// Whether Kaset has already issued the one-shot defensive pause while a deferred restored session is awaiting web metadata.
-    var hasIssuedAutoplayPauseDuringDeferredRestore: Bool = false
+    @ObservationIgnored var hasIssuedAutoplayPauseDuringDeferredRestore: Bool = false
 
     /// Like status of the current track.
     var currentTrackLikeStatus: LikeStatus = .indifferent
@@ -501,23 +507,23 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     private(set) var nowPlayingTracklistProvider: NowPlayingTracklistProvider?
 
     /// Continuation token for loading more songs in infinite mix/radio.
-    var mixContinuationToken: String?
-    var mixContinuationRequiresAuth = false
-    var playbackContextGeneration = 0
-    var pendingPlaybackSelectionGeneration = 0
-    var playbackNavigationGeneration = 0
-    var queueMutationGeneration = 0
-    var musicPlaybackIntentGeneration: UInt64 = 0
-    var musicPlaybackReservationGeneration: UInt64 = 0
-    var musicPlaybackIntentIssuedAtMilliseconds: Double = 0
-    var musicPlaybackIntentAcceptsPriorTerminalEvent = false
-    var musicPlaybackMinimumAcceptedTerminalIntentGeneration: UInt64 = 0
-    var libraryMutationGeneration: UInt64 = 0
-    var libraryMutationRevisionCounter: UInt64 = 0
-    var libraryMutationRevisions: [String: UInt64] = [:]
-    var confirmedLibraryStateByKey: [String: MusicLibraryConfirmedState] = [:]
-    var pendingLibraryMutationCountsByKey: [String: Int] = [:]
-    var accountSessionGeneration: UInt64 = 0
+    @ObservationIgnored var mixContinuationToken: String?
+    @ObservationIgnored var mixContinuationRequiresAuth = false
+    @ObservationIgnored var playbackContextGeneration = 0
+    @ObservationIgnored var pendingPlaybackSelectionGeneration = 0
+    @ObservationIgnored var playbackNavigationGeneration = 0
+    @ObservationIgnored var queueMutationGeneration = 0
+    @ObservationIgnored var musicPlaybackIntentGeneration: UInt64 = 0
+    @ObservationIgnored var musicPlaybackReservationGeneration: UInt64 = 0
+    @ObservationIgnored var musicPlaybackIntentIssuedAtMilliseconds: Double = 0
+    @ObservationIgnored var musicPlaybackIntentAcceptsPriorTerminalEvent = false
+    @ObservationIgnored var musicPlaybackMinimumAcceptedTerminalIntentGeneration: UInt64 = 0
+    @ObservationIgnored var libraryMutationGeneration: UInt64 = 0
+    @ObservationIgnored var libraryMutationRevisionCounter: UInt64 = 0
+    @ObservationIgnored var libraryMutationRevisions: [String: UInt64] = [:]
+    @ObservationIgnored var confirmedLibraryStateByKey: [String: MusicLibraryConfirmedState] = [:]
+    @ObservationIgnored var pendingLibraryMutationCountsByKey: [String: Int] = [:]
+    @ObservationIgnored var accountSessionGeneration: UInt64 = 0
     @ObservationIgnored var libraryMutationTails: [String: Task<Result<Void, any Error>, Never>] = [:]
     @ObservationIgnored var libraryMutationTailGenerations: [String: UInt64] = [:]
     @ObservationIgnored var remoteMusicTransportCommands: [MusicRemoteTransportCommand] = []
@@ -536,17 +542,17 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Whether we're currently fetching more mix songs.
     var isFetchingMoreMixSongs: Bool = false
-    var activeMixContinuationRequestID: UUID?
+    @ObservationIgnored var activeMixContinuationRequestID: UUID?
 
     /// Callers waiting for the current mix continuation request to release its single-flight slot.
     @ObservationIgnored var mixContinuationFetchWaiters: [CheckedContinuation<Void, Never>] = []
     @ObservationIgnored var mixContinuationCompletionGeneration: UInt64 = 0
 
     /// Smart Shuffle: videoIds suggested this session, for dedup across fills.
-    var smartShuffleSeenSuggestionIds: Set<String> = []
+    @ObservationIgnored var smartShuffleSeenSuggestionIds: Set<String> = []
 
     /// Smart Shuffle: seed videoIds whose radio yielded nothing new, so the filler skips them.
-    var smartShuffleExhaustedSeeds: Set<String> = []
+    @ObservationIgnored var smartShuffleExhaustedSeeds: Set<String> = []
 
     /// Whether the smart-shuffle window filler is running (also drives the player-bar progress hint).
     var isApplyingSmartShuffle: Bool = false
@@ -570,10 +576,10 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     static let queueUndoMaxCount = 10
 
     /// Queue index before each `next()`; `previous()` pops so Back returns to the track you skipped from (shuffle- and seek-safe).
-    private var forwardSkipIndexStack: [Int] = []
+    @ObservationIgnored private var forwardSkipIndexStack: [Int] = []
 
     /// Queue order captured when shuffle is enabled, used to restore the visible queue when shuffle is disabled.
-    var queueOrderBeforeShuffle: [QueueEntry]?
+    @ObservationIgnored var queueOrderBeforeShuffle: [QueueEntry]?
 
     /// UserDefaults key for persisting volume.
     static let volumeKey = "playerVolume"

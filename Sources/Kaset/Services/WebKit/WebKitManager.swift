@@ -29,9 +29,13 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     /// The persistent website data store used across all WebViews.
     let dataStore: WKWebsiteDataStore
 
-    /// Serializes archive reads and writes for this manager's cookies. Defaults to the
-    /// process-wide queue so production keeps a single archive; tests inject their own.
-    let cookieArchiveQueue: CookieArchiveWriteQueue
+    /// Manages authentication cookie backup, restore, and archive storage.
+    let cookieArchiveManager: CookieArchiveManager
+
+    /// Serializes archive reads and writes for this manager's cookies.
+    var cookieArchiveQueue: CookieArchiveWriteQueue {
+        self.cookieArchiveManager.cookieArchiveQueue
+    }
 
     /// Timestamp of the last cookie change (for observation).
     private(set) var cookiesDidChange: Date = .distantPast
@@ -40,41 +44,51 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         self.cookiesDidChange = Date()
     }
 
-    /// Flag to prevent cookie backups while restoring from Keychain.
-    var isRestoringCookies = false
+    var isRestoringCookies: Bool {
+        get { self.cookieArchiveManager.isRestoringCookies }
+        set { self.cookieArchiveManager.isRestoringCookies = newValue }
+    }
 
-    /// Flag to prevent observer-driven backups while auth cookies are being cleared.
-    var isClearingAuthCookies = false
+    var isClearingAuthCookies: Bool {
+        get { self.cookieArchiveManager.isClearingAuthCookies }
+        set { self.cookieArchiveManager.isClearingAuthCookies = newValue }
+    }
 
-    /// Serializes and coalesces every auth-cookie/data clearing operation.
-    let authCookieClearCoordinator = AuthCookieClearCoordinator()
+    var cookieDebounceTask: Task<Void, Never>? {
+        get { self.cookieArchiveManager.cookieDebounceTask }
+        set { self.cookieArchiveManager.cookieDebounceTask = newValue }
+    }
 
-    /// Task for debouncing cookie change handling.
-    var cookieDebounceTask: Task<Void, Never>?
+    var isPreparingLoginCookieBackup: Bool {
+        get { self.cookieArchiveManager.isPreparingLoginCookieBackup }
+        set { self.cookieArchiveManager.isPreparingLoginCookieBackup = newValue }
+    }
 
-    /// Coalesces callers that require the latest cookie snapshot to be persisted.
-    var forcedCookieBackupTask: Task<Bool, Never>?
+    var activeLoginCookieBackupTransaction: CookieBackupTransaction? {
+        get { self.cookieArchiveManager.activeLoginCookieBackupTransaction }
+        set { self.cookieArchiveManager.activeLoginCookieBackupTransaction = newValue }
+    }
 
-    /// Suppresses observer-driven persistence while a login baseline is captured.
-    var isPreparingLoginCookieBackup = false
+    var forcedCookieBackupDirty: Bool {
+        get { self.cookieArchiveManager.forcedCookieBackupDirty }
+        set { self.cookieArchiveManager.forcedCookieBackupDirty = newValue }
+    }
 
-    /// Suppresses observer-driven persistence while a login backup is staged.
-    var activeLoginCookieBackupTransaction: CookieBackupTransaction?
+    var loginCookieBackupSetupRequiresCleanup: Bool {
+        self.cookieArchiveManager.loginCookieBackupSetupRequiresCleanup
+    }
 
-    /// Whether transaction setup failed to restore its prior durable state.
-    var loginCookieBackupSetupRequiresCleanup = false
+    var initialCookieRestoreTask: Task<CookieRestoreResult, Never>? {
+        self.cookieArchiveManager.initialCookieRestoreTask
+    }
 
-    /// Records cookie changes delivered while a forced snapshot is being persisted.
-    var forcedCookieBackupDirty = false
+    var authCookieOperationFence: AuthCookieOperationFence {
+        self.cookieArchiveManager.authCookieOperationFence
+    }
 
-    /// Coalesces startup restoration and retries after temporary storage failures.
-    var initialCookieRestoreTask: Task<CookieRestoreResult, Never>?
-
-    /// Authentication and archive writes stay blocked until restoration is resolved.
-    var initialCookieRestoreResult: CookieRestoreResult = .ready
-
-    /// Invalidates startup restores and backups that began before an auth-cookie clear.
-    var authCookieOperationFence = AuthCookieOperationFence()
+    var canPersistAuthCookies: Bool {
+        self.cookieArchiveManager.canPersistAuthCookies
+    }
 
     /// Minimum interval between cookie backup operations (in seconds).
     static let cookieDebounceInterval: Duration = .seconds(5)
@@ -98,14 +112,11 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
 
     private var extensionContexts: [String: WKWebExtensionContext] = [:]
 
-    #if compiler(>=5.9)
-        @ObservationIgnored
-        @available(macOS 15.4, *)
-        private lazy var webExtensionHost = KasetWebExtensionHost(
-            controller: self.webExtensionController,
-            logger: DiagnosticsLogger.extensions
-        )
-    #endif
+    @ObservationIgnored
+    private lazy var webExtensionHost = KasetWebExtensionHost(
+        controller: self.webExtensionController,
+        logger: DiagnosticsLogger.extensions
+    )
 
     private init(
         dataStore: WKWebsiteDataStore,
@@ -114,9 +125,20 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         cookieArchiveQueue: CookieArchiveWriteQueue = .shared
     ) {
         self.dataStore = dataStore
-        self.cookieArchiveQueue = cookieArchiveQueue
+        var onChange: (@MainActor () -> Void)?
+        self.cookieArchiveManager = CookieArchiveManager(
+            dataStore: dataStore,
+            cookieArchiveQueue: cookieArchiveQueue,
+            onCookiesDidChange: {
+                onChange?()
+            }
+        )
 
         super.init()
+
+        onChange = { [weak self] in
+            self?.recordCookieChange()
+        }
 
         // Observe cookie changes
         self.dataStore.httpCookieStore.add(self)
@@ -129,68 +151,52 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
 
         self.logger.info("WebKitManager initialized with persistent data store")
 
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                self.webExtensionController.delegate = self
-            }
-        #endif
+        self.webExtensionController.delegate = self
 
         if loadsExtensions {
             Task { await self.loadExtensions() }
         }
     }
 
+    isolated deinit {
+        self.dataStore.httpCookieStore.remove(self)
+    }
+
+    func tearDown() {
+        self.dataStore.httpCookieStore.remove(self)
+    }
+
     /// Returns `true` if any web extension is currently loaded.
     var isExtensionLoaded: Bool {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                return !self.webExtensionController.extensionContexts.isEmpty
-            }
-        #endif
-        return false
+        !self.webExtensionController.extensionContexts.isEmpty
     }
 
     /// Number of currently loaded extensions.
     var loadedExtensionCount: Int {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                return self.webExtensionController.extensionContexts.count
-            }
-        #endif
-        return 0
+        self.webExtensionController.extensionContexts.count
     }
 
     /// Returns the version string of the first loaded extension, if any.
     var extensionVersion: String? {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                return self.webExtensionController.extensionContexts.first?.webExtension.version
-            }
-        #endif
-        return nil
+        self.webExtensionController.extensionContexts.first?.webExtension.version
     }
 
     /// Loads all enabled extensions from `ExtensionsManager`.
     private func loadExtensions() async {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                let resolvedURLs = ExtensionsManager.shared.resolvedURLs()
-                guard !resolvedURLs.isEmpty else {
-                    self.logger.info("No enabled extensions to load")
-                    return
-                }
+        let resolvedURLs = ExtensionsManager.shared.resolvedURLs()
+        guard !resolvedURLs.isEmpty else {
+            self.logger.info("No enabled extensions to load")
+            return
+        }
 
-                for (id, url) in resolvedURLs {
-                    await self.loadSingleExtension(at: url, id: id)
-                }
+        for (id, url) in resolvedURLs {
+            await self.loadSingleExtension(at: url, id: id)
+        }
 
-                self.logger.info("Loaded \(self.webExtensionController.extensionContexts.count) extension(s)")
-            }
-        #endif
+        self.logger.info("Loaded \(self.webExtensionController.extensionContexts.count) extension(s)")
     }
 
     /// Loads a single web extension from a directory URL.
-    @available(macOS 14.0, *)
     private func loadSingleExtension(at url: URL, id: String) async {
         do {
             let webExtension = try await WKWebExtension(resourceBaseURL: url)
@@ -210,10 +216,8 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
                 context.setPermissionStatus(.grantedExplicitly, for: matchPattern)
             }
 
-            if #available(macOS 15.4, *) {
-                for matchPattern in Self.contentScriptMatchPatterns(from: webExtension.manifest) {
-                    context.setPermissionStatus(.grantedExplicitly, for: matchPattern)
-                }
+            for matchPattern in Self.contentScriptMatchPatterns(from: webExtension.manifest) {
+                context.setPermissionStatus(.grantedExplicitly, for: matchPattern)
             }
 
             try self.webExtensionController.load(context)
@@ -226,7 +230,6 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         }
     }
 
-    @available(macOS 15.4, *)
     static func contentScriptMatchPatterns(from manifest: [AnyHashable: Any]) -> [WKWebExtension.MatchPattern] {
         guard let contentScripts = manifest["content_scripts"] as? [[String: Any]] else {
             return []
@@ -253,12 +256,7 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     ) -> WKWebViewConfiguration {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = websiteDataStore ?? self.dataStore
-
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                configuration.webExtensionController = self.webExtensionController
-            }
-        #endif
+        configuration.webExtensionController = self.webExtensionController
 
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
@@ -285,59 +283,31 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
     /// but content injection and tab-scoped APIs also require the app to expose a
     /// lightweight `WKWebExtensionTab`/`WKWebExtensionWindow` model.
     func registerExtensionHostWebView(_ webView: WKWebView, role: WebExtensionHostedWebViewRole) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.register(webView: webView, role: role)
-            }
-        #endif
+        self.webExtensionHost.register(webView: webView, role: role)
     }
 
     func extensionHostWebViewWillNavigate(_ webView: WKWebView, to url: URL?) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.noteNavigationStarted(for: webView, pendingURL: url)
-            }
-        #endif
+        self.webExtensionHost.noteNavigationStarted(for: webView, pendingURL: url)
     }
 
     func extensionHostWebViewDidStartNavigation(_ webView: WKWebView) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.noteNavigationStarted(for: webView, pendingURL: nil)
-            }
-        #endif
+        self.webExtensionHost.noteNavigationStarted(for: webView, pendingURL: nil)
     }
 
     func extensionHostWebViewDidBecomeActive(_ webView: WKWebView) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.noteBecameActive(webView: webView)
-            }
-        #endif
+        self.webExtensionHost.noteBecameActive(webView: webView)
     }
 
     func unregisterExtensionHostWebView(role: WebExtensionHostedWebViewRole) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.unregister(role: role)
-            }
-        #endif
+        self.webExtensionHost.unregister(role: role)
     }
 
     func extensionHostWebViewDidFinishNavigation(_ webView: WKWebView) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.noteNavigationFinished(for: webView)
-            }
-        #endif
+        self.webExtensionHost.noteNavigationFinished(for: webView)
     }
 
     func extensionHostWebViewDidFailNavigation(_ webView: WKWebView) {
-        #if compiler(>=5.9)
-            if #available(macOS 15.4, *) {
-                self.webExtensionHost.noteNavigationFailed(for: webView)
-            }
-        #endif
+        self.webExtensionHost.noteNavigationFailed(for: webView)
     }
 
     /// Creates the minimal WebView configuration used for the login sheet and
@@ -363,26 +333,21 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
 
     /// Resolves the options or popup page for a loaded extension.
     func extensionPage(forExtensionId id: String) -> ExtensionPage? {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                guard let context = self.extensionContexts[id] else { return nil }
-                guard let configuration = context.webViewConfiguration else { return nil }
+        guard let context = self.extensionContexts[id] else { return nil }
+        guard let configuration = context.webViewConfiguration else { return nil }
 
-                if let optionsURL = context.optionsPageURL {
-                    return ExtensionPage(id: id, url: optionsURL, configuration: configuration)
-                }
+        if let optionsURL = context.optionsPageURL {
+            return ExtensionPage(id: id, url: optionsURL, configuration: configuration)
+        }
 
-                guard let managedExt = ExtensionsManager.shared.extensions.first(where: { $0.id == id }),
-                      let relativePath = managedExt.optionsPath ?? managedExt.popupPath,
-                      let fallbackURL = Self.extensionResourceURL(relativePath: relativePath, baseURL: context.baseURL)
-                else {
-                    return nil
-                }
+        guard let managedExt = ExtensionsManager.shared.extensions.first(where: { $0.id == id }),
+              let relativePath = managedExt.optionsPath ?? managedExt.popupPath,
+              let fallbackURL = Self.extensionResourceURL(relativePath: relativePath, baseURL: context.baseURL)
+        else {
+            return nil
+        }
 
-                return ExtensionPage(id: id, url: fallbackURL, configuration: configuration)
-            }
-        #endif
-        return nil
+        return ExtensionPage(id: id, url: fallbackURL, configuration: configuration)
     }
 
     /// Gets the options page URL for a loaded extension by its Kaset internal ID.
@@ -392,21 +357,17 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
 
     /// Gets the options page URL for a loaded extension by name (deprecated/fallback).
     func optionsPageURL(forExtensionNamed name: String) -> URL? {
-        #if compiler(>=5.9)
-            if #available(macOS 14.0, *) {
-                self.logger.info("Looking for options page for extension: \(name)")
-                for context in self.webExtensionController.extensionContexts {
-                    let displayName = context.webExtension.displayName ?? ""
-                    self.logger.debug("Checking context: \(displayName)")
-                    if displayName == name {
-                        let url = context.optionsPageURL
-                        self.logger.info("Found options page URL: \(url?.absoluteString ?? "nil")")
-                        return url
-                    }
-                }
-                self.logger.warning("No extension found with display name: \(name)")
+        self.logger.info("Looking for options page for extension: \(name)")
+        for context in self.webExtensionController.extensionContexts {
+            let displayName = context.webExtension.displayName ?? ""
+            self.logger.debug("Checking context: \(displayName)")
+            if displayName == name {
+                let url = context.optionsPageURL
+                self.logger.info("Found options page URL: \(url?.absoluteString ?? "nil")")
+                return url
             }
-        #endif
+        }
+        self.logger.warning("No extension found with display name: \(name)")
         return nil
     }
 
@@ -518,135 +479,102 @@ final class WebKitManager: NSObject, WebKitManagerProtocol {
         self.logger.info("==============================")
     }
 
+    // MARK: - Cookie Archive Delegation
+
+    @discardableResult
+    func invalidateAuthCookieRestoration() -> Bool {
+        self.cookieArchiveManager.invalidateAuthCookieRestoration()
+    }
+
+    func startInitialCookieRestore() {
+        self.cookieArchiveManager.startInitialCookieRestore()
+    }
+
+    func waitForInitialCookieRestore() async -> CookieRestoreResult {
+        await self.cookieArchiveManager.waitForInitialCookieRestore()
+    }
+
+    func restoreAuthCookiesFromBackup(expectedGeneration: UInt64) async -> CookieRestoreResult {
+        await self.cookieArchiveManager.restoreAuthCookiesFromBackup(expectedGeneration: expectedGeneration)
+    }
+
+    func quarantineFailedAuthCookieRestore(expectedGeneration: UInt64) async -> Bool {
+        await self.cookieArchiveManager.quarantineFailedAuthCookieRestore(expectedGeneration: expectedGeneration)
+    }
+
+    func beginLoginCookieBackup() async -> CookieBackupTransaction? {
+        await self.cookieArchiveManager.beginLoginCookieBackup()
+    }
+
+    func isLoginCookieBackupActive(_ transaction: CookieBackupTransaction) async -> Bool {
+        await self.cookieArchiveManager.isLoginCookieBackupActive(transaction)
+    }
+
+    func hasLoginCookieSnapshotChanged(_ transaction: CookieBackupTransaction) async -> Bool {
+        await self.cookieArchiveManager.hasLoginCookieSnapshotChanged(transaction)
+    }
+
+    func refreshLoginCookieBackup(_ transaction: CookieBackupTransaction) async -> Bool {
+        await self.cookieArchiveManager.refreshLoginCookieBackup(transaction)
+    }
+
+    @discardableResult
+    func commitLoginCookieBackup(_ transaction: CookieBackupTransaction) async -> String? {
+        await self.cookieArchiveManager.commitLoginCookieBackup(transaction)
+    }
+
+    func finalizeLoginCookieBackup(_ transaction: CookieBackupTransaction) async -> String? {
+        await self.cookieArchiveManager.finalizeLoginCookieBackup(transaction)
+    }
+
+    func prepareLoginCookieBackupRollback(_ transaction: CookieBackupTransaction) async -> Bool {
+        await self.cookieArchiveManager.prepareLoginCookieBackupRollback(transaction)
+    }
+
+    func rollbackLoginCookieBackup(_ transaction: CookieBackupTransaction) async -> CookieBackupRollbackResult {
+        await self.cookieArchiveManager.rollbackLoginCookieBackup(transaction)
+    }
+
+    func forceBackupCookies() async -> Bool {
+        await self.cookieArchiveManager.forceBackupCookies()
+    }
+
+    func handleObservedCookieChange(in cookieStore: WKHTTPCookieStore) {
+        self.cookieArchiveManager.handleObservedCookieChange(in: cookieStore)
+    }
+
     /// Clears only authentication cookies, preserving public WebKit cache/data.
     @discardableResult
     func clearAuthCookies() async -> Bool {
-        await self.authCookieClearCoordinator.run(scope: .authenticationCookies) { [weak self] in
-            guard let self else { return false }
-            return await self.performAuthCookieClear()
-        }
-    }
-
-    private func performAuthCookieClear() async -> Bool {
-        self.logger.info("Clearing WebKit auth cookies")
-        self.isClearingAuthCookies = true
-        defer { self.isClearingAuthCookies = false }
-
-        await self.fenceAuthCookieOperationsAndInvalidateBackup()
-
-        // Invalidate once more after the initial fence so no operation that was
-        // already queued before it can leave a durable stale snapshot. All live
-        // verification happens after this final persistence suspension.
-        let didInvalidatePersistedCookies = await self.cookieArchiveQueue.invalidateAndDelete()
-
-        let liveClearResult = await LiveAuthCookieStoreClearer.clear(
-            operations: LiveAuthCookieStoreClearer.Operations(
-                readCookies: {
-                    await self.dataStore.httpCookieStore.allCookies()
-                },
-                deleteCookie: { cookie in
-                    await self.dataStore.httpCookieStore.deleteCookie(cookie)
-                },
-                removeAllCookies: {
-                    await self.dataStore.removeData(
-                        ofTypes: [WKWebsiteDataTypeCookies],
-                        modifiedSince: .distantPast
-                    )
-                }
-            )
-        )
-        if liveClearResult.usedCookieStoreFallback {
-            self.logger.warning("Escalated authentication cleanup to the WebKit cookie data store")
-        }
-        if !liveClearResult.didClear {
-            self.logger.error("Could not clear live authentication cookies")
-        }
-
-        let didClear = liveClearResult.didClear && didInvalidatePersistedCookies
-        self.initialCookieRestoreResult = didClear ? .ready : .failed
-        self.loginCookieBackupSetupRequiresCleanup = !didClear
-        self.cookiesDidChange = Date()
-        return didClear
+        await self.cookieArchiveManager.clearAuthCookies()
     }
 
     /// Clears all website data (cookies, cache, etc.).
     @discardableResult
     func clearAllData() async -> Bool {
-        await self.authCookieClearCoordinator.run(scope: .allWebsiteData) { [weak self] in
-            guard let self else { return false }
-            return await self.performAllWebsiteDataClear()
-        }
-    }
-
-    private func performAllWebsiteDataClear() async -> Bool {
-        let allTypes = WKWebsiteDataStore.allWebsiteDataTypes()
-        let dateFrom = Date.distantPast
-
-        self.logger.info("Clearing all WebKit data")
-        self.isClearingAuthCookies = true
-        defer { self.isClearingAuthCookies = false }
-
-        await self.fenceAuthCookieOperationsAndInvalidateBackup()
-        await self.dataStore.removeData(ofTypes: allTypes, modifiedSince: dateFrom)
-
-        // Repeat the invalidation after WebKit finishes clearing to close the
-        // window for any already-enqueued observer or backup work.
-        let didInvalidatePersistedCookies = await self.cookieArchiveQueue.invalidateAndDelete()
-        let remainingCookies = await self.dataStore.httpCookieStore.allCookies()
-        let didClearLiveCookies = !remainingCookies.contains(where: KeychainCookieStorage.isLoginDomainCookie)
-        let didClear = didInvalidatePersistedCookies && didClearLiveCookies
-        self.initialCookieRestoreResult = didClear ? .ready : .failed
-        self.loginCookieBackupSetupRequiresCleanup = !didClear
-        if didClear {
-            self.logger.info("WebKit data cleared successfully")
-        } else {
-            self.logger.error("WebKit data or durable cookie invalidation could not be cleared")
-        }
-        self.cookiesDidChange = Date()
-        return didClear
-    }
-
-    private func fenceAuthCookieOperationsAndInvalidateBackup() async {
-        self.authCookieOperationFence.invalidate()
-        self.activeLoginCookieBackupTransaction = nil
-        self.cookieDebounceTask?.cancel()
-        self.cookieDebounceTask = nil
-
-        let restoreTask = self.initialCookieRestoreTask
-        let backupTask = self.forcedCookieBackupTask
-        restoreTask?.cancel()
-        backupTask?.cancel()
-
-        _ = await self.cookieArchiveQueue.invalidateAndDelete()
-        _ = await restoreTask?.value
-        _ = await backupTask?.value
+        await self.cookieArchiveManager.clearAllData()
     }
 }
 
-#if compiler(>=5.9)
-    @available(macOS 14.0, *)
-    extension WebKitManager: WKWebExtensionControllerDelegate {
-        func webExtensionController(_: WKWebExtensionController, shouldShowPromptFor permissions: Set<WKWebExtension.Permission>, in _: WKWebExtensionContext) async -> Bool {
-            self.logger.info("Showing permission prompt for: \(permissions.map(\.rawValue).joined(separator: ", "))")
-            return true
-        }
-
-        func webExtensionController(_: WKWebExtensionController, shouldShowPromptFor matchPatterns: Set<WKWebExtension.MatchPattern>, in _: WKWebExtensionContext) async -> Bool {
-            self.logger.info("Showing match-pattern prompt for: \(matchPatterns.map(\.string).joined(separator: ", "))")
-            return true
-        }
-
-        @available(macOS 15.4, *)
-        func webExtensionController(_: WKWebExtensionController, openWindowsFor _: WKWebExtensionContext) -> [any WKWebExtensionWindow] {
-            self.webExtensionHost.openWindows
-        }
-
-        @available(macOS 15.4, *)
-        func webExtensionController(_: WKWebExtensionController, focusedWindowFor _: WKWebExtensionContext) -> (any WKWebExtensionWindow)? {
-            self.webExtensionHost.focusedWindow
-        }
+extension WebKitManager: WKWebExtensionControllerDelegate {
+    func webExtensionController(_: WKWebExtensionController, shouldShowPromptFor permissions: Set<WKWebExtension.Permission>, in _: WKWebExtensionContext) async -> Bool {
+        self.logger.info("Showing permission prompt for: \(permissions.map(\.rawValue).joined(separator: ", "))")
+        return true
     }
-#endif
+
+    func webExtensionController(_: WKWebExtensionController, shouldShowPromptFor matchPatterns: Set<WKWebExtension.MatchPattern>, in _: WKWebExtensionContext) async -> Bool {
+        self.logger.info("Showing match-pattern prompt for: \(matchPatterns.map(\.string).joined(separator: ", "))")
+        return true
+    }
+
+    func webExtensionController(_: WKWebExtensionController, openWindowsFor _: WKWebExtensionContext) -> [any WKWebExtensionWindow] {
+        self.webExtensionHost.openWindows
+    }
+
+    func webExtensionController(_: WKWebExtensionController, focusedWindowFor _: WKWebExtensionContext) -> (any WKWebExtensionWindow)? {
+        self.webExtensionHost.focusedWindow
+    }
+}
 
 // MARK: - SessionSwitchError
 

@@ -303,15 +303,6 @@ enum CookieArchiveRestorePolicy {
     }
 }
 
-// MARK: - Synchronous Restoration Invalidation
-
-extension WebKitManager {
-    @discardableResult
-    func invalidateAuthCookieRestoration() -> Bool {
-        CookieArchiveRestorePolicy.invalidateAndAdvanceGeneration()
-    }
-}
-
 // MARK: - InMemoryCookieArchiveBox
 
 /// Backing store for `CookieArchiveStorage.inMemory()`.
